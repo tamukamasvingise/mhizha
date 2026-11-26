@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: claimed
+Status: resolved
 
 ## Question
 
@@ -17,3 +17,16 @@ Carry out [Product name and open source](22-product-name-and-open-source.md), so
 7. Once the new repo works, remove the old local copy.
 
 HITL: step 6 needs the owner. Record the new paths and URLs in the answer.
+
+## Answer
+
+Done with the owner on 2026-11-26.
+
+- Repo: https://github.com/tamukamasvingise/mhizha, public since 2026-11-26, branch `main`, starting from one commit.
+- Local folder: `08-open-source/mhizha` in the owner's business folder (08, because 06 was already taken).
+- The planning files were rewritten for Mhizha with the reference user named nowhere. The six research notes moved from their throwaway branches into `docs/research/`, and tickets link to them there.
+- Added `LICENSE` (GPL-3.0, GitHub's text) and `README.md`.
+- Search of every file: no reference user name, client paths, keys, phone numbers or emails. The commit email is the owner's, by choice.
+- The old planning repo is private and archived, with a pointer here. Its local copy was removed.
+- The owner's agent notes list this repo under "Open source" and say where the reference designs live.
+

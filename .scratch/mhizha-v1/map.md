@@ -46,6 +46,7 @@ Settled while charting:
 - [Opening balances](issues/18-opening-balances.md): amounts owed or held on the Start date are Opening balance items, paid like Invoices but never Sales; optional monthly sales totals feed the VAT threshold.
 - [Signing and delivery](issues/11-signing-and-delivery.md): one developer-held release key with three copies, a permanent package name from the new product name, separate `.test` builds, updates by Google Drive link.
 - [Product name and open source](issues/22-product-name-and-open-source.md): the product is Mhizha, the owner's own, for construction service providers; GPL-3.0, issues only, a fresh public repo with the reference user named nowhere.
+- [Go public](issues/23-go-public.md): planning continues in the public repo tamukamasvingise/mhizha (GPL-3.0); the old private repo is archived.
 
 ## Not yet specified
 
