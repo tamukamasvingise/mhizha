@@ -1,0 +1,713 @@
+<title>Mhizha main screens prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  PROTOTYPE, throwaway. Answers "Main screens prototype" in .scratch/mhizha-v1.
+  Round 2: the owner chose variant A (tab bar: Home, Customers, Documents, Money; one New button)
+  with C's step-by-step Quotation, used here for every Quotation and Invoice.
+  Colour: one orange accent on Life OS's greys, applied the way Life OS and Catalogue apply their green.
+  In-memory example data only; nothing is saved. Reload or "Reset" to start again.
+-->
+<style>
+/* Layout: a 360px phone on a quiet page, notes beside it on wide screens, a small prototype bar fixed at the bottom.
+   Colour: one accent (orange) used the way Life OS and Catalogue use their green: the primary button, the current tab,
+   selected items, the mark, step bars and focus. Everything else is Life OS's greys. Red only for errors, overdue and Cancel.
+   No warning or success colours: notices are grey cards with bold titles; "Paid" is words, not colour.
+   Light and dark follow the phone. */
+:root{
+  --page:#F6F7F7;--surface:#FFFFFF;--fg:#18181B;--label:#52525B;--line:#E4E4E7;--input:#71717A;--tint:#F4F4F5;
+  --primary:#C2410C;--primary-fg:#FFFFFF;--brand:#C2410C;--sel:#FFEDD5;--sel-fg:#9A3412;
+  --bad:#B91C1C;--bad-bg:transparent;--ring:#C2410C;--scrim:rgb(0 0 0/.5);--pbar:#18181B;--pbar-fg:#F4F4F5;
+  --r:8px;--r-l:16px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s6:24px;--s8:32px;
+  --t-s:14px;--t-m:16px;--t-l:24px;--t-xl:32px;--shadow-fab:0 4px 12px rgb(0 0 0/.25);--icon:20px;--icon-s:18px;
+  font-family:system-ui,"Roboto","Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0A0A0A;--surface:#141416;--fg:#F4F4F5;--label:#A1A1AA;--line:#27272A;--input:#71717A;--tint:#1C1C1F;
+  --primary:#FB923C;--primary-fg:#0A0A0A;--brand:#FB923C;--sel:#431407;--sel-fg:#FED7AA;
+  --bad:#F87171;--bad-bg:transparent;--ring:#FB923C;--scrim:rgb(0 0 0/.6);--pbar:#F4F4F5;--pbar-fg:#0A0A0A;color-scheme:dark}}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{
+  --page:#0A0A0A;--surface:#141416;--fg:#F4F4F5;--label:#A1A1AA;--line:#27272A;--input:#71717A;--tint:#1C1C1F;
+  --primary:#FB923C;--primary-fg:#0A0A0A;--brand:#FB923C;--sel:#431407;--sel-fg:#FED7AA;
+  --bad:#F87171;--bad-bg:transparent;--ring:#FB923C;--scrim:rgb(0 0 0/.6);--pbar:#F4F4F5;--pbar-fg:#0A0A0A;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--page);color:var(--fg);font-size:var(--t-m);line-height:1.4;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .2s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+.wrap{display:flex;gap:var(--s8);justify-content:center;align-items:flex-start;padding-block:var(--s6) 88px}
+.notes{max-width:22rem;font-size:var(--t-s);color:var(--label);display:flex;flex-direction:column;gap:var(--s3)}
+.notes h1{font-size:var(--t-l);color:var(--fg);margin:0;text-wrap:balance}
+.notes h2{font-size:var(--t-m);color:var(--fg);margin:var(--s2) 0 0}
+.notes p,.notes ul{margin:0}.notes ul{padding-left:1.2em;display:flex;flex-direction:column;gap:var(--s1)}
+@media (max-width:760px){.notes{display:none}.wrap{padding-block:var(--s2) 80px}}
+.phone{position:relative;width:360px;max-width:100%;height:min(720px,calc(100dvh - 104px));min-height:480px;background:var(--page);border:1px solid var(--input);border-radius:var(--r-l);overflow:hidden;display:flex;flex-direction:column}
+svg.i{width:var(--icon);height:var(--icon);flex:none}
+.btn svg.i,.item svg.i{width:var(--icon-s);height:var(--icon-s)}
+/* top bar: Blueprint Navy */
+.top{display:flex;align-items:center;gap:var(--s1);padding:var(--s1) var(--s1) var(--s1) var(--s4);min-height:56px;background:var(--surface);color:var(--fg);border-bottom:1px solid var(--line)}
+.top.sub{padding-left:var(--s1)}
+.top h1{flex:1;margin:0;font-size:var(--t-m);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mark{display:inline-flex;align-items:center;gap:var(--s2);font-weight:700;font-size:var(--t-m)}
+.mark svg{width:22px;height:22px;color:var(--brand)}
+.ib{min-width:44px;min-height:44px;border:0;background:none;border-radius:var(--r);display:grid;place-items:center;cursor:pointer;color:inherit}
+.ib:hover{background:var(--tint)}
+main{flex:1;overflow-y:auto;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s4)}main>*,.sheet>*{flex-shrink:0}
+/* bottom tabs: Blueprint Navy */
+nav.tabs{display:flex;background:var(--surface);border-top:1px solid var(--line)}
+nav.tabs button{flex:1;border:0;background:none;padding:var(--s2) 0 var(--s2);display:flex;flex-direction:column;align-items:center;gap:var(--s1);font-size:var(--t-s);color:var(--label);cursor:pointer;min-height:60px}
+nav.tabs button span.pill{display:grid;place-items:center;width:52px;height:28px;border-radius:999px}
+nav.tabs button[aria-current="page"]{color:var(--sel-fg);font-weight:700}
+nav.tabs button[aria-current="page"] span.pill{background:var(--sel);color:var(--sel-fg)}
+.fab{position:absolute;right:var(--s4);bottom:76px;border:0;border-radius:var(--r-l);background:var(--primary);color:var(--primary-fg);min-height:52px;padding:0 var(--s4) 0 var(--s3);display:flex;align-items:center;gap:var(--s2);font-weight:700;cursor:pointer;box-shadow:var(--shadow-fab)}
+.btn{border:1px solid var(--input);background:var(--surface);border-radius:var(--r);min-height:44px;padding:0 var(--s4);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);text-align:center}
+.btn.p{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+.btn.d{color:var(--bad);border-color:var(--bad)}
+.btn.w{width:100%}
+.btn.sm{min-height:44px;padding:0 var(--s3);font-size:var(--t-s)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
+.row.sp{justify-content:space-between}
+.row>.btn{flex:1 1 auto}
+.sec{display:flex;flex-direction:column;gap:var(--s2)}
+.sec h2{margin:0;font-size:var(--t-s);color:var(--label);font-weight:600}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);border:0;border-bottom:1px solid var(--line);background:var(--surface);width:100%;text-align:left;min-height:56px}
+button.item,label.item{cursor:pointer}
+.item:last-child{border-bottom:0}
+button.item:hover,label.item:hover{background:var(--tint)}
+.item .m{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{font-size:var(--t-s);color:var(--label)}
+.amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.amt small{font-weight:400;font-size:var(--t-s);color:var(--label)}
+.chip{display:inline-flex;align-items:center;gap:2px;font-size:var(--t-s);font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid var(--input);color:var(--fg);white-space:nowrap}
+.chip.ok{border-color:var(--line);color:var(--fg);background:var(--tint)}
+.chip.ok::before{content:"✓ "}
+.chip.bad{border-color:var(--bad);color:var(--bad);background:var(--bad-bg)}
+.chip.bad::before{content:"! "}
+.chip.warn{border-color:var(--line);color:var(--fg);background:var(--tint)}
+.big{font-size:var(--t-xl);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
+.label{font-size:var(--t-s);color:var(--label);margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2)}
+.notice{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:var(--r);padding:var(--s3);font-size:var(--t-s);display:flex;flex-direction:column;gap:var(--s2)}
+.notice strong{font-size:var(--t-m)}
+.notice.info{}
+.notice.bad{border-color:var(--bad);background:var(--bad-bg);color:var(--fg)}
+.notice .row .btn{flex:0 0 auto}
+.field{display:flex;flex-direction:column;gap:var(--s1)}
+.field label,.field .lab{font-size:var(--t-s);font-weight:600}
+.hint{font-size:var(--t-s);color:var(--label)}
+.err{font-size:var(--t-s);color:var(--bad);font-weight:600}
+.err::before{content:"! "}
+input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea{border:1px solid var(--input);border-radius:var(--r);background:var(--surface);min-height:44px;padding:0 var(--s3);width:100%}
+input[aria-invalid="true"]{border-color:var(--bad);border-width:2px}
+textarea{padding:var(--s2) var(--s3);min-height:72px}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--primary);flex:none}
+.seg{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.seg label{position:relative;border:1px solid var(--input);background:var(--surface);border-radius:999px;padding:0 var(--s3);cursor:pointer;font-size:var(--t-s);min-height:44px;display:flex;align-items:center;gap:var(--s1)}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--sel);color:var(--sel-fg);border-color:var(--brand);font-weight:700}
+.seg label:has(input:checked)::before{content:"✓"}
+.seg label:has(input:focus-visible){outline:3px solid var(--ring);outline-offset:2px}
+.tot{display:grid;grid-template-columns:1fr auto;gap:var(--s1) var(--s4);font-variant-numeric:tabular-nums}
+.tot .g{font-weight:700;font-size:var(--t-m);border-top:1px solid var(--line);padding-top:var(--s2)}
+.line{display:grid;grid-template-columns:1fr auto;gap:var(--s1) var(--s2);padding:var(--s3);border-bottom:1px solid var(--line);align-items:center}
+.line:last-child{border-bottom:0}
+.line .s{font-size:var(--t-s);color:var(--label)}
+.line .qp{display:flex;align-items:center;gap:var(--s2);font-size:var(--t-s);color:var(--label)}
+.line .qp input{width:84px}
+.steps{display:flex;gap:var(--s1)}.steps i{flex:1;height:4px;border-radius:2px;background:var(--line)}.steps i.on{background:var(--brand)}
+.q{margin:0;font-size:var(--t-l);font-weight:700;text-wrap:balance}
+.foot{border-top:1px solid var(--line);padding:var(--s3) var(--s4);display:flex;gap:var(--s2);background:var(--surface)}
+.foot .btn{flex:1 1 auto;padding:0 var(--s3);white-space:nowrap}.foot .btn.p{flex:2 1 auto}
+main.fabpad{padding-bottom:88px}
+.discrow{display:flex;gap:var(--s2);align-items:stretch}.discrow input{flex:1;min-width:0}.seg-s{flex-wrap:nowrap}.seg-s label{min-width:52px;justify-content:center}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:flex-end;z-index:5}
+.sheet{background:var(--surface);width:100%;border-radius:var(--r-l) var(--r-l) 0 0;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);max-height:88%;overflow-y:auto}
+.sheet h2{margin:0;font-size:var(--t-m)}
+.sheet p{margin:0}
+.toast{position:absolute;left:var(--s4);right:var(--s4);bottom:84px;background:var(--pbar);color:var(--pbar-fg);border-radius:var(--r);padding:var(--s2) var(--s2) var(--s2) var(--s3);font-size:var(--t-s);z-index:6;display:flex;align-items:center;gap:var(--s2)}
+.toast span{flex:1}
+.toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;min-height:44px;padding:0 var(--s2);cursor:pointer}
+.pdf{border:1px solid var(--input);border-radius:4px;padding:var(--s4);font-size:var(--t-s);display:flex;flex-direction:column;gap:var(--s2);position:relative;background:var(--surface)}
+.pdf[data-wm]::after{content:attr(data-wm);position:absolute;inset:0;display:grid;place-items:center;font-size:var(--t-xl);font-weight:800;color:var(--bad);opacity:.25;transform:rotate(-20deg);pointer-events:none}
+.logo{width:56px;height:56px;border:1px dashed var(--input);border-radius:var(--r);display:grid;place-items:center;font-size:var(--t-s);color:var(--label);overflow:hidden;flex:none;background:var(--surface)}
+.logo img{width:100%;height:100%;object-fit:contain}
+.search{position:relative}.search input{padding-left:40px!important}.search svg{position:absolute;left:12px;top:12px;color:var(--label)}
+.empty{text-align:center;padding:var(--s8) var(--s4);display:flex;flex-direction:column;gap:var(--s3);align-items:center;color:var(--label)}
+.empty strong{color:var(--fg);font-size:var(--t-m)}
+.pb{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--pbar);color:var(--pbar-fg);border-radius:999px;display:flex;align-items:center;gap:var(--s1);padding:var(--s1) var(--s1) var(--s1) var(--s4);box-shadow:var(--shadow-fab);z-index:20;font-size:var(--t-s);max-width:calc(100% - 24px)}
+.pb button{background:none;border:1px solid currentColor;color:inherit;min-height:36px;padding:0 var(--s3);border-radius:999px;cursor:pointer;font-weight:600}
+.pb button[aria-pressed="true"]{background:var(--pbar-fg);color:var(--pbar)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));gap:var(--s2)}
+</style>
+
+<div class="wrap">
+  <aside class="notes" aria-label="About this prototype">
+    <h1>Mhizha main screens</h1>
+    <p>Throwaway prototype with example data. Tap through it as a User would. Nothing is saved.</p>
+    <h2>The shape</h2>
+    <p>Four tabs: Home, Customers, Documents, Money. One New button for a Quotation, Invoice, Payment or Customer. Quotations and Invoices are made step by step. Settings is the gear at the top right.</p>
+    <h2>Try these</h2>
+    <ul>
+      <li>Open Tendai Moyo's accepted Quotation and make the Invoice. The Deposit is applied.</li>
+      <li>New → Payment from Harare Gardens Lodge, paying more than they owe.</li>
+      <li>Answer the October review from Home.</li>
+      <li>Mark Shop lighting Done.</li>
+      <li>Cancel a Receipt, write off an Invoice, refund a Deposit.</li>
+      <li>Settings → Walk through first setup.</li>
+      <li>"Empty" shows a brand-new app.</li>
+    <li>"Phone / Light / Dark" previews either colour mode; the real app only follows the phone.</li>
+    </ul>
+  </aside>
+  <div class="phone" id="phone"></div>
+</div>
+<div class="pb" role="toolbar" aria-label="Prototype controls">
+  <span>Prototype</span>
+  <button id="pempty" aria-pressed="false">Empty</button>
+  <button id="preset">Reset</button>
+  <button id="ptheme" aria-label="Colour mode: follows the phone">Phone</button>
+</div>
+
+<script>
+document.documentElement.lang='en';
+/* ---------- icons (Lucide-style outlines) ---------- */
+const I={
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
+  people:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.5 3.6 5.2"/>',
+  doc:'<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  wallet:'<path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="14.5" r="1.2"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',back:'<path d="M15 5l-7 7 7 7"/>',
+  more:'<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
+  gear:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  check:'<path d="M4 12l5 5L20 6"/>',search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+  phone:'<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+  chat:'<path d="M4 20l1.3-3.8A8 8 0 1 1 8.4 19z"/>',share:'<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  close:'<path d="M6 6l12 12M18 6 6 18"/>'
+};
+const ic=n=>`<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+const MARK=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M5 20V10l7-6 7 6v10"/><path d="M9.5 20v-5h5v5"/></svg>`;
+
+/* ---------- helpers ---------- */
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=c=>(c<0?'−':'')+'US$'+(Math.abs(c)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const cents=v=>Math.round(parseFloat(v||'0')*100)||0;
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const TODAY='2026-11-26';
+const fd=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return `${+dd} ${MON[m-1].slice(0,3)} ${y}`};
+const fdl=d=>{if(!d)return'';const[y,m,dd]=d.split('-');return `${+dd} ${MON[m-1]} ${y}`};
+const addDays=(d,n)=>{const x=new Date(d+'T12:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
+const uid=p=>p+Math.random().toString(36).slice(2,8);
+const TN={QUO:'Quotation',INV:'Invoice',REC:'Receipt',REF:'Refund'};
+const METHODS=['Cash','Bank transfer','Card (swipe)','EcoCash','InnBucks','Other'];
+
+function sample(){
+  return {
+    business:{name:'Demo Building Services',phone:'+263 77 000 0000',address:'12 Example Road, Harare',email:'',logo:null},
+    numbers:{QUO:13,INV:9,REC:21,REF:1},used:{QUO:true,INV:true,REC:true,REF:false},
+    period:{every:'Monthly',starts:'January'},start:'2026-09-01',applock:false,hidden:{},
+    presales:{'2025-09':220000,'2025-10':220000,'2025-11':220000,'2025-12':220000,'2026-01':220000,'2026-02':220000,'2026-03':220000,'2026-04':220000,'2026-05':220000,'2026-06':220000,'2026-07':220000,'2026-08':220000},
+    prices:[{d:'Labour, per day',p:4500},{d:'20mm PVC conduit, 3m length',p:350},{d:'2.5mm twin and earth cable, per metre',p:180},{d:'Double socket outlet',p:850},{d:'15mm copper pipe, per metre',p:620},{d:'Geyser 150L',p:28500},{d:'Cement, 50kg bag',p:1100}],
+    customers:[
+      {id:'c1',name:'Tendai Moyo',phone:'+263 77 123 4567',notes:'Prefers WhatsApp. Gate code from the guard.',follow:'2026-11-28',credit:0,sites:[{id:'s1',name:'House, 4 Acacia Close, Borrowdale'}]},
+      {id:'c2',name:'Harare Gardens Lodge',phone:'+263 24 270 0000',notes:'Pays by bank transfer. Send Invoices to the manager.',follow:'',credit:0,sites:[{id:'s2',name:'Main lodge'},{id:'s3',name:'Staff cottages'}]},
+      {id:'c3',name:'Chipo Ndlovu',phone:'+263 71 987 6543',notes:'',follow:'2026-11-24',credit:0,sites:[{id:'s4',name:'Shop, Mbare'}]},
+      {id:'c4',name:'Farai Chikore',phone:'+263 78 555 1212',notes:'',follow:'',credit:0,sites:[{id:'s5',name:'Plot 22, Ruwa'}]}
+    ],
+    jobs:[
+      {id:'j1',cust:'c1',site:'s1',title:'Kitchen rewiring',status:'Open',last:'2026-11-20'},
+      {id:'j2',cust:'c2',site:'s2',title:'Geyser replacement',status:'Done',finished:'2026-10-14',last:'2026-10-14'},
+      {id:'j3',cust:'c2',site:'s3',title:'Cottage sockets',status:'Done',finished:'2026-10-30',last:'2026-10-30'},
+      {id:'j4',cust:'c3',site:'s4',title:'Shop lighting',status:'Open',last:'2026-09-12'},
+      {id:'j6',cust:'c2',site:'s2',title:'Kitchen extractor fan',status:'Done',finished:'2026-10-28',last:'2026-10-28'}
+    ],
+    docs:[
+      {id:'d0',type:'INV',num:6,cust:'c2',job:'j2',status:'Issued',issued:'2026-09-20',due:'2026-10-04',lines:[{d:'Labour, per day',q:1,p:4500}],disc:0,paid:4500,wo:0},
+      {id:'d1',type:'QUO',num:11,rev:1,cust:'c1',job:'j1',status:'Accepted',issued:'2026-11-12',valid:'2026-12-12',accepted:'2026-11-13',lines:[{d:'Labour, per day',q:3,p:4500},{d:'2.5mm twin and earth cable, per metre',q:40,p:180},{d:'Double socket outlet',q:6,p:850}],disc:0,deposit:10000},
+      {id:'d2',type:'INV',num:7,cust:'c2',job:'j2',status:'Issued',issued:'2026-10-15',due:'2026-10-29',lines:[{d:'Geyser 150L',q:1,p:28500},{d:'Labour, per day',q:1,p:4500}],disc:0,paid:0,wo:0},
+      {id:'d3',type:'INV',num:8,cust:'c2',job:'j3',status:'Issued',issued:'2026-11-03',due:'2026-11-17',lines:[{d:'Double socket outlet',q:8,p:850},{d:'Labour, per day',q:2,p:4500}],disc:1000,paid:0,wo:0},
+      {id:'d4',type:'QUO',num:null,rev:1,cust:'c3',job:'j4',status:'Draft',lines:[{d:'Labour, per day',q:2,p:4500}],disc:0},
+      {id:'d5',type:'REC',num:20,cust:'c1',kind:'money',issued:'2026-11-13',received:'2026-11-13',method:'EcoCash',alloc:[{k:'d1',kind:'dep',amt:10000,t:'Deposit on QUO-0011',left:null}],status:'Issued'},
+      {id:'d6',type:'REC',num:19,cust:'c2',kind:'money',issued:'2026-09-22',received:'2026-09-22',method:'Bank transfer',alloc:[{k:'d0',kind:'inv',amt:4500,t:'INV-0006',left:0}],status:'Issued'}
+    ],
+    opening:[{id:'o1',cust:'c4',kind:'owed',ref:'1234',date:'2026-09-01',olddate:'2026-03-03',owed:45000,note:'Bathroom tiling, balance',status:'Active'}],
+    answers:{},vatSeen:false
+  };
+}
+let S;
+// Document lists: Drafts first (unfinished work), then newest issued first; same day, higher number first.
+const docOrder=(a,b)=>(b.status==='Draft')-(a.status==='Draft')||(b.issued||'').localeCompare(a.issued||'')||((b.num||0)-(a.num||0));
+function reset(){S={data:sample(),stack:[{s:'home'}],sheet:null,toast:null,empty:false,flow:null,pay:null,setup:null,errs:{},f:'All',range:'This month',q:''}}
+reset();
+const D=()=>S.data;
+const cust=id=>D().customers.find(c=>c.id===id);
+const job=id=>D().jobs.find(j=>j.id===id);
+const doc=id=>D().docs.find(d=>d.id===id);
+const site=(c,id)=>(cust(c)?.sites||[]).find(s=>s.id===id);
+const sub=d=>d.lines.reduce((a,l)=>a+Math.round(l.q*l.p),0);
+const discAmt=d=>d.discPct!=null?Math.round(sub(d)*d.discPct/100):(d.disc||0);
+const discLabel=d=>d.discPct!=null?`Discount (${+d.discPct.toFixed(2)}%)`:'Discount';
+const total=d=>d.type==='REC'?d.alloc.reduce((a,x)=>a+x.amt,0):d.type==='REF'?d.amt:sub(d)-discAmt(d);
+const pad=n=>String(n).padStart(4,'0');
+const dnum=d=>d.num==null?'Draft '+TN[d.type]:d.type+'-'+pad(d.num)+(d.type==='QUO'&&d.rev>1?' Rev '+d.rev:'');
+const live=d=>d.status!=='Cancelled'&&d.status!=='Draft';
+const owedInv=d=>d.type==='INV'&&d.status==='Issued'?total(d)-(d.paid||0)-(d.wo||0):0;
+const openOwed=o=>o.status==='Active'&&o.kind==='owed'?o.owed:0;
+const custOwes=c=>D().docs.reduce((a,d)=>a+(d.cust===c?owedInv(d):0),0)+D().opening.filter(o=>o.cust===c).reduce((a,o)=>a+openOwed(o),0);
+const custDeposits=c=>D().docs.filter(d=>d.cust===c&&d.type==='QUO'&&['Accepted','Issued'].includes(d.status)).reduce((a,d)=>a+(d.deposit||0),0);
+const custCredit=c=>cust(c).credit;
+const allOwed=()=>D().customers.reduce((a,c)=>a+custOwes(c.id),0);
+const allDep=()=>D().customers.reduce((a,c)=>a+custDeposits(c.id),0);
+const allCred=()=>D().customers.reduce((a,c)=>a+c.credit,0);
+const expired=d=>d.type==='QUO'&&d.status==='Issued'&&d.valid<TODAY;
+const invoicedFrom=q=>D().docs.filter(d=>d.type==='INV'&&d.from===q.id&&live(d)).reduce((a,d)=>a+total(d),0);
+function status(d){
+  if(d.status==='Draft')return['Draft',''];if(d.status==='Cancelled')return['Cancelled','bad'];
+  if(d.type==='INV'){const o=owedInv(d);if(o<=0)return d.wo?['Closed','']:['Paid','ok'];if(d.due<TODAY)return['Overdue','bad'];return[d.paid?'Part-paid':'Unpaid','warn']}
+  if(d.type==='QUO'){if(expired(d))return['Expired','warn'];return[d.status,{Accepted:'ok',Declined:'bad',Superseded:''}[d.status]??'']}
+  if(d.type==='REC')return[d.kind==='applied'?'Applied':'Received','ok'];
+  return['Refunded',''];
+}
+const chip=d=>{const[t,k]=status(d);return `<span class="chip ${k}">${t}</span>`};
+
+/* ---------- navigation ---------- */
+function go(s,p={}){S.stack.push({s,...p});S.sheet=null;S.errs={};render(true)}
+function back(){if(S.stack.length>1)S.stack.pop();S.sheet=null;S.errs={};render(true)}
+function tab(s){S.stack=[{s}];S.sheet=null;S.flow=null;S.pay=null;render(true)}
+function toast(t,undo){S.toast={t,undo};S.sheet=null;render();clearTimeout(toast.h);toast.h=setTimeout(()=>{S.toast=null;render()},undo?6000:3500)}
+const cur=()=>S.stack[S.stack.length-1];
+
+/* ---------- shared pieces ---------- */
+const gearBtn=`<button class="ib" data-a="go" data-s="settings" aria-label="Settings">${ic('gear')}</button>`;
+const rootTop=title=>`<header class="top"><h1>${title}</h1>${gearBtn}</header>`;
+const subTop=(title,acts='')=>`<header class="top sub"><button class="ib" data-a="back" aria-label="Back">${ic('back')}</button><h1>${title}</h1>${acts}</header>`;
+const moreBtn=(k,id,name)=>`<button class="ib" data-a="sheet" data-k="${k}" data-id="${id}" aria-label="More actions for ${esc(name)}">${ic('more')}</button>`;
+const err=k=>S.errs[k]?`<span class="err" id="e-${k}">${esc(S.errs[k])}</span>`:'';
+const inv=k=>S.errs[k]?`aria-invalid="true" aria-describedby="e-${k}"`:'';
+const custItem=c=>{const o=custOwes(c.id),h=custDeposits(c.id)+c.credit;return `<button class="item" data-a="go" data-s="customer" data-id="${c.id}"><span class="m"><span class="t">${esc(c.name)}</span><span class="s">${esc(c.sites[0]?.name||'')}${c.follow&&c.follow<=TODAY?' · <strong>Follow up due</strong>':''}</span></span><span class="amt">${o?$(o)+'<small>owed</small>':h?$(h)+'<small>you hold</small>':'<small>Nothing owed</small>'}</span></button>`};
+const docItem=d=>`<button class="item" data-a="openDoc" data-id="${d.id}"><span class="m"><span class="t">${esc(d.type==='REC'&&d.kind==='applied'?dnum(d)+' · applied':dnum(d))}</span><span class="s">${esc(cust(d.cust).name)}${d.job?' · '+esc(job(d.job).title):''}</span></span><span class="amt">${$(d.type==='INV'&&owedInv(d)>0?owedInv(d):total(d))}${chip(d)}</span></button>`;
+const emptyState=(t,s,a,l)=>`<div class="empty"><strong>${t}</strong><span>${s}</span>${a?`<button class="btn p" data-a="${a}">${l}</button>`:''}</div>`;
+
+/* ---------- sales total for the VAT warning ---------- */
+const sales12=()=>{const from=addDays(TODAY,-365);let t=D().docs.filter(d=>d.type==='INV'&&live(d)&&(d.issued>from)).reduce((a,d)=>a+total(d),0);
+  Object.entries(D().presales).forEach(([m,v])=>{if(m+'-31'>from&&m+'-01'<D().start)t+=v||0});return t};
+const presalesBlank=()=>!Object.values(D().presales).some(v=>v>0);
+function vatNotice(){if(S.empty||D().vatSeen)return'';const t=sales12();if(t<2000000)return'';const over=t>2500000;
+  return `<div class="notice" role="note"><strong>${over?'Sales passed US$25,000 in 12 months':'Sales reached US$20,000 in 12 months'}</strong><span>Your sales in the last 12 months are ${$(t)}. A Business may have to register for VAT. Speak to ZIMRA or an accountant.${presalesBlank()?' This total does not include sales made before your Start date.':''}</span><div class="row"><button class="btn sm" data-a="vatok">Got it</button><button class="btn sm" data-a="tab" data-s="money">See sales</button></div></div>`}
+
+/* ---------- review: computed from the records ---------- */
+function reviewItems(){
+  if(S.empty)return[];const dd=D(),out=[],A=dd.answers;
+  dd.jobs.filter(j=>j.status==='Done'&&!dd.docs.some(d=>d.job===j.id&&d.type==='INV'&&d.status!=='Cancelled')).forEach(j=>out.push({id:'noinv-'+j.id,t:`${j.title} is finished but has no Invoice`,s:`${cust(j.cust).name} · finished ${fd(j.finished)}`,acts:[['Make Invoice','invForJob',j.id],['No charge'],['Remind me later']]}));
+  dd.jobs.filter(j=>j.status==='Open'&&dd.docs.some(d=>d.job===j.id&&d.type==='INV'&&live(d))).forEach(j=>out.push({id:'invopen-'+j.id,t:`${j.title} is invoiced but not marked finished`,s:cust(j.cust).name,acts:[['Mark finished','doneSheet',j.id],['Still working']]}));
+  dd.jobs.filter(j=>j.status==='Open'&&j.last<addDays(TODAY,-60)).forEach(j=>out.push({id:'stale-'+j.id,t:`${j.title}: nothing recorded for 60 days`,s:`${cust(j.cust).name} · last activity ${fd(j.last)}`,acts:[['Mark finished','doneSheet',j.id],['Still working'],['Mark dropped','dropSheet',j.id]]}));
+  dd.docs.filter(d=>d.type==='INV'&&status(d)[0]==='Overdue').forEach(d=>out.push({id:'over-'+d.id,t:`${dnum(d)} is overdue`,s:`${cust(d.cust).name} owes ${$(owedInv(d))} since ${fd(d.due)}`,acts:[['Record Payment','payFor',d.cust],['Call','call',d.cust],['Never going to pay','woSheet',d.id],['Still waiting']]}));
+  dd.docs.filter(d=>d.type==='QUO'&&d.deposit>0&&d.job&&['Done','Dropped'].includes(job(d.job).status)).forEach(d=>out.push({id:'dep-'+d.id,t:`Deposit still held on ${dnum(d)}`,s:`${cust(d.cust).name} · ${$(d.deposit)} · Job ${job(d.job).status.toLowerCase()}`,acts:[['Make Invoice','invFromQuo',d.id],['Keep as Credit','depToCredit',d.id],['Refund','refundSheet',d.cust]]}));
+  dd.customers.filter(c=>c.credit>0&&custOwes(c.id)>0).forEach(c=>out.push({id:'cred-'+c.id,t:`${c.name} has Credit and owes money`,s:`${$(c.credit)} Credit · ${$(custOwes(c.id))} owed`,acts:[['Apply Credit','applyCredit',c.id],['Leave']]}));
+  dd.docs.filter(d=>d.status==='Draft').forEach(d=>out.push({id:'draft-'+d.id,t:`${dnum(d)} never issued`,s:`${cust(d.cust).name}${d.job?' · '+job(d.job).title:''}`,acts:[['Finish','openDoc',d.id],['Delete','delDraft',d.id],['Keep']]}));
+  return out.filter(x=>!A[x.id]);
+}
+function reviewNotice(){const n=reviewItems().length;return n?`<div class="notice info"><strong>Your October review is ready: ${n} ${n===1?'item':'items'}</strong><span>Questions about October's records. Answer them when you have a moment; nothing is blocked.</span><div class="row"><button class="btn sm p" data-a="go" data-s="review">Open review</button></div></div>`:''}
+
+/* ---------- needs you (home) ---------- */
+function needsYou(){
+  if(S.empty)return[];const n=[],dd=D();
+  dd.customers.filter(c=>c.follow&&c.follow<=TODAY).forEach(c=>n.push({t:`Follow up ${c.name}`,s:`Due ${fd(c.follow)}`,a:'go',sc:'customer',id:c.id}));
+  dd.docs.filter(d=>d.type==='QUO'&&expired(d)).forEach(d=>n.push({t:`${dnum(d)} has expired`,s:`${cust(d.cust).name} · valid until ${fd(d.valid)}`,a:'openDoc',id:d.id}));
+  dd.docs.filter(d=>d.type==='QUO'&&d.status==='Issued'&&!expired(d)).forEach(d=>n.push({t:`${dnum(d)}: waiting for an answer`,s:`${cust(d.cust).name} · issued ${fd(d.issued)}`,a:'openDoc',id:d.id}));
+  return n;
+}
+
+/* ---------- screens ---------- */
+const SCREENS={
+  home(){const dd=D();
+    if(S.empty)return {top:rootTop(`<span class="mark">${MARK}Mhizha</span>`),body:emptyState('Welcome to Mhizha','Add your first Customer, then make a Quotation for them.','newCust','Add a Customer'),nav:'home',fab:true};
+    const n=needsYou(),recent=dd.docs.filter(d=>d.status!=='Draft').slice(-3).reverse();
+    return {top:rootTop(`<span class="mark">${MARK}Mhizha</span>`),nav:'home',fab:true,body:`
+    <div class="panel"><span class="label">Customers owe you</span><span class="big">${$(allOwed())}</span><span class="label">You hold ${$(allDep()+allCred())} in Deposits and Credit for customers.</span><button class="btn sm" data-a="tab" data-s="customers">See who owes</button></div>
+    ${vatNotice()}${reviewNotice()}
+    ${n.length?`<div class="sec"><h2>Needs you</h2><div class="list">${n.map(x=>`<button class="item" data-a="${x.a}" data-s="${x.sc||''}" data-id="${x.id}"><span class="m"><span class="t">${esc(x.t)}</span><span class="s">${esc(x.s)}</span></span></button>`).join('')}</div></div>`:''}
+    <div class="sec"><h2>Recent Documents</h2>${recent.length?`<div class="list">${recent.map(docItem).join('')}</div>`:'<p class="label">Your issued Documents will show here.</p>'}</div>`}},
+  customers(){const q=S.q.toLowerCase(),cs=S.empty?[]:D().customers.filter(c=>!c.archived&&c.name.toLowerCase().includes(q)).sort((a,b)=>custOwes(b.id)-custOwes(a.id));
+    return {top:rootTop('Customers'),nav:'customers',fab:true,body:(S.empty?emptyState('No customers yet','Add the people and organisations you quote or bill.','newCust','Add a Customer'):`
+    <div class="search">${ic('search')}<input id="q" type="search" aria-label="Search customers" placeholder="Name" value="${esc(S.q)}"></div>
+    ${cs.length?`<div class="sec"><h2>Most owed first</h2><div class="list">${cs.map(custItem).join('')}</div></div>`:`<p class="label">No customer matches “${esc(S.q)}”.</p>`}`)}},
+  docs(){const f=S.f,ds=S.empty?[]:D().docs.filter(d=>f==='All'||(f==='Drafts'&&d.status==='Draft')||(f==='Quotations'&&d.type==='QUO'&&d.status!=='Draft')||(f==='Invoices'&&d.type==='INV'&&d.status!=='Draft')||(f==='Receipts'&&(d.type==='REC'||d.type==='REF')));
+    return {top:rootTop('Documents'),nav:'docs',fab:true,body:`<div class="seg" role="radiogroup" aria-label="Show">${['All','Drafts','Quotations','Invoices','Receipts'].map(x=>`<label><input type="radio" name="df" value="${x}" ${x===f?'checked':''}>${x}</label>`).join('')}</div>
+    ${ds.length?`<div class="list">${ds.slice().sort(docOrder).map(docItem).join('')}</div>`:emptyState(S.empty?'No Documents yet':'Nothing here',S.empty?'Your Quotations, Invoices, Receipts and Refunds will be listed here. Tap New to make one.':`No ${f.toLowerCase()} at the moment.`,'','')}`}},
+  money(){return moneyScreen()},
+  customer({id}){
+    const c=cust(id),o=custOwes(id),dep=custDeposits(id),js=D().jobs.filter(j=>j.cust===id),ds=D().docs.filter(d=>d.cust===id),ob=D().opening.filter(x=>x.cust===id);
+    return {top:subTop(esc(c.name),moreBtn('custMore',id,c.name)),body:`
+    <div class="panel"><span class="label">Owes you</span><span class="big">${$(o)}</span>
+      ${dep?`<span class="label">Deposits you hold: ${$(dep)}</span>`:''}${c.credit?`<span class="label">Credit you hold: ${$(c.credit)}</span>`:''}
+      ${dep||c.credit?'<span class="label">Money you hold is theirs until it is used. It is never taken off what they owe without you saying so.</span>':''}</div>
+    <div class="row">${o?`<button class="btn p" data-a="payFor" data-id="${id}">Record Payment</button><button class="btn" data-a="newQuote" data-id="${id}">New Quotation</button>`:`<button class="btn p" data-a="newQuote" data-id="${id}">New Quotation</button><button class="btn" data-a="payFor" data-id="${id}">Record Payment</button>`}</div>
+    <div class="panel"><div class="row sp"><span>${esc(c.phone)}</span><span class="row"><button class="btn sm" data-a="call" data-id="${id}">${ic('phone')}Call</button><button class="btn sm" data-a="whatsapp" data-id="${id}">${ic('chat')}WhatsApp</button></span></div>
+      <div class="field"><label for="fu">Follow up on</label><input type="date" id="fu" value="${c.follow}" min="${TODAY}"><span class="hint">${c.follow?`Mhizha reminds you on ${fdl(c.follow)}.`:'No follow-up set.'}</span></div>
+      ${c.notes?`<div class="field"><span class="lab">Notes</span><span>${esc(c.notes)}</span></div>`:''}</div>
+    ${ob.length?`<div class="sec"><h2>Opening balances</h2><div class="list">${ob.map(x=>`<button class="item" data-a="sheet" data-k="obMore" data-id="${x.id}"><span class="m"><span class="t">Opening balance${x.ref?' · invoice '+esc(x.ref):''}</span><span class="s">${x.olddate?fdl(x.olddate)+' · ':''}${x.kind==='owed'?$(x.owed)+' owed':$(x.held)+' held for them'}${x.note?' · '+esc(x.note):''}</span></span>${x.status==='Cancelled'?'<span class="chip bad">Cancelled</span>':x.kind==='owed'&&x.owed===0?'<span class="chip ok">Paid</span>':''}</button>`).join('')}</div></div>`:''}
+    <div class="sec"><div class="row sp"><h2>Jobs</h2><button class="btn sm" data-a="sheet" data-k="newJob" data-id="${id}">${ic('plus')}Add Job</button></div>${js.length?`<div class="list">${js.map(j=>`<button class="item" data-a="go" data-s="job" data-id="${j.id}"><span class="m"><span class="t">${esc(j.title)}</span><span class="s">${esc(site(id,j.site)?.name)}</span></span><span class="chip ${j.status==='Done'?'ok':''}">${j.status}</span></button>`).join('')}</div>`:'<p class="label">No Jobs yet. A Job is made when you start a Quotation or Invoice.</p>'}</div>
+    <div class="sec"><h2>Documents</h2>${ds.length?`<div class="list">${ds.slice().sort(docOrder).map(docItem).join('')}</div>`:'<p class="label">No Documents yet.</p>'}</div>
+    <div class="sec"><div class="row sp"><h2>Sites</h2><button class="btn sm" data-a="sheet" data-k="newSite" data-id="${id}">${ic('plus')}Add Site</button></div><div class="list">${c.sites.map(s=>`<div class="item"><span class="m"><span class="t">${esc(s.name)}</span></span></div>`).join('')}</div></div>`}},
+  job({id}){const j=job(id),ds=D().docs.filter(d=>d.job===id),hasInv=ds.some(d=>d.type==='INV'&&d.status!=='Cancelled'),q=ds.find(d=>d.type==='QUO'&&d.status==='Accepted');
+    return {top:subTop(esc(j.title),j.status==='Open'?moreBtn('jobMore',id,j.title):''),body:`
+    <div class="panel"><span class="label">${esc(cust(j.cust).name)} · ${esc(site(j.cust,j.site)?.name)}</span><div class="row"><span class="chip ${j.status==='Done'?'ok':''}">${j.status}</span>${j.finished?`<span class="label">Work finished ${fdl(j.finished)}</span>`:''}</div></div>
+    ${j.status==='Open'?`<button class="btn p w" data-a="doneSheet" data-id="${id}">${ic('check')}Mark Job Done</button>`:''}
+    ${!hasInv&&j.status!=='Dropped'?`<button class="btn ${j.status==='Done'?'p':''} w" data-a="invForJob" data-id="${id}">Make Invoice${q?' from '+dnum(q):''}</button>`:''}
+    ${!ds.some(d=>d.type==='QUO'&&d.status!=='Cancelled')&&j.status==='Open'?`<button class="btn w" data-a="newQuoteJob" data-id="${id}">Make Quotation</button>`:''}
+    <div class="sec"><h2>Documents for this Job</h2>${ds.length?`<div class="list">${ds.map(docItem).join('')}</div>`:'<p class="label">None yet.</p>'}</div>`}},
+  doc({id}){
+    const d=doc(id),c=cust(d.cust);let acts='',fig='';
+    if(d.type==='QUO'){
+      const inv=invoicedFrom(d),act=D().docs.some(x=>x.type==='INV'&&x.from===d.id&&live(x));
+      fig=`<span class="big">${$(total(d))}</span><span class="label">Issued ${fd(d.issued)} · valid until ${fd(d.valid)}${d.accepted?' · accepted '+fd(d.accepted):''}</span>${d.deposit?`<span class="label">Deposit held: ${$(d.deposit)}</span>`:''}${d.status==='Accepted'&&inv?`<span class="label">Invoiced ${$(inv)} · remaining ${$(Math.max(0,total(d)-inv))}</span>`:''}`;
+      if(d.status==='Issued')acts=`${expired(d)?`<div class="notice">This Quotation expired on ${fdl(d.valid)}. You can still mark it Accepted.</div>`:''}<button class="btn p w" data-a="sheet" data-k="accept" data-id="${id}">Mark Accepted</button><div class="row"><button class="btn" data-a="decline" data-id="${id}">Mark Declined</button><button class="btn" data-a="revise" data-id="${id}">Make Revision</button></div>`;
+      if(d.status==='Declined')acts=`<button class="btn w" data-a="sheet" data-k="accept" data-id="${id}">Mark Accepted</button>`;
+      if(d.status==='Accepted')acts=`<button class="btn p w" data-a="invFromQuo" data-id="${id}">Make Invoice</button><div class="row"><button class="btn" data-a="payFor" data-id="${d.cust}">Record Deposit</button>${act?'':`<button class="btn" data-a="revise" data-id="${id}">Make Revision</button>`}</div>`;
+      if(d.status==='Superseded'){const nw=D().docs.find(x=>x.type==='QUO'&&x.num===d.num&&x.rev>d.rev&&x.status!=='Draft');acts=`<p class="label">Replaced by ${nw?dnum(nw):'a later Revision'}.</p>`}
+    }
+    if(d.type==='INV'){const o=owedInv(d);fig=`<span class="big">${$(o)}</span><span class="label">${o>0?'owed':'left to pay'} of ${$(total(d))} · due ${fd(d.due)}</span>`;if(o>0)acts=`<button class="btn p w" data-a="payFor" data-id="${d.cust}">Record Payment</button>${c.credit?`<button class="btn w" data-a="applyCredit" data-id="${d.cust}">Apply ${$(Math.min(c.credit,o))} Credit</button>`:''}`}
+    if(d.type==='REC'){fig=`<span class="big">${$(total(d))}</span><span class="label">${d.kind==='applied'?`${esc(d.heading)} · no new money received`:`${esc(d.method)} · issued ${fd(d.issued)}${d.received!==d.issued?' · received '+fd(d.received):''}`}</span>`}
+    if(d.type==='REF'){fig=`<span class="big">${$(d.amt)}</span><span class="label">${esc(d.method)} · ${fd(d.issued)} · ${esc(d.reason)}</span>`}
+    const lines=d.type==='REC'?d.alloc.map(x=>`<div class="line"><span>${esc(x.t)}</span><span class="amt">${$(x.amt)}</span>${x.left!=null?`<span class="s">Left to pay: ${$(x.left)}</span>`:''}</div>`).join(''):d.type==='REF'?`<div class="line"><span>Refund from ${esc(d.src)}</span><span class="amt">${$(d.amt)}</span></div>`:d.lines.map(l=>`<div class="line"><span>${esc(l.d)}</span><span class="amt">${$(Math.round(l.q*l.p))}</span><span class="s">${l.q} × ${$(l.p)}</span></div>`).join('');
+    return {top:subTop(dnum(d),d.status!=='Cancelled'&&d.status!=='Superseded'?moreBtn('docMore',id,dnum(d)):''),body:`
+    <div class="panel"><div class="row sp"><span class="label">${TN[d.type]} · ${esc(c.name)}${d.job?' · '+esc(job(d.job).title):''}</span>${chip(d)}</div>${fig}${d.status==='Cancelled'?`<span class="label">Cancelled ${fd(d.cancelled)}: ${esc(d.reason)}</span>`:''}</div>
+    ${d.status==='Cancelled'?'':acts}
+    <div class="row"><button class="btn" data-a="share" data-id="${id}">${ic('share')}Share PDF</button><button class="btn" data-a="sheet" data-k="pdf" data-id="${id}">${ic('eye')}See PDF</button></div>
+    <div class="sec"><h2>${d.type==='REC'?'What it paid':'Lines'}</h2><div class="list">${lines}</div>
+    ${d.type==='QUO'||d.type==='INV'?`<div class="tot"><span>Subtotal</span><span>${$(sub(d))}</span>${discAmt(d)?`<span>${discLabel(d)}</span><span>−${$(discAmt(d))}</span>`:''}<span class="g">Total</span><span class="g">${$(total(d))}</span>${d.paid?`<span>Paid or applied</span><span>−${$(d.paid)}</span>`:''}${d.wo?`<span>Written off</span><span>−${$(d.wo)}</span>`:''}</div>`:''}</div>`}},
+  flow(){return flowScreen()},
+  pickCust(){const p=S.pick;return {top:subTop(p.title),body:`<div class="list">${D().customers.filter(c=>!c.archived).map(c=>`<button class="item" data-a="${p.a}" data-id="${c.id}"><span class="m"><span class="t">${esc(c.name)}</span><span class="s">${custOwes(c.id)?$(custOwes(c.id))+' owed':'Nothing owed'}</span></span></button>`).join('')}</div><button class="btn w" data-a="newCust">${ic('plus')}New Customer</button>`}},
+  pay(){return payScreen()},
+  payConfirm(){const P=S.pay,c=cust(P.cust),used=P.rows.filter(r=>P.alloc[r.k]>0);
+    return {top:subTop('Check Payment'),body:`<div class="panel"><span class="label">${esc(c.name)} paid</span><span class="big">${$(P.amount)}</span><span class="label">${esc(P.method)} · received ${fdl(P.date)}</span></div>
+    <div class="list">${used.map(r=>`<div class="line"><span>${esc(r.t)}</span><span class="amt">${$(P.alloc[r.k])}</span><span class="s">${r.kind==='dep'?'Held as Deposit':'Left to pay: '+$(r.owed-P.alloc[r.k])}</span></div>`).join('')}${P.credit?`<div class="line"><span>Kept as Credit</span><span class="amt">${$(P.credit)}</span></div>`:''}</div>
+    <p class="label">Saving issues ${P.sep&&used.length>1?used.length+' Receipts, one for each':'Receipt REC-'+pad(D().numbers.REC)}. A Receipt cannot be edited; a mistake is put right by cancelling it.</p>`,
+    foot:`<button class="btn" data-a="back">Change</button><button class="btn p" data-a="paySave">Save and issue Receipt</button>`}},
+  review(){const it=reviewItems();return {top:subTop('October review'),body:`<p class="label">Possible mistakes and unfinished matters in October. Answer what you can; the rest waits.</p>
+    ${it.length?it.map(r=>`<div class="panel"><strong>${esc(r.t)}</strong><span class="label">${esc(r.s)}</span><div class="row">${r.acts.map(([l,a,arg],i)=>`<button class="btn sm ${i===0?'p':''}" data-a="revAns" data-r="${r.id}" data-l="${esc(l)}" data-act="${a||''}" data-id="${arg||''}">${esc(l)}</button>`).join('')}</div></div>`).join(''):emptyState('Review finished','Every item is answered. Mhizha uses your answers to keep October\'s records right.','','')}`}},
+  settings(){return settingsScreen()},
+  setup(){return setupScreen()},
+  custForm({id}){const c=id?cust(id):{name:'',phone:'',notes:'',sites:[{name:''}]};return {top:subTop(id?'Edit Customer':'New Customer'),body:`
+    <div class="field"><label for="nc-name">Name</label><input id="nc-name" value="${esc(c.name)}" ${inv('name')}>${err('name')}</div>
+    <div class="field"><label for="nc-ph">Phone</label><input type="tel" id="nc-ph" value="${esc(c.phone)}"></div>
+    ${id?'':`<div class="field"><label for="nc-site">First Site</label><input id="nc-site"><span class="hint">Where the work is done, for example “House, 4 Acacia Close”. Add more Sites later.</span></div><button class="btn w" data-a="contacts">Fill in from phone contacts</button>`}
+    <div class="field"><label for="nc-notes">Notes (optional)</label><textarea id="nc-notes">${esc(c.notes)}</textarea></div>`,
+    foot:`<button class="btn p" data-a="saveCust" data-id="${id||''}">Save Customer</button>`}},
+  prices(){return {top:subTop('Price list'),body:`<p class="label">Saved items fill in Document lines. Prices can still be changed on each Document. Not stock.</p><div class="list">${D().prices.map((p,i)=>`<div class="item"><span class="m"><span class="t">${esc(p.d)}</span></span><span class="amt">${$(p.p)}</span><button class="btn sm d" data-a="rmPrice" data-i="${i}" aria-label="Remove ${esc(p.d)}">Remove</button></div>`).join('')}</div>
+    <div class="panel"><strong>Add an item</strong><div class="field"><label for="pr-d">Description</label><input id="pr-d" ${inv('pd')}>${err('pd')}</div><div class="field"><label for="pr-p">Price (US$)</label><input id="pr-p" type="number" min="0" step="0.01"></div><button class="btn" data-a="addPrice">Add to Price list</button></div>`}},
+  methods(){return {top:subTop('Payment methods'),body:`<p class="label">Hide the ones you never use. Hidden methods stay on old Receipts.</p><div class="list">${METHODS.map(m=>`<label class="item"><span class="m"><span class="t">${m}</span></span><input type="checkbox" data-meth="${m}" ${D().hidden[m]?'':'checked'} aria-label="Show ${m}"></label>`).join('')}</div>`}}
+};
+
+/* ---------- step-by-step Quotation and Invoice ---------- */
+function flowScreen(){
+  const F=S.flow,T=TN[F.type],steps=['Customer','Job','Lines','Check and issue'],n=F.step;
+  const st=`<div class="steps" role="img" aria-label="Step ${n+1} of 4: ${steps[n]}">${steps.map((_,i)=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div><span class="label">Step ${n+1} of 4</span>`;
+  let body='',foot='';const d=F.doc;
+  if(n===0)body=`${st}<h2 class="q">Who is it for?</h2><div class="list">${D().customers.filter(c=>!c.archived).map(c=>`<button class="item" data-a="flowCust" data-id="${c.id}"><span class="m"><span class="t">${esc(c.name)}</span><span class="s">${esc(c.sites[0].name)}</span></span></button>`).join('')}</div><button class="btn w" data-a="newCust">${ic('plus')}New Customer</button>`;
+  if(n===1){const c=cust(F.cust),js=D().jobs.filter(j=>j.cust===F.cust&&(j.status==='Open'||(F.type==='INV'&&j.status==='Done'&&!D().docs.some(x=>x.job===j.id&&x.type==='INV'&&x.status!=='Cancelled'))));
+    body=`${st}<h2 class="q">Which Job?</h2><span class="label">${esc(c.name)}</span>${js.length?`<div class="list">${js.map(j=>`<button class="item" data-a="flowJob" data-id="${j.id}"><span class="m"><span class="t">${esc(j.title)}</span><span class="s">${esc(site(F.cust,j.site).name)}</span></span><span class="chip ${j.status==='Done'?'ok':''}">${j.status}</span></button>`).join('')}</div>`:''}
+    <div class="panel"><strong>${js.length?'Or a new Job':'New Job'}</strong><div class="field"><label for="fj">What is the work?</label><input id="fj" ${inv('fj')}>${err('fj')}<span class="hint">For example “Borehole pump wiring”.</span></div><div class="field"><label for="fs">At which Site?</label><select id="fs">${c.sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div><button class="btn p" data-a="flowNewJob">Next</button></div>`;
+    foot=F.fixedCust?'':`<button class="btn" data-a="flowBack">Back</button>`}
+  if(n===2){body=`${st}<h2 class="q">What are you ${F.type==='QUO'?'quoting':'charging'} for?</h2>${d.note?`<div class="notice info">${esc(d.note)}</div>`:''}
+    <div class="list">${d.lines.map((l,i)=>`<div class="line"><span>${esc(l.d)}</span><span class="amt">${$(Math.round(l.q*l.p))}</span><span class="qp"><input type="number" aria-label="Quantity of ${esc(l.d)}" data-q="${i}" value="${l.q}" step="0.001" min="0"> × <input type="number" aria-label="Unit price of ${esc(l.d)} in US$" data-p="${i}" value="${(l.p/100).toFixed(2)}" step="0.01" min="0"></span><button class="btn sm d" data-a="rmLine" data-i="${i}" aria-label="Remove ${esc(l.d)}">Remove</button></div>`).join('')||'<p class="line s">No lines yet. Add one from your Price list.</p>'}</div>
+    ${err('lines')}<div class="row"><button class="btn" data-a="sheet" data-k="prices">${ic('plus')}From Price list</button><button class="btn" data-a="sheet" data-k="freeLine">${ic('plus')}Other item</button></div>
+    <div class="tot"><span>Subtotal</span><span>${$(sub(d))}</span></div>`;
+    foot=`${F.fixedJob?'':'<button class="btn" data-a="flowBack">Back</button>'}<button class="btn p" data-a="flowLinesNext">Next</button>`}
+  if(n===3){const c=cust(d.cust),cred=F.type==='INV'?Math.min(c.credit,total(d)-(d.depApply||0)):0;
+    body=`${st}<h2 class="q">Check and issue</h2><div class="panel"><strong>${esc(c.name)}</strong><span class="label">${esc(job(d.job).title)} · ${esc(site(d.cust,job(d.job).site)?.name)} · ${d.lines.length} ${d.lines.length===1?'line':'lines'}</span></div>
+    <div class="field"><span class="lab" id="disc-l">Discount (optional)</span>
+      <div class="discrow"><div class="seg seg-s" role="radiogroup" aria-label="Discount as"><label><input type="radio" name="discmode" value="amt" ${d.discPct==null?'checked':''}>US$</label><label><input type="radio" name="discmode" value="pct" ${d.discPct!=null?'checked':''}>%</label></div>
+      <input type="number" id="disc" aria-labelledby="disc-l" min="0" step="${d.discPct!=null?'0.1':'0.01'}" inputmode="decimal" value="${S.errs.disc?S.discRaw:d.discPct!=null?d.discPct:(d.disc?(d.disc/100).toFixed(2):'')}" ${inv('disc')}></div>${err('disc')}
+      <span class="hint">${!S.errs.disc&&d.discPct!=null&&discAmt(d)?`${+d.discPct.toFixed(2)}% = ${$(discAmt(d))}. `:''}One Discount for the whole ${T}.${d.from?' Carried over from the Quotation.':''}</span></div>
+    ${F.type==='QUO'?`<div class="field"><label for="valid">Valid until</label><input type="date" id="valid" min="${TODAY}" value="${d.valid||addDays(TODAY,30)}"><span class="hint">30 days unless you change it.</span></div>`:`<div class="field"><label for="due">Due date</label><input type="date" id="due" min="${TODAY}" value="${d.due||TODAY}"><span class="hint">The day you expect to be paid.</span></div>`}
+    <div class="tot"><span>Subtotal</span><span>${$(sub(d))}</span>${discAmt(d)?`<span>${discLabel(d)}</span><span>−${$(discAmt(d))}</span>`:''}<span class="g">Total</span><span class="g">${$(total(d))}</span></div>
+    ${d.depApply?`<div class="notice info"><span><strong>${$(d.depApply)} Deposit is applied</strong></span><span>From the Deposit on ${dnum(doc(d.from))}. A “Deposit applied” Receipt is issued with the Invoice.</span><div class="field"><label for="depa">Deposit to apply (US$)</label><input type="number" id="depa" min="0" step="0.01" value="${(d.depApply/100).toFixed(2)}" ${inv('depa')}>${err('depa')}</div></div>`:''}
+    ${cred>0?`<label class="item" style="border:1px solid var(--line);border-radius:var(--r)"><input type="checkbox" id="usecred" ${d.useCred?'checked':''}><span class="m"><span class="t">Apply ${$(cred)} Credit</span><span class="s">${esc(c.name)} has ${$(c.credit)} Credit with you</span></span></label>`:''}
+    ${F.type==='INV'&&d.from&&invoicedFrom(doc(d.from))+total(d)>total(doc(d.from))?`<div class="notice">This Invoice and earlier ones come to more than ${dnum(doc(d.from))} (${$(total(doc(d.from)))}).</div>`:''}`;
+    foot=`<button class="btn" data-a="sheet" data-k="pdf" data-id="${d.id}">${ic('eye')}Preview</button><button class="btn p" data-a="sheet" data-k="issue" data-id="${d.id}">Issue ${T}</button>`}
+  const title=d?.revOf?`Revision ${d.rev} of ${dnum(doc(d.revOf)).replace(/ Rev \d+/,'')}`:(d?.num==null&&d?.id&&D().docs.includes(d)&&n>1?'Draft ':'New ')+T;
+  return {top:subTop(title,d?moreBtn('draftMore',d.id,'this Draft'):''),body,foot};
+}
+
+/* ---------- payment ---------- */
+function payScreen(){
+  const P=S.pay,c=cust(P.cust),dd=D();
+  const ob=dd.opening.filter(o=>o.cust===P.cust&&openOwed(o)>0).map(o=>({k:o.id,kind:'ob',t:`Opening balance${o.ref?' (invoice '+o.ref+')':''}`,s:o.olddate?fdl(o.olddate):'',owed:o.owed,date:'0'}));
+  const iv=dd.docs.filter(d=>d.cust===P.cust&&owedInv(d)>0).map(d=>({k:d.id,kind:'inv',t:dnum(d),s:job(d.job).title+' · due '+fd(d.due),owed:owedInv(d),date:d.issued}));
+  const qs=dd.docs.filter(d=>d.cust===P.cust&&d.type==='QUO'&&d.status==='Accepted').map(q=>({k:q.id,kind:'dep',t:'Deposit on '+dnum(q),s:job(q.job).title+(q.deposit?' · '+$(q.deposit)+' held':''),owed:0}));
+  const rows=[...ob,...iv.sort((a,b)=>a.date<b.date?-1:1),...qs];
+  let left=P.amount;const alloc={};
+  rows.forEach(r=>{if(r.kind==='dep'){alloc[r.k]=Math.min(P.dep[r.k]||0,Math.max(left,0));left-=alloc[r.k]}});
+  rows.forEach(r=>{if(r.kind!=='dep'&&P.tick[r.k]){const a=P.over[r.k]!=null?Math.min(P.over[r.k],r.owed,Math.max(left,0)):Math.min(Math.max(left,0),r.owed);alloc[r.k]=a;left-=a}});
+  P.alloc=alloc;P.credit=Math.max(left,0);P.rows=rows;
+  return {top:subTop('Record Payment'),body:`<span class="label">From <strong>${esc(c.name)}</strong></span>
+    <div class="field"><label for="pamt">Amount received (US$)</label><input type="number" id="pamt" min="0" step="0.01" value="${P.amount?(P.amount/100).toFixed(2):''}" ${inv('pamt')}>${err('pamt')}</div>
+    <div class="field"><label for="pdate">Date received</label><input type="date" id="pdate" max="${TODAY}" value="${P.date}" ${inv('pdate')}>${err('pdate')}<span class="hint">Today, or an earlier day.</span></div>
+    <div class="field"><span class="lab" id="pml">How they paid</span><div class="seg" role="radiogroup" aria-labelledby="pml">${METHODS.filter(m=>!dd.hidden[m]).map(m=>`<label><input type="radio" name="pm" value="${m}" ${P.method===m?'checked':''}>${m}</label>`).join('')}</div>${P.method==='Other'?`<div class="field"><label for="pmo">Describe how they paid</label><input id="pmo" value="${esc(P.other||'')}"></div>`:''}</div>
+    <div class="sec"><h2>What it pays, oldest first</h2>${rows.length?`<div class="list">${rows.map(r=>r.kind==='dep'?`<div class="item"><span class="m"><span class="t">${esc(r.t)}</span><span class="s">${esc(r.s)}</span></span><input type="number" aria-label="Amount to hold as ${esc(r.t)}, US$" data-dep="${r.k}" style="width:100px" step="0.01" min="0" value="${P.dep[r.k]?(P.dep[r.k]/100).toFixed(2):''}" placeholder="0.00"></div>`:`<label class="item"><input type="checkbox" data-tick="${r.k}" ${P.tick[r.k]?'checked':''}><span class="m"><span class="t">${esc(r.t)}</span><span class="s">${esc(r.s)} · ${$(r.owed)} owed</span></span><span class="amt">${$(alloc[r.k]||0)}</span></label>`).join('')}</div>`:'<p class="label">Nothing is owed and no Quotation is accepted. The whole Payment is kept as Credit.</p>'}</div>
+    ${P.credit&&P.amount?`<div class="notice">${$(P.credit)} is more than the ticked items. It is kept as Credit for ${esc(c.name)} and suggested when you next invoice them.</div>`:''}
+    ${rows.filter(r=>r.kind!=='dep').length>1?`<label class="item" style="border:1px solid var(--line);border-radius:var(--r)"><input type="checkbox" id="sep" ${P.sep?'checked':''}><span class="m"><span class="t">Separate receipts</span><span class="s">One Receipt for each Invoice instead of one for all</span></span></label>`:''}`,
+    foot:`<button class="btn p" data-a="payCheck">Check Payment</button>`};
+}
+
+/* ---------- money ---------- */
+function rangeOf(r){if(r==='This month')return['2026-11-01',TODAY];if(r==='Last month')return['2026-10-01','2026-10-31'];if(r==='This year')return['2026-01-01',TODAY];return[S.from||'2026-11-01',S.to||TODAY]}
+function moneyScreen(){const r=S.range,[a,b]=rangeOf(r),dd=D(),inR=x=>x>=a&&x<=b;
+  const recs=dd.docs.filter(d=>d.type==='REC'&&d.kind==='money'&&d.status!=='Cancelled'&&inR(d.received)),refs=dd.docs.filter(d=>d.type==='REF'&&d.status!=='Cancelled'&&inR(d.issued));
+  const byM={};recs.forEach(d=>{const m=['Bank transfer','Card (swipe)'].includes(d.method)?'Bank':d.method;byM[m]=(byM[m]||0)+total(d)});refs.forEach(d=>{const m=['Bank transfer','Card (swipe)'].includes(d.method)?'Bank':d.method;byM[m]=(byM[m]||0)-d.amt});
+  const recv=recs.reduce((x,d)=>x+total(d),0)-refs.reduce((x,d)=>x+d.amt,0),sales=dd.docs.filter(d=>d.type==='INV'&&live(d)&&inR(d.issued)).reduce((x,d)=>x+total(d),0);
+  return {top:rootTop('Money'),nav:'money',fab:true,body:`<div class="seg" role="radiogroup" aria-label="Dates">${['This month','Last month','This year','Choose dates'].map(x=>`<label><input type="radio" name="rg" value="${x}" ${x===r?'checked':''}>${x}</label>`).join('')}</div>
+    ${r==='Choose dates'?`<div class="grid2"><div class="field"><label for="from">From</label><input type="date" id="from" value="${a}" max="${TODAY}"></div><div class="field"><label for="to">To</label><input type="date" id="to" value="${b}" max="${TODAY}"></div></div>`:''}
+    ${S.empty?emptyState('No money recorded yet','Money received and sales show here once you issue Invoices and record Payments.','',''):`
+    <div class="panel"><span class="label">Money received, ${fd(a)} to ${fd(b)}</span><span class="big">${$(recv)}</span><span class="label">${Object.entries(byM).map(([m,v])=>`${m} ${$(v)}`).join(' · ')||'No Payments in these dates.'}</span><span class="label">After Refunds. “Deposit applied” and “Credit applied” Receipts are not new money and are left out.</span></div>
+    <div class="panel"><div class="tot"><span>Invoiced sales in these dates</span><span>${$(sales)}</span></div></div>
+    <div class="sec"><h2>Today</h2><div class="panel"><div class="tot"><span>Customers owe you</span><span>${$(allOwed())}</span><span>Deposits you hold</span><span>${$(allDep())}</span><span>Credit you hold</span><span>${$(allCred())}</span></div><span class="label">Deposits and Credit are your customers' money until used. They are not counted as earned.</span></div></div>
+    <div class="sec"><h2>VAT limit</h2><div class="panel"><div class="tot"><span>Sales in the last 12 months</span><span>${$(sales12())}</span></div><span class="label">A Business may have to register for VAT once sales pass US$25,000 in 12 months. Mhizha warns you at US$20,000 and at US$25,000. It cannot see sales you expect, so ask ZIMRA or an accountant.${presalesBlank()?' This total does not include sales made before your Start date.':''}</span></div></div>`}`};
+}
+
+/* ---------- settings ---------- */
+function settingsScreen(){const dd=D(),b=dd.business,num=k=>`${k}-${pad(dd.numbers[k])}`;
+  return {top:subTop('Settings'),body:`
+  <div class="sec"><h2>Your business</h2><div class="list"><button class="item" data-a="editStep" data-n="0"><span class="logo">${b.logo?`<img src="${b.logo}" alt="Your logo">`:'No logo'}</span><span class="m"><span class="t">${esc(b.name)}</span><span class="s">Name, logo and details on your Documents</span></span></button></div></div>
+  <div class="sec"><h2>Documents and money</h2><div class="list">
+    <button class="item" data-a="editStep" data-n="1"><span class="m"><span class="t">Document numbers</span><span class="s">Next: ${num('QUO')}, ${num('INV')}, ${num('REC')}, ${num('REF')}</span></span></button>
+    <button class="item" data-a="go" data-s="prices"><span class="m"><span class="t">Price list</span><span class="s">${dd.prices.length} items</span></span></button>
+    <button class="item" data-a="go" data-s="methods"><span class="m"><span class="t">Payment methods</span><span class="s">${METHODS.filter(m=>!dd.hidden[m]).join(', ')}</span></span></button>
+    <button class="item" data-a="editStep" data-n="3"><span class="m"><span class="t">Accounting period</span><span class="s">${dd.period.every}, year starts in ${dd.period.starts}</span></span></button>
+    <button class="item" data-a="editStep" data-n="2"><span class="m"><span class="t">Start date</span><span class="s">${fdl(dd.start)}</span></span></button>
+    <button class="item" data-a="editStep" data-n="4"><span class="m"><span class="t">Opening balances</span><span class="s">${dd.opening.filter(o=>o.status==='Active').length} on your Start date</span></span></button>
+    <button class="item" data-a="editStep" data-n="5"><span class="m"><span class="t">Sales before your Start date</span><span class="s">${presalesBlank()?'Not entered':'Entered'}. Used only for the VAT warning.</span></span></button></div></div>
+  <div class="sec"><h2>This phone</h2><div class="list">
+    <label class="item"><span class="m"><span class="t">Lock with the phone's screen lock</span><span class="s">Fingerprint, face, PIN, pattern or password</span></span><input type="checkbox" id="lock" ${dd.applock?'checked':''}></label>
+    <button class="item" data-a="toastBtn" data-t="Backup is designed in the Backup and restore ticket"><span class="m"><span class="t">Backup</span><span class="s">Last backup today, 06:10</span></span></button></div></div>
+  <div class="sec"><h2>About</h2><div class="panel"><strong>Mhizha 1.0.0 (build 12)</strong><span class="label">What changed: Receipts can cover several Invoices. Before updating, check your last backup is recent.</span></div></div>
+  <button class="btn w" data-a="walkSetup">Walk through first setup (prototype only)</button>`};
+}
+
+/* ---------- setup ---------- */
+const SETUP=['Your business','Document numbers','Start date','Accounting period','Opening balances','Sales before your Start date','App lock'];
+const PREMONTHS=()=>{const out=[];let [y,m]=D().start.split('-').map(Number);for(let i=0;i<12;i++){m--;if(m<1){m=12;y--}out.unshift(`${y}-${String(m).padStart(2,'0')}`)}return out};
+function setupScreen(){const n=S.setup.n,walk=S.setup.walk,dd=D(),b=dd.business;let body='';
+  const head=walk?`<div class="steps" role="img" aria-label="Step ${n+1} of ${SETUP.length}: ${SETUP[n]}">${SETUP.map((_,i)=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div><span class="label">Step ${n+1} of ${SETUP.length}</span><h2 class="q">${SETUP[n]}</h2>`:'';
+  if(n===0)body=`<p class="label">These go on every Quotation, Invoice and Receipt.</p><div class="row"><span class="logo">${b.logo?`<img src="${b.logo}" alt="Your logo">`:'No logo'}</span><label class="btn" for="logo">${b.logo?'Change logo':'Choose logo'}</label><input type="file" id="logo" accept="image/*" class="sr">${b.logo?'<button class="btn d" data-a="rmLogo">Remove</button>':''}</div>
+   <div class="field"><label for="b-name">Business name</label><input id="b-name" value="${esc(b.name)}" ${inv('bname')}>${err('bname')}</div><div class="field"><label for="b-ph">Phone</label><input type="tel" id="b-ph" value="${esc(b.phone)}"></div><div class="field"><label for="b-ad">Address</label><textarea id="b-ad">${esc(b.address)}</textarea></div><div class="field"><label for="b-em">Email (optional)</label><input id="b-em" type="email" value="${esc(b.email)}"></div>`;
+  if(n===1)body=`<p class="label">If you already number your Documents, carry on from your last numbers. A number locks once you issue the first Document of that kind.</p>${['QUO','INV','REC','REF'].map(k=>`<div class="field"><label for="n-${k}">First ${TN[k]} number</label><input type="number" id="n-${k}" min="1" value="${dd.numbers[k]}" ${dd.used[k]&&!walk?'disabled aria-describedby="h-'+k+'"':''}><span class="hint" id="h-${k}">${dd.used[k]&&!walk?'Locked: already used. Next is ':'Printed as '}${k}-${pad(dd.numbers[k])}</span></div>`).join('')}`;
+  if(n===2)body=`<p class="label">The day you start keeping your records in Mhizha. What customers owed you, or what you held for them, on this day are your opening balances.</p><div class="field"><label for="sd">Start date</label><input type="date" id="sd" value="${dd.start}" max="${TODAY}"></div>`;
+  if(n===3)body=`<p class="label">How often should Mhizha ask you to review your records?</p><div class="seg" role="radiogroup" aria-label="Review">${['Monthly','Every 3 months','Yearly'].map(x=>`<label><input type="radio" name="pe" value="${x}" ${dd.period.every===x?'checked':''}>${x}</label>`).join('')}</div><div class="field"><label for="ys">Your year starts in</label><select id="ys">${MON.map(m=>`<option ${m===dd.period.starts?'selected':''}>${m}</option>`).join('')}</select><span class="hint">Most people keep January.${walk?'':' A change starts from the next period.'}</span></div>`;
+  if(n===4){const ob=dd.opening.filter(o=>o.status==='Active');body=`<p class="label">On ${fdl(dd.start)}, did any customer owe you money, or had you taken money from one for work not yet done? Add each one. You can also add them later from the Customer.</p>${ob.length?`<div class="list">${ob.map(x=>`<div class="item"><span class="m"><span class="t">${esc(cust(x.cust).name)}</span><span class="s">Opening balance${x.ref?' · invoice '+esc(x.ref):''} · ${x.kind==='owed'?$(x.owed)+' owed':$(x.held)+' held'}</span></span></div>`).join('')}</div>`:'<p class="label">None added.</p>'}<button class="btn w" data-a="sheet" data-k="addOpening">${ic('plus')}Add opening balance</button>`}
+  if(n===5)body=`<p class="label">Optional. Your sales in each of the 12 months before your Start date. Mhizha uses them only to warn you as you near the VAT limit. Leave blank if you don't know.</p><div class="grid2">${PREMONTHS().map(m=>{const[y,mm]=m.split('-');return `<div class="field"><label for="pm-${m}">${MON[mm-1].slice(0,3)} ${y} (US$)</label><input type="number" id="pm-${m}" data-pm="${m}" min="0" step="0.01" value="${dd.presales[m]?(dd.presales[m]/100).toFixed(2):''}"></div>`}).join('')}</div>`;
+  if(n===6)body=`<p class="label">Lock Mhizha with your phone's screen lock, so someone holding your phone can't open your customers and money? You can change this in Settings.</p><button class="btn p w" data-a="lockYes">Yes, lock Mhizha</button><button class="btn w" data-a="setupDone">Not now</button>`;
+  const foot=walk?(n<6?`${n?'<button class="btn" data-a="setupPrev">Back</button>':''}${n===4||n===5?'<button class="btn" data-a="setupNext">Skip</button>':''}<button class="btn p" data-a="setupNext">Next</button>`:''):(n===4?'':`<button class="btn p" data-a="stepSave">Save</button>`);
+  const top=walk?`<header class="top"><h1>Set up Mhizha</h1><button class="ib" data-a="setupDone" aria-label="Close setup">${ic('close')}</button></header>`:subTop(SETUP[n]);
+  return {top,body:head+body,foot};
+}
+
+/* ---------- sheets ---------- */
+function sheetHtml(){if(!S.sheet)return'';const{k,id}=S.sheet,dd=D();let h='',title='';
+  const d=id?doc(id):null;
+  if(k==='new'){title='Make new';h=`<button class="btn p w" data-a="newQuote">Quotation</button><button class="btn w" data-a="newInvoice">Invoice</button><button class="btn w" data-a="newPay">Payment</button><button class="btn w" data-a="newCust">Customer</button>`}
+  if(k==='done'){const j=job(id),owe=dd.docs.filter(x=>x.job===id).reduce((a,x)=>a+owedInv(x),0),dep=dd.docs.filter(x=>x.job===id&&x.type==='QUO').reduce((a,x)=>a+(x.deposit||0),0);title=`Mark ${j.title} Done`;h=`<div class="field"><label for="fin">Date the work finished</label><input type="date" id="fin" value="${TODAY}" max="${TODAY}"><span class="hint">Today, or an earlier day.</span></div>${owe?`<div class="notice">${$(owe)} is still owed on this Job.</div>`:''}${dep?`<div class="notice">You hold a ${$(dep)} Deposit on this Job.</div>`:''}<button class="btn p" data-a="doneSave" data-id="${id}">Mark Done</button>`}
+  if(k==='drop'){const j=job(id),dep=dd.docs.filter(x=>x.job===id&&x.type==='QUO').reduce((a,x)=>a+(x.deposit||0),0);title=`Drop ${j.title}?`;h=`<p>The Job stays in the records, marked Dropped.</p>${dep?`<label class="item" style="border:1px solid var(--line);border-radius:var(--r)"><input type="checkbox" id="dep2cred" checked><span class="m"><span class="t">Keep the ${$(dep)} Deposit as Credit</span><span class="s">You can refund it from the Customer</span></span></label>`:''}<button class="btn p" data-a="dropSave" data-id="${id}">Mark Dropped</button>`}
+  if(k==='accept'){title=`Mark ${dnum(d)} Accepted`;h=`${expired(d)?`<div class="notice">It expired on ${fdl(d.valid)}. Check the prices still hold.</div>`:''}<div class="field"><label for="acc">Date accepted</label><input type="date" id="acc" value="${TODAY}" max="${TODAY}"></div><button class="btn p" data-a="acceptSave" data-id="${id}">Mark Accepted</button>`}
+  if(k==='issue'){const nn=d.revOf?dnum({...d,num:doc(d.revOf).num}):d.type+'-'+pad(dd.numbers[d.type]);title=`Issue ${nn}?`;h=`<p><strong>${esc(cust(d.cust).name)}</strong> · ${$(total(d))}</p><p class="label">Once issued it is locked and can be shared. ${d.type==='QUO'?'To change it later, make a Revision.':'To correct it later, cancel it and issue a new one.'}</p>${d.revOf?`<p class="label">${dnum(doc(d.revOf))} becomes Superseded. This Revision must be accepted again.</p>`:''}${d.depApply?`<p class="label">${$(d.depApply)} Deposit is applied, with a “Deposit applied” Receipt.</p>`:''}${d.useCred?`<p class="label">Credit is applied, with a “Credit applied” Receipt.</p>`:''}<button class="btn p" data-a="issueSave" data-id="${id}">Issue ${nn}</button>`}
+  if(k==='prices'){title='Add from Price list';h=`<div class="list">${dd.prices.map((p,i)=>`<button class="item" data-a="addLine" data-i="${i}"><span class="m"><span class="t">${esc(p.d)}</span></span><span class="amt">${$(p.p)}</span></button>`).join('')}</div>`}
+  if(k==='freeLine'){title='Other item';h=`<div class="field"><label for="fl-d">Description</label><input id="fl-d" ${inv('fld')}>${err('fld')}</div><div class="grid2"><div class="field"><label for="fl-q">Quantity</label><input id="fl-q" type="number" min="0" step="0.001" value="1"></div><div class="field"><label for="fl-p">Unit price (US$)</label><input id="fl-p" type="number" min="0" step="0.01"></div></div><label class="item" style="border:1px solid var(--line);border-radius:var(--r)"><input type="checkbox" id="fl-save"><span class="m"><span class="t">Also save to Price list</span></span></label><button class="btn p" data-a="addFree">Add line</button>`}
+  if(k==='pdf'){const c=cust(d.cust),b=dd.business,draft=d.status==='Draft';title=draft?'Preview':'PDF';h=`<div class="pdf" ${draft?'data-wm="DRAFT"':d.status==='Cancelled'?'data-wm="CANCELLED"':''}><div class="row sp"><span class="logo">${b.logo?`<img src="${b.logo}" alt="">`:'Logo'}</span><span style="text-align:right"><strong>${esc(b.name)}</strong><br>${esc(b.address)}<br>${esc(b.phone)}</span></div><strong>${TN[d.type].toUpperCase()} ${draft?'':dnum(d)}</strong><span>To: ${esc(c.name)}</span>${(d.type==='REC'?d.alloc.map(x=>({d:x.t,q:1,p:x.amt})):d.type==='REF'?[{d:'Refund',q:1,p:d.amt}]:d.lines).map(l=>`<div class="row sp"><span>${esc(l.d)}${l.q!==1?' × '+l.q:''}</span><span>${$(Math.round(l.q*l.p))}</span></div>`).join('')}<div class="row sp" style="font-weight:700;border-top:1px solid var(--line);padding-top:4px"><span>Total</span><span>${$(total(d))}</span></div><span class="label">The real layout is settled in the Document PDF prototype.</span></div>${draft?'<p class="label">A Draft cannot be shared or printed. Issue it first.</p>':''}`}
+  if(k==='custMore'){const c=cust(id),held=custDeposits(id)+c.credit;title=c.name;h=`<button class="btn w" data-a="editCust" data-id="${id}">Edit details</button><button class="btn w" data-a="sheet" data-k="addOpening" data-id="${id}">Add opening balance</button>${held?`<button class="btn w" data-a="refundSheet" data-id="${id}">Refund money you hold</button>`:''}${c.credit&&custOwes(id)?`<button class="btn w" data-a="applyCredit" data-id="${id}">Apply Credit to what they owe</button>`:''}<button class="btn w d" data-a="archive" data-id="${id}">Archive Customer</button><p class="label">Archived Customers are hidden from lists. Their Documents are kept.</p>`}
+  if(k==='jobMore'){title=job(id).title;h=`<button class="btn w" data-a="dropSheet" data-id="${id}">Mark Job Dropped</button>`}
+  if(k==='docMore'){title=dnum(d);h='';
+    if(d.type==='INV'&&owedInv(d)>0)h+=`<button class="btn w" data-a="woSheet" data-id="${id}">Never going to be paid (Write-off)</button>`;
+    if(d.type==='INV'&&d.wo)h+=`<button class="btn w" data-a="woUndo" data-id="${id}">Undo Write-off of ${$(d.wo)}</button>`;
+    if(d.type==='INV')h+=`<button class="btn w" data-a="cancelSheet" data-id="${id}" data-r="1">Cancel and replace</button>`;
+    h+=`<button class="btn w d" data-a="cancelSheet" data-id="${id}">Cancel ${dnum(d)}</button><p class="label">A cancelled Document stays visible, marked CANCELLED. Its number is never used again.</p>`}
+  if(k==='cancel'){title=`Cancel ${dnum(d)}?`;const blk=cancelBlock(d);h=blk?`<div class="notice bad"><strong>Can't cancel yet</strong><span>${esc(blk)}</span></div>`:`<p class="label">${cancelEffect(d)}</p><div class="field"><label for="why">Reason</label><input id="why" ${inv('why')}>${err('why')}<span class="hint">For example “Wrong amount”.</span></div><button class="btn p" data-a="cancelSave" data-id="${id}" data-r="${S.sheet.r||''}">${S.sheet.r?'Cancel and make a new Draft':'Cancel '+dnum(d)}</button>`}
+  if(k==='wo'){title=`Write off ${dnum(d)}`;h=`<p>${$(owedInv(d))} is closed as never going to be paid. The Invoice shows Closed. You can undo this.</p><p class="label">For a price change, cancel and replace instead.</p><div class="field"><label for="wor">Reason</label><input id="wor" ${inv('wor')}>${err('wor')}</div><button class="btn p" data-a="woSave" data-id="${id}">Write off ${$(owedInv(d))}</button>`}
+  if(k==='refund'){const c=cust(id),src=[...dd.docs.filter(x=>x.cust===id&&x.type==='QUO'&&x.deposit>0).map(x=>({v:x.id,t:'Deposit on '+dnum(x),max:x.deposit})),...(c.credit?[{v:'credit',t:'Credit',max:c.credit}]:[])];title=`Refund ${c.name}`;h=`<div class="field"><label for="rf-s">From</label><select id="rf-s">${src.map(s=>`<option value="${s.v}">${esc(s.t)} (${$(s.max)})</option>`).join('')}</select></div><div class="field"><label for="rf-a">Amount (US$)</label><input id="rf-a" type="number" min="0" step="0.01" value="${(src[0].max/100).toFixed(2)}" ${inv('rfa')}>${err('rfa')}</div><div class="field"><label for="rf-m">How you paid it back</label><select id="rf-m">${METHODS.filter(m=>!dd.hidden[m]).map(m=>`<option>${m}</option>`).join('')}</select></div><div class="field"><label for="rf-r">Reason</label><input id="rf-r" ${inv('rfr')}>${err('rfr')}</div><button class="btn p" data-a="refundSave" data-id="${id}">Issue Refund REF-${pad(dd.numbers.REF)}</button>`}
+  if(k==='draftMore'){title='This Draft';h=`<button class="btn w d" data-a="delDraft" data-id="${id}">Delete Draft</button><p class="label">A Draft has no number yet, so it can be deleted.</p>`}
+  if(k==='addOpening'){title='Add opening balance';h=`<p class="label">From your old records: money a customer owed you, or you held for them, on your Start date, ${fdl(dd.start)}.</p>${id?`<strong>${esc(cust(id).name)}</strong>`:`<div class="field"><label for="ob-c">Customer</label><select id="ob-c">${dd.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>`}<div class="seg" role="radiogroup" aria-label="Kind of opening balance"><label><input type="radio" name="obk" value="owed" checked>They owed me</label><label><input type="radio" name="obk" value="held">I held their money</label></div><div class="field"><label for="ob-r">Old invoice number (if any)</label><input id="ob-r"></div><div class="field"><label for="ob-d">Date of the old invoice (if any)</label><input type="date" id="ob-d" max="${dd.start}"></div><div class="field"><label for="ob-a">Amount (US$)</label><input type="number" id="ob-a" min="0" step="0.01" ${inv('oba')}>${err('oba')}</div><div class="field"><label for="ob-n">Note (optional)</label><input id="ob-n"></div><button class="btn p" data-a="obSave" data-id="${id||''}">Add opening balance</button>`}
+  if(k==='obMore'){const o=dd.opening.find(x=>x.id===id);title='Opening balance'+(o.ref?' · invoice '+o.ref:'');h=o.status==='Cancelled'?`<p class="label">Cancelled: ${esc(o.reason)}</p>`:`<p>${o.kind==='owed'?$(o.owed)+' still owed':$(o.held)+' held'}, dated ${fdl(dd.start)}.</p>${o.kind==='owed'&&o.owed>0?`<button class="btn p w" data-a="payFor" data-id="${o.cust}">Record Payment</button>`:''}<div class="field"><label for="obwhy">Reason to cancel</label><input id="obwhy" ${inv('obwhy')}>${err('obwhy')}</div><button class="btn w d" data-a="obCancel" data-id="${id}">Cancel this opening balance</button><p class="label">If it was wrong, cancel it and add it again.</p>`}
+  if(k==='newJob'){const c=cust(id);title='Add Job';h=`<div class="field"><label for="nj">What is the work?</label><input id="nj" ${inv('nj')}>${err('nj')}</div><div class="field"><label for="njs">At which Site?</label><select id="njs">${c.sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div><button class="btn p" data-a="jobSave" data-id="${id}">Add Job</button>`}
+  if(k==='newSite'){title='Add Site';h=`<div class="field"><label for="ns">Site</label><input id="ns" ${inv('ns')}>${err('ns')}<span class="hint">For example “Staff cottages”.</span></div><button class="btn p" data-a="siteSave" data-id="${id}">Add Site</button>`}
+  return `<div class="scrim" data-scrim="1"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><h2 id="sh-t">${esc(title)}</h2>${h}<button class="btn" data-a="close">Close</button></div></div>`;
+}
+function cancelBlock(d){
+  if(d.type==='QUO'&&D().docs.some(x=>x.type==='INV'&&x.from===d.id&&live(x)))return'An Invoice was made from this Quotation. Cancel that Invoice first.';
+  if(d.type==='REC'&&d.kind==='money'){for(const x of d.alloc){if(x.kind==='dep'&&(doc(x.k).deposit||0)<x.amt)return`Part of the Deposit on ${dnum(doc(x.k))} has been used or refunded. Undo that first.`}const cr=d.alloc.find(x=>x.kind==='credit');if(cr&&cust(d.cust).credit<cr.amt)return'The Credit from this Payment has been used or refunded. Undo that first.'}
+  return'';
+}
+function cancelEffect(d){
+  if(d.type==='QUO')return d.deposit?`The ${$(d.deposit)} Deposit moves to Credit for ${cust(d.cust).name}.`:'It stays visible, marked CANCELLED.';
+  if(d.type==='INV')return d.paid?`${$(d.paid)} paid or applied goes back to the Deposit or to Credit. Its Payments and Receipts stay.`:'Nothing has been paid on it.';
+  if(d.type==='REC')return d.kind==='money'?'The Payment is cancelled and the Invoices it paid are owed again.':'Only this use of the Deposit or Credit is undone.';
+  return 'The money goes back to the Deposit or Credit it came from.';
+}
+
+/* ---------- render ---------- */
+function render(moved){
+  const c=cur(),r=SCREENS[c.s](c);
+  const nav=[['home','Home','home'],['customers','Customers','people'],['docs','Documents','doc'],['money','Money','wallet']];
+  const showNav=S.stack.length===1&&r.nav;
+  document.getElementById('phone').innerHTML=`${r.top}<main id="main" tabindex="-1" aria-label="${esc(c.s)}" class="${S.stack.length===1&&r.nav&&r.fab?'fabpad':''}">${r.body}</main>${r.foot?`<div class="foot">${r.foot}</div>`:''}
+  ${showNav?`<nav class="tabs" aria-label="Main">${nav.map(([s,l,i])=>`<button data-a="tab" data-s="${s}" ${S.stack[0].s===s?'aria-current="page"':''}><span class="pill">${ic(i)}</span>${l}</button>`).join('')}</nav>`:''}
+  ${showNav&&r.fab?`<button class="fab" data-a="sheet" data-k="new" aria-label="New Quotation, Invoice, Payment or Customer">${ic('plus')}New</button>`:''}
+  <div aria-live="polite" class="sr">${esc(S.toast?.t||'')}</div>${S.toast?`<div class="toast"><span aria-hidden="true">${esc(S.toast.t)}</span>${S.toast.undo?`<button data-a="undo">Undo</button>`:''}</div>`:''}${sheetHtml()}`;
+  document.getElementById('pempty').setAttribute('aria-pressed',S.empty);
+  if(moved){document.getElementById('main').scrollTop=0;const f=document.querySelector('.sheet input:not([type=radio]),.sheet button');(f||document.getElementById('main')).focus({preventScroll:true})}
+}
+
+/* ---------- actions ---------- */
+const val=id=>document.getElementById(id)?.value??'';
+function fail(errs){S.errs=errs;render();const k=Object.keys(errs)[0];document.querySelector(`[aria-describedby="e-${k}"]`)?.focus()}
+function startFlow(type,o={}){S.flow={type,step:0,...o};if(o.cust){S.flow.step=1;S.flow.fixedCust=true}if(o.job){makeDraft();S.flow.step=2;S.flow.fixedJob=true}S.pay=null;go('flow')}
+function makeDraft(){const F=S.flow;if(F.doc)return F.doc;const d={id:uid('d'),type:F.type,num:null,rev:1,cust:F.cust,job:F.job,status:'Draft',lines:[],disc:0,paid:0,wo:0};D().docs.push(d);F.doc=d;return d}
+function openFlowFor(d){S.flow={type:d.type,step:2,cust:d.cust,job:d.job,doc:d,fixedCust:true,fixedJob:true};go('flow')}
+function applyReceipt(c,heading,amt,src){D().docs.push({id:uid('d'),type:'REC',num:D().numbers.REC++,cust:c,kind:'applied',heading,issued:TODAY,received:TODAY,method:'',alloc:[{k:src.k,kind:'inv',amt,t:src.t,left:src.left}],status:'Issued',from:src.from});D().used.REC=true}
+const A={
+  back,tab:e=>tab(e.s),go:e=>go(e.s,{id:e.id}),
+  close(){S.sheet=null;S.errs={};render()},
+  sheet:e=>{S.sheet={k:e.k,id:e.id||S.flow?.doc?.id};S.errs={};S.toast=null;render(true)},
+  toastBtn:e=>toast(e.t),
+  undo(){S.toast?.undo?.();S.toast=null;render()},
+  vatok(){D().vatSeen=true;render()},
+  call:e=>toast(`Opens the phone app to call ${cust(e.id).phone}`),
+  whatsapp:e=>toast(`Opens WhatsApp with ${cust(e.id).phone}`),
+  share:e=>toast(`Shares ${dnum(doc(e.id))} as a PDF by WhatsApp, email or another app`),
+  contacts:()=>toast('Opens your phone contacts. Picking one fills in the name and phone.'),
+  openDoc(e){const d=doc(e.id);if(d.status==='Draft')return openFlowFor(d);go('doc',{id:e.id})},
+  newCust(){S.sheet=null;go('custForm',{})},
+  editCust(e){S.sheet=null;go('custForm',{id:e.id})},
+  saveCust(e){const n=val('nc-name').trim();if(!n)return fail({name:'Enter the Customer’s name.'});
+    if(e.id){const c=cust(e.id);c.name=n;c.phone=val('nc-ph');c.notes=val('nc-notes');S.stack.pop();return toast(`Saved ${n}`)}
+    const c={id:uid('c'),name:n,phone:val('nc-ph'),notes:val('nc-notes'),follow:'',credit:0,sites:[{id:uid('s'),name:val('nc-site').trim()||'Main site'}]};D().customers.push(c);S.empty=false;S.stack.pop();
+    if(S.flow&&cur().s==='flow'){S.flow.cust=c.id;S.flow.step=1;render(true);return}
+    if(S.pick&&cur().s==='pickCust'){S.stack.pop();return A[S.pick.a]({id:c.id})}
+    go('customer',{id:c.id});toast(`Added ${n}`)},
+  archive(e){const c=cust(e.id);c.archived=true;S.sheet=null;S.stack.pop();toast(`Archived ${c.name}`,()=>{c.archived=false})},
+  newQuote(e){S.sheet=null;startFlow('QUO',e.id?{cust:e.id}:{})},
+  newQuoteJob(e){const j=job(e.id);startFlow('QUO',{cust:j.cust,job:j.id})},
+  newInvoice(){S.sheet=null;startFlow('INV')},
+  invForJob(e){const q=D().docs.find(x=>x.job===e.id&&x.type==='QUO'&&x.status==='Accepted');if(q)return A.invFromQuo({id:q.id});const j=job(e.id);startFlow('INV',{cust:j.cust,job:j.id})},
+  invFromQuo(e){const q=doc(e.id);S.flow={type:'INV',step:2,cust:q.cust,job:q.job,fixedCust:true,fixedJob:true};const d=makeDraft();d.lines=q.lines.map(l=>({...l}));d.from=q.id;
+    const prev=invoicedFrom(q);d.disc=prev?0:q.disc;d.discPct=q.discPct??null;d.depApply=Math.min(q.deposit||0,total(d));d.note=`Copied from ${dnum(q)}. Change the lines if the work changed.`;go('flow')},
+  flowCust(e){S.flow.cust=e.id;S.flow.step=1;S.errs={};render(true)},
+  flowJob(e){S.flow.job=e.id;const d=makeDraft();d.job=e.id;d.cust=S.flow.cust;S.flow.step=2;render(true)},
+  flowNewJob(){const t=val('fj').trim();if(!t)return fail({fj:'Say what the work is, or pick a Job above.'});const j={id:uid('j'),cust:S.flow.cust,site:val('fs'),title:t,status:'Open',last:TODAY};D().jobs.push(j);A.flowJob({id:j.id})},
+  flowBack(){const F=S.flow;F.step--;if(F.step<0)return back();S.errs={};render(true)},
+  flowLinesNext(){const d=S.flow.doc;if(!d.lines.length)return fail({lines:'Add at least one line.'});if(total(d)<=0&&!discAmt(d))return fail({lines:'The total must be more than US$0.00.'});S.flow.step=3;S.errs={};render(true)},
+  addLine(e){const p=D().prices[e.i];S.flow.doc.lines.push({d:p.d,q:1,p:p.p});S.sheet=null;S.errs={};render()},
+  addFree(){const t=val('fl-d').trim();if(!t)return fail({fld:'Describe the item.'});const p=cents(val('fl-p')),q=+val('fl-q')||1;S.flow.doc.lines.push({d:t,q,p});if(document.getElementById('fl-save').checked)D().prices.push({d:t,p});S.sheet=null;S.errs={};render()},
+  rmLine(e){const l=S.flow.doc.lines.splice(+e.i,1)[0];toast(`Removed ${l.d}`,()=>S.flow.doc.lines.splice(+e.i,0,l))},
+  issueSave(e){const d=doc(e.id),dd=D();if(total(d)<=0){S.sheet=null;return fail({disc:'The total must be more than US$0.00.'})}
+    if(d.revOf){const old=doc(d.revOf);d.num=old.num;old.status='Superseded';d.deposit=old.deposit||0;old.deposit=0}else{d.num=dd.numbers[d.type]++;dd.used[d.type]=true}
+    d.status='Issued';d.issued=TODAY;
+    if(d.type==='QUO')d.valid=d.valid||addDays(TODAY,30);
+    if(d.type==='INV'){d.due=d.due||TODAY;d.paid=0;const c=cust(d.cust);
+      if(d.depApply){const q=doc(d.from);q.deposit-=d.depApply;d.paid+=d.depApply;const r=dd.docs.find(x=>x.type==='REC'&&x.kind==='money'&&x.alloc.some(a=>a.k===q.id));applyReceipt(d.cust,`Deposit applied from ${r?dnum(r):dnum(q)}`,d.depApply,{k:d.id,t:dnum(d),left:owedInv(d),from:'dep:'+q.id})}
+      if(d.useCred){const a=Math.min(c.credit,owedInv(d));c.credit-=a;d.paid+=a;applyReceipt(d.cust,'Credit applied',a,{k:d.id,t:dnum(d),left:owedInv(d),from:'credit'})}
+      const j=job(d.job);if(j)j.last=TODAY}
+    S.flow=null;S.stack=[S.stack[0],{s:'doc',id:d.id}];S.sheet=null;S.errs={};toast(`Issued ${dnum(d)}`)},
+  acceptSave(e){const d=doc(e.id);d.status='Accepted';d.accepted=val('acc')||TODAY;S.sheet=null;toast(`${dnum(d)} marked Accepted`)},
+  decline(e){const d=doc(e.id);d.status='Declined';toast(`${dnum(d)} marked Declined`,()=>{d.status='Issued'})},
+  revise(e){const q=doc(e.id);if(D().docs.some(x=>x.revOf===q.id&&x.status==='Draft'))return toast('A Revision Draft already exists. Find it under Documents → Drafts.');
+    const d={id:uid('d'),type:'QUO',num:null,rev:(q.rev||1)+1,revOf:q.id,cust:q.cust,job:q.job,status:'Draft',lines:q.lines.map(l=>({...l})),disc:q.disc,discPct:q.discPct??null,note:`Revision ${(q.rev||1)+1} of ${dnum(q)}. Issuing it replaces the current version.`};D().docs.push(d);openFlowFor(d)},
+  delDraft(e){const dd=D(),i=dd.docs.findIndex(x=>x.id===e.id),d=dd.docs[i];dd.docs.splice(i,1);S.sheet=null;if(S.flow?.doc?.id===e.id){S.flow=null;back()}toast('Draft deleted',()=>dd.docs.splice(i,0,d))},
+  doneSheet:e=>{S.sheet={k:'done',id:e.id};S.toast=null;render(true)},dropSheet:e=>{S.sheet={k:'drop',id:e.id};S.toast=null;render(true)},
+  doneSave(e){const j=job(e.id),f=val('fin')||TODAY;if(f>TODAY)return toast('The finish date cannot be later than today');j.status='Done';j.finished=f;j.last=TODAY;S.sheet=null;toast(`${j.title} marked Done, finished ${fd(f)}`)},
+  dropSave(e){const j=job(e.id);if(document.getElementById('dep2cred')?.checked)D().docs.filter(x=>x.job===e.id&&x.type==='QUO'&&x.deposit>0).forEach(q=>{cust(q.cust).credit+=q.deposit;q.deposit=0});j.status='Dropped';S.sheet=null;toast(`${j.title} marked Dropped`)},
+  depToCredit(e){const q=doc(e.id);cust(q.cust).credit+=q.deposit;q.deposit=0;render()},
+  newPay(){S.sheet=null;S.pick={title:'Payment from',a:'payFor'};go('pickCust')},
+  payFor(e){const tick={};D().docs.filter(d=>d.cust===e.id&&owedInv(d)>0).forEach(d=>tick[d.id]=true);D().opening.filter(o=>o.cust===e.id&&openOwed(o)>0).forEach(o=>tick[o.id]=true);
+    S.pay={cust:e.id,amount:0,date:TODAY,method:'Cash',tick,dep:{},over:{},sep:false};S.sheet=null;if(cur().s==='pickCust')S.stack.pop();go('pay')},
+  payCheck(){const P=S.pay;if(P.amount<=0)return fail({pamt:'Enter the amount received, more than US$0.00.'});if(P.date>TODAY)return fail({pdate:'The date received cannot be in the future.'});go('payConfirm')},
+  paySave(){const P=S.pay,dd=D(),c=cust(P.cust),used=P.rows.filter(r=>P.alloc[r.k]>0);
+    const mk=al=>{dd.docs.push({id:uid('d'),type:'REC',num:dd.numbers.REC++,cust:P.cust,kind:'money',issued:TODAY,received:P.date,method:P.method==='Other'?(P.other||'Other'):P.method,alloc:al,status:'Issued'});return dd.docs.at(-1)};
+    const al=used.map(r=>{const a=P.alloc[r.k];if(r.kind==='dep'){doc(r.k).deposit=(doc(r.k).deposit||0)+a;return{k:r.k,kind:'dep',amt:a,t:r.t,left:null}}
+      if(r.kind==='ob'){const o=dd.opening.find(x=>x.id===r.k);o.owed-=a;return{k:r.k,kind:'ob',amt:a,t:r.t,left:o.owed}}const d=doc(r.k);d.paid+=a;const j=job(d.job);if(j)j.last=TODAY;return{k:r.k,kind:'inv',amt:a,t:`${dnum(d)} · ${j.title}`,left:owedInv(d)}});
+    if(P.credit){c.credit+=P.credit;al.push({k:'credit',kind:'credit',amt:P.credit,t:'Kept as Credit',left:null})}
+    let last;if(P.sep&&al.length>1)al.forEach(x=>last=mk([x]));else last=mk(al);dd.used.REC=true;
+    S.pay=null;S.stack=[S.stack[0],{s:'doc',id:last.id}];toast(`Payment saved. Issued ${dnum(last)}`)},
+  applyCredit(e){const c=cust(e.id),dd=D();let left=c.credit;dd.docs.filter(d=>d.cust===e.id&&owedInv(d)>0).sort((a,b)=>a.issued<b.issued?-1:1).forEach(d=>{const a=Math.min(left,owedInv(d));if(a<=0)return;d.paid+=a;left-=a;applyReceipt(e.id,'Credit applied',a,{k:d.id,t:dnum(d),left:owedInv(d),from:'credit'})});c.credit=left;S.sheet=null;toast(`Credit applied. ${$(left)} Credit left`)},
+  refundSheet:e=>{S.sheet={k:'refund',id:e.id};S.errs={};S.toast=null;render(true)},
+  refundSave(e){const dd=D(),c=cust(e.id),s=val('rf-s'),a=cents(val('rf-a')),max=s==='credit'?c.credit:doc(s).deposit;
+    if(a<=0||a>max)return fail({rfa:`Enter an amount from US$0.01 to ${$(max)}.`});if(!val('rf-r').trim())return fail({rfr:'Give a reason, for example “Job cancelled”.'});
+    if(s==='credit')c.credit-=a;else doc(s).deposit-=a;dd.docs.push({id:uid('d'),type:'REF',num:dd.numbers.REF++,cust:e.id,issued:TODAY,amt:a,method:val('rf-m'),reason:val('rf-r'),src:s==='credit'?'Credit':'Deposit on '+dnum(doc(s)),srcK:s,status:'Issued'});dd.used.REF=true;S.sheet=null;toast(`Issued ${dnum(dd.docs.at(-1))} for ${$(a)}`)},
+  woSheet:e=>{S.sheet={k:'wo',id:e.id};S.errs={};S.toast=null;render(true)},
+  woSave(e){const d=doc(e.id);if(!val('wor').trim())return fail({wor:'Give a reason, for example “Customer left the country”.'});d.wo=(d.wo||0)+owedInv(d);d.woReason=val('wor');S.sheet=null;toast(`${dnum(d)} closed. ${$(d.wo)} written off`)},
+  woUndo(e){const d=doc(e.id);d.wo=0;S.sheet=null;toast(`Write-off undone. ${dnum(d)} is owed again`)},
+  cancelSheet:e=>{S.sheet={k:'cancel',id:e.id,r:e.r};S.errs={};S.toast=null;render(true)},
+  cancelSave(e){const d=doc(e.id),dd=D(),why=val('why').trim();if(!why)return fail({why:'Give a reason for cancelling.'});
+    const c=cust(d.cust);
+    if(d.type==='QUO'&&d.deposit){c.credit+=d.deposit;d.deposit=0}
+    if(d.type==='INV'){dd.docs.filter(x=>x.type==='REC'&&x.kind==='applied'&&x.status!=='Cancelled'&&x.alloc[0].k===d.id).forEach(x=>{x.status='Cancelled';x.cancelled=TODAY;x.reason='Its Invoice was cancelled';const amt=x.alloc[0].amt;d.paid-=amt;if(x.from?.startsWith('dep:'))doc(x.from.slice(4)).deposit+=amt;else c.credit+=amt});if(d.paid>0){c.credit+=d.paid;d.paid=0}d.wo=0}
+    if(d.type==='REC'){if(d.kind==='money')d.alloc.forEach(x=>{if(x.kind==='inv')doc(x.k).paid-=x.amt;if(x.kind==='dep')doc(x.k).deposit-=x.amt;if(x.kind==='ob')dd.opening.find(o=>o.id===x.k).owed+=x.amt;if(x.kind==='credit')c.credit-=x.amt});
+      else{const x=d.alloc[0];doc(x.k).paid-=x.amt;if(d.from?.startsWith('dep:'))doc(d.from.slice(4)).deposit+=x.amt;else c.credit+=x.amt}}
+    if(d.type==='REF'){if(d.srcK==='credit')c.credit+=d.amt;else doc(d.srcK).deposit+=d.amt}
+    d.status='Cancelled';d.cancelled=TODAY;d.reason=why;S.sheet=null;
+    if(e.r){const n={id:uid('d'),type:'INV',num:null,rev:1,cust:d.cust,job:d.job,status:'Draft',lines:d.lines.map(l=>({...l})),disc:d.disc,discPct:d.discPct??null,paid:0,wo:0,note:`Replaces ${dnum(d)}.${c.credit?` ${c.name} now has ${$(c.credit)} Credit, offered at the last step.`:''}`,useCred:c.credit>0};dd.docs.push(n);S.stack=[S.stack[0]];openFlowFor(n);return toast(`${dnum(d)} cancelled. Make the new Invoice.`)}
+    toast(`${dnum(d)} cancelled`)},
+  revAns(e){const act=e.act;D().answers[e.r]=e.l;if(act&&A[act]){A[act]({id:e.id});if(!['doneSheet','dropSheet','woSheet','refundSheet'].includes(act))return}else toast(`Answered: ${e.l}`)},
+  obSave(e){const c=e.id||val('ob-c'),a=cents(val('ob-a')),kind=document.querySelector('input[name=obk]:checked').value;if(a<=0)return fail({oba:'Enter the amount, more than US$0.00.'});
+    const o={id:uid('o'),cust:c,kind,ref:val('ob-r').trim(),olddate:val('ob-d'),date:D().start,note:val('ob-n'),status:'Active'};if(kind==='owed')o.owed=a;else{o.held=a;cust(c).credit+=a}D().opening.push(o);S.sheet=null;toast(`Opening balance of ${$(a)} added for ${cust(c).name}`)},
+  obCancel(e){const o=D().opening.find(x=>x.id===e.id);if(!val('obwhy').trim())return fail({obwhy:'Give a reason for cancelling.'});if(o.kind==='owed'&&D().docs.some(d=>d.type==='REC'&&d.status!=='Cancelled'&&d.alloc.some(x=>x.k===o.id)))return fail({obwhy:'A Payment was applied to it. Cancel that Receipt first.'});
+    if(o.kind==='held'){if(cust(o.cust).credit<o.held)return fail({obwhy:'This Credit has been used or refunded. Undo that first.'});cust(o.cust).credit-=o.held}o.status='Cancelled';o.reason=val('obwhy');S.sheet=null;toast('Opening balance cancelled')},
+  jobSave(e){const t=val('nj').trim();if(!t)return fail({nj:'Say what the work is.'});D().jobs.push({id:uid('j'),cust:e.id,site:val('njs'),title:t,status:'Open',last:TODAY});S.sheet=null;toast(`Added Job ${t}`)},
+  siteSave(e){const t=val('ns').trim();if(!t)return fail({ns:'Name the Site.'});cust(e.id).sites.push({id:uid('s'),name:t});S.sheet=null;toast(`Added Site ${t}`)},
+  addPrice(){const t=val('pr-d').trim();if(!t)return fail({pd:'Describe the item.'});D().prices.push({d:t,p:cents(val('pr-p'))});S.errs={};toast(`Added ${t} to the Price list`)},
+  rmPrice(e){const p=D().prices.splice(+e.i,1)[0];toast(`Removed ${p.d}`,()=>D().prices.splice(+e.i,0,p))},
+  walkSetup(){S.setup={n:0,walk:true};go('setup')},
+  editStep(e){S.setup={n:+e.n,walk:false};go('setup')},
+  setupNext(){if(!saveStep())return;S.setup.n++;S.errs={};render(true)},setupPrev(){S.setup.n--;render(true)},
+  stepSave(){if(!saveStep())return;back();toast('Saved')},
+  setupDone(){saveStep();S.stack=[{s:'home'}];S.setup=null;toast('Setup saved. You can change any of it in Settings.')},
+  lockYes(){D().applock=true;A.setupDone()},
+  rmLogo(){D().business.logo=null;render()}
+};
+function saveStep(){const dd=D(),n=S.setup?.n;
+  if(n===0&&document.getElementById('b-name')){const nm=val('b-name').trim();if(!nm){fail({bname:'Enter your business name. It goes on every Document.'});return false}Object.assign(dd.business,{name:nm,phone:val('b-ph'),address:val('b-ad'),email:val('b-em')})}
+  if(n===1)['QUO','INV','REC','REF'].forEach(k=>{const el=document.getElementById('n-'+k);if(el&&!el.disabled)dd.numbers[k]=Math.max(1,+el.value||1)});
+  if(n===2&&val('sd'))dd.start=val('sd');
+  if(n===3){const p=document.querySelector('input[name=pe]:checked');if(p)dd.period.every=p.value;dd.period.starts=val('ys')||dd.period.starts}
+  if(n===5)document.querySelectorAll('[data-pm]').forEach(el=>dd.presales[el.dataset.pm]=cents(el.value));
+  return true}
+
+/* ---------- events ---------- */
+const phone=document.getElementById('phone');
+phone.addEventListener('click',ev=>{if(ev.target.dataset?.scrim){S.sheet=null;render();return}const t=ev.target.closest('[data-a]');if(!t||t.disabled)return;const fn=A[t.dataset.a];if(fn)fn(t.dataset)});
+phone.addEventListener('input',ev=>{const t=ev.target;if(t.id==='q'){S.q=t.value;const p=t.selectionStart;render();const q=document.getElementById('q');q.focus();q.setSelectionRange(p,p)}});
+phone.addEventListener('change',ev=>{const t=ev.target,F=S.flow,d=F?.doc;
+  if(t.dataset.q!==undefined){d.lines[t.dataset.q].q=Math.max(0,+t.value||0);render()}
+  else if(t.dataset.p!==undefined){d.lines[t.dataset.p].p=Math.max(0,cents(t.value));render()}
+  else if(t.id==='disc'){if(d.discPct!=null){const v=t.value===''?0:+t.value;if(!(v>=0&&v<100)){S.errs={disc:'Enter a percentage from 0 to 99.9.'};S.discRaw=t.value}else{d.discPct=v;S.errs={}}}
+    else{const v=cents(t.value);if(v<0||v>=sub(d)&&v>0){S.errs={disc:`A Discount must be less than the Subtotal, ${$(sub(d))}.`};S.discRaw=t.value}else{d.disc=v;S.errs={}}}
+    if(d.depApply)d.depApply=Math.min(d.depApply,total(d));render()}
+  else if(t.name==='discmode'){if(t.value==='pct'){d.discPct=0;d.disc=0}else{d.discPct=null;d.disc=0}S.errs={};render();document.getElementById('disc')?.focus()}
+  else if(t.id==='depa'){const q=doc(d.from),v=cents(t.value),max=Math.min(q.deposit,total(d));if(v<0||v>max)S.errs={depa:`Apply from US$0.00 to ${$(max)}.`};else{d.depApply=v;S.errs={}}render()}
+  else if(t.id==='usecred'){d.useCred=t.checked}
+  else if(t.id==='valid'){d.valid=t.value}else if(t.id==='due'){d.due=t.value}
+  else if(t.id==='pamt'){S.pay.amount=Math.max(0,cents(t.value));S.errs={};render()}
+  else if(t.id==='pdate'){S.pay.date=t.value;render()}
+  else if(t.name==='pm'){S.pay.method=t.value;render()}else if(t.id==='pmo'){S.pay.other=t.value}
+  else if(t.dataset.tick){S.pay.tick[t.dataset.tick]=t.checked;render()}
+  else if(t.dataset.dep){S.pay.dep[t.dataset.dep]=Math.max(0,cents(t.value));render()}
+  else if(t.id==='sep'){S.pay.sep=t.checked}
+  else if(t.name==='df'){S.f=t.value;render()}
+  else if(t.name==='rg'){S.range=t.value;render()}else if(t.id==='from'){S.from=t.value;render()}else if(t.id==='to'){S.to=t.value;render()}
+  else if(t.id==='lock'){D().applock=t.checked;toast(t.checked?'Mhizha now opens with your screen lock':'Screen lock is off for Mhizha')}
+  else if(t.id==='fu'){const c=cust(cur().id);c.follow=t.value;render();toast(t.value?`Reminder set for ${fdl(t.value)}`:'Follow-up removed')}
+  else if(t.dataset.meth){D().hidden[t.dataset.meth]=!t.checked}
+  else if(t.id==='logo'&&t.files[0]){saveStep();const r=new FileReader();r.onload=()=>{D().business.logo=r.result;render()};r.readAsDataURL(t.files[0])}
+});
+phone.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&S.sheet){S.sheet=null;render()}});
+document.getElementById('pempty').onclick=()=>{const e=!S.empty;reset();S.empty=e;if(e){const dd=S.data;dd.customers=[];dd.docs=[];dd.jobs=[];dd.opening=[];dd.presales={};dd.used={QUO:false,INV:false,REC:false,REF:false};dd.numbers={QUO:1,INV:1,REC:1,REF:1}}render(true)};
+document.getElementById('preset').onclick=()=>{reset();render(true)};
+{const b=document.getElementById('ptheme'),modes=['Phone','Light','Dark'];let m=0;
+b.onclick=()=>{m=(m+1)%3;const r=document.documentElement;if(m)r.dataset.theme=modes[m].toLowerCase();else delete r.dataset.theme;
+b.textContent=modes[m];b.setAttribute('aria-label',m?'Colour mode: '+modes[m].toLowerCase():'Colour mode: follows the phone')}}
+render();
+</script>
