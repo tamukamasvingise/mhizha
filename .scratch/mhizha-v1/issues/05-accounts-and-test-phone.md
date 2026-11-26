@@ -28,6 +28,8 @@ Record the phone's model, Android version, whether it is 32-bit, each warning se
 
 The owner installed the Install and update proof APKs (run 45905060425, `proof-apks`) by Google Drive on a Samsung Galaxy S22 Ultra, Android 16, One UI 8.0, August security update. Owner's report: every step worked as expected (v1 install, v2 over v1, the wrong-key build refused, v3 fails and returns to the copy, downgrade refused).
 
-Warnings: Samsung's Auto Blocker refused the install until the owner turned it off (Settings, Security and privacy, Auto Blocker). Not yet recorded: Play Protect and the Drive permission prompts, and timings.
+Warnings: Samsung's Auto Blocker refused the install until the owner turned it off (Settings, Security and privacy, Auto Blocker). After that, no Play Protect or other security warning appeared. Timings not recorded.
 
 Still open: this is a flagship running the 64-bit build, so speed on a weak phone and the 32-bit build are unchecked. The app lock and the Share-menu Backup need a later build, since the proof app has neither.
+
+Owner, 2026-11-27: keep the cheap phone in the plan. Users may have Android 10 phones, so speed on a weak phone and the 32-bit build must still be checked on one, with the app lock and the Share-menu Backup once a build has them.
