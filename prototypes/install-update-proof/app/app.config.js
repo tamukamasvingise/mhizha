@@ -12,6 +12,6 @@ module.exports = {
       package: 'io.github.tamukamasvingise.mhizha.test',
       versionCode: v,
     },
-    plugins: [['expo-build-properties', { android: { minSdkVersion: 29 } }]],
+    plugins: ['expo-sqlite', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
   },
 };
