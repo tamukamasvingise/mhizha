@@ -53,14 +53,11 @@ Settled while charting:
 - [Design source files](issues/17-design-source-files.md): none needed; the layout is rebuilt from the reference PDFs with a made-up Business, a placeholder logo, dummy data and open-licence fonts.
 - [Document PDF prototype](issues/08-document-pdf-prototype.md): one A4 layout for all Documents, each Business's own colour, font choice and optional watermark, no customer signatures, empty fields left off, and a CANCELLED stamp that never adds a page.
 - [Install and update proof](issues/13-install-and-update-proof.md): on GitHub's Android 10 and 16 emulators, installing over keeps every record and the PDF, the wrong key and downgrades are refused, and the safety copy (SQLite VACUUM INTO) is made before an upgrade and returned to when a step fails.
+- [Version 1 spec](issues/14-version-1-spec.md): [spec.md](spec.md) assembled from every decision; six gaps left as tickets, folded in by Finish the version 1 spec.
 
 ## Not yet specified
 
-- What the test strategy must cover, especially money sums and database upgrades.
-- How problems on the user's phone get noticed and diagnosed with no server.
-- First-run setup and handover: entering business details, accounting period, Start date and Opening balances, training, support.
-- Reminder behaviour on phones that kill background work, once the phone model is known.
-- How to re-enter Documents and money issued after the last backup, once a restore has found them missing.
+Nothing at present: the remaining fog graduated into tickets when the spec was assembled.
 
 ## Out of scope
 
