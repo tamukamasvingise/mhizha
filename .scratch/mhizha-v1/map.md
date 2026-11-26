@@ -44,7 +44,7 @@ Settled while charting:
 - [Money and VAT rules](issues/07-money-and-vat-rules.md): whole cents, one Discount per Document, no VAT in version 1 with automatic VAT provided for, date work finished, and a VAT threshold warning.
 - [Accounting foundation](issues/19-accounting-foundation.md): balanced entries posted automatically from day one for customer money only, hidden period-end adjustments, and a plain-language review each accounting period.
 - [Opening balances](issues/18-opening-balances.md): amounts owed or held on the Start date are Opening balance items, paid like Invoices but never Sales; optional monthly sales totals feed the VAT threshold.
-- [Signing and delivery](issues/11-signing-and-delivery.md): one developer-held release key with three copies, a permanent package name from the new product name, separate `.test` builds, updates by Google Drive link.
+- [Signing and delivery](issues/11-signing-and-delivery.md): one developer-held release key with three copies, a permanent package name from the new product name, separate `.test` builds, updates by Google Drive link (delivery since replaced by Handover and support).
 - [Product name and open source](issues/22-product-name-and-open-source.md): the product is Mhizha, the owner's own, for construction service providers; GPL-3.0, issues only, a fresh public repo with the reference user named nowhere.
 - [Go public](issues/23-go-public.md): planning continues in the public repo tamukamasvingise/mhizha (GPL-3.0); the old private repo is archived.
 - [Main screens prototype](issues/09-main-screens-prototype.md): four tabs (Home, Customers, Documents, Money), one New button, step-by-step Documents, a Discount as amount or %, one orange accent on greys, phone only.
@@ -57,6 +57,7 @@ Settled while charting:
 - [Version 1 spec](issues/14-version-1-spec.md): [spec.md](spec.md) assembled from every decision; six gaps left as tickets, folded in by Finish the version 1 spec.
 - [Test strategy](issues/24-test-strategy.md): Vitest and fast-check on every push for money, ledger, rules, upgrades from every release and Backup round trips; emulator smoke run on pull requests and tags; one arm APK; release key only on approved, all-green `v*` tags; S22 checklist before each release.
 - [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): local error log with IDs only; plain error screen; ledger checks on every open with a red banner; a plain-text problem report sent through the Share menu; a Backup only with the User's agreement.
+- [Handover and support](issues/26-handover-and-support.md): public and self-service; GitHub Pages site with a direct `mhizha.apk` download, install guide (Auto Blocker off, then on), tutorials and built-in Help; daily update check with a Home banner; support through GitHub issues; no User holds the key; developer verification not now.
 
 ## Not yet specified
 
