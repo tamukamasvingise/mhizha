@@ -48,6 +48,7 @@ Settled while charting:
 - [Product name and open source](issues/22-product-name-and-open-source.md): the product is Mhizha, the owner's own, for construction service providers; GPL-3.0, issues only, a fresh public repo with the reference user named nowhere.
 - [Go public](issues/23-go-public.md): planning continues in the public repo tamukamasvingise/mhizha (GPL-3.0); the old private repo is archived.
 - [Main screens prototype](issues/09-main-screens-prototype.md): four tabs (Home, Customers, Documents, Money), one New button, step-by-step Documents, a Discount as amount or %, one orange accent on greys, phone only.
+- [Backup and restore](issues/10-backup-and-restore.md): one manual password-locked file through the Share menu, weekly reminders when there are changes, restore from the first screen, and numbering that never reuses numbers issued after the backup.
 
 ## Not yet specified
 
@@ -55,6 +56,7 @@ Settled while charting:
 - How problems on the user's phone get noticed and diagnosed with no server.
 - First-run setup and handover: entering business details, accounting period, Start date and Opening balances, training, support.
 - Reminder behaviour on phones that kill background work, once the phone model is known.
+- How to re-enter Documents and money issued after the last backup, once a restore has found them missing.
 
 ## Out of scope
 

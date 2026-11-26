@@ -75,3 +75,10 @@ _Avoid_: Old invoice, brought forward, carried forward, before the app
 
 **Review**: The plain-language list of possible mistakes and unfinished matters the user answers, offered at the end of each Accounting period.
 _Avoid_: Adjustment, audit, closing
+
+## Keeping records safe
+
+**Backup**: One password-locked file holding all of a Business's records, made on the phone and saved by the user somewhere off the phone.
+_Avoid_: Export, sync
+
+**Restore**: Replacing the records on a phone with those in a Backup.
