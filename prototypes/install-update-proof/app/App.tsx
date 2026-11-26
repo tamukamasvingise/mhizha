@@ -84,10 +84,17 @@ async function runProof() {
   // Safety copy: only when an existing database is about to be upgraded.
   if (pending.length > 0 && before > 0) {
     db.closeSync();
-    if (copy.exists) copy.delete();
-    live.copy(copy);
-    r.safetyCopyMade = copy.exists;
-    r.safetyCopySize = copy.size;
+    r.liveDb = { uri: live.uri, exists: live.exists, size: live.exists ? live.size : 0 };
+    try {
+      if (copy.exists) copy.delete();
+      live.copy(copy);
+    } catch (e) {
+      r.copyError = String(e);
+    }
+    const check = new File(dbDir(), COPY_NAME);
+    r.safetyCopyMade = check.exists;
+    r.safetyCopySize = check.exists ? check.size : 0;
+    r.copyDir = dbDir().list().map((x) => x.name);
     db = openDb();
   }
 
@@ -105,10 +112,11 @@ async function runProof() {
     } catch (e) {
       r.upgradeError = String(e);
       db.closeSync();
-      if (copy.exists) {
-        live.delete();
-        copy.copy(live);
-        r.restoredCopy = true;
+      const saved = new File(dbDir(), COPY_NAME);
+      if (saved.exists) {
+        new File(dbDir(), DB_NAME).delete();
+        saved.copy(new File(dbDir(), DB_NAME));
+        r.restoredCopy = new File(dbDir(), DB_NAME).exists;
       }
       db = openDb();
       db.runSync(
