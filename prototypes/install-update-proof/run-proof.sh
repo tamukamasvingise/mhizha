@@ -41,8 +41,11 @@ launch() { # name: start the app, wait for its report, screenshot it
   adb logcat -c
   t0=$(now)
   adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+  local pid=""
   for _ in $(seq 1 180); do
-    line=$(adb logcat -d -s ReactNativeJS:V | grep -o 'PROOF_RESULT .*' | tail -1)
+    # Read only the new process's log, so an old report is never picked up.
+    pid=$(adb shell pidof "$PKG" | tr -d '')
+    [ -n "$pid" ] && line=$(adb logcat -d --pid="$pid" -s ReactNativeJS:V | grep -o 'PROOF_RESULT .*' | tail -1)
     [ -n "$line" ] && break
     sleep 1
   done
