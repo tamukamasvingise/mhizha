@@ -28,7 +28,7 @@ Settled while charting:
 - Version 1 serves a Business not registered for VAT. VAT: see Money and VAT rules.
 - Backup covers all records and PDFs, is password-protected and restores onto a new phone. Version 1 backup is manual: "Back up" makes a password-locked file the user saves through the phone's Share menu (Drive, WhatsApp); "Restore" reads it on a new phone (owner, 2026-11-26).
 - No import of old records; first Document numbers are settable.
-- Baseline is the weakest phone: Android 10, 2 GB RAM, small 720p screen, no fingerprint reader, 32-bit. The APK must run on 32-bit and 64-bit phones. No specific model is required; test on one weak and one strong phone.
+- Baseline is the weakest phone: Android 10, 2 GB RAM, small 720p screen, no fingerprint reader, 32-bit. The APK must run on 32-bit and 64-bit phones. No specific model is required; test on GitHub's emulator (Android 10 and current), then on one cheap real phone (owner, 2026-11-26).
 - The full accounting cycle is provided for from day one, even though version 1 starts small: see Accounting foundation.
 
 ## Decisions so far
