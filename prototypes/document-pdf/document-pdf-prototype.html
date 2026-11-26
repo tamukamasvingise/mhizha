@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Mhizha Document PDFs</title>
+<!-- PROTOTYPE, throwaway. Answers: how do Quotation, Invoice, Receipt and Refund PDFs look with real content?
+     Made-up Business and dummy data only. Layout rebuilt by eye; no reference branding. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1e2433;--muted:#5b6270;--rule:#c9ccd3;--faint:#eef0f3;--accent:#0f766e}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#d9dce1;font-family:"Source Serif 4",Georgia,serif;color:var(--ink);font-size:10pt;line-height:1.35}
+#doc{display:flex;flex-direction:column;align-items:center;gap:8mm;padding:8mm 0 40mm;zoom:var(--z,1)}
+.page{width:210mm;height:297mm;background:#fff;position:relative;padding:12mm 15mm 10mm;display:flex;flex-direction:column;box-shadow:0 1px 6px rgba(0,0,0,.25);overflow:hidden}
+.body{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* letterhead */
+.lh{text-align:center;padding-bottom:3mm;border-bottom:2px solid var(--ink)}
+.ta{display:flex;align-items:center;gap:4mm;font-size:8.5pt;letter-spacing:.25em;font-weight:700;text-transform:uppercase}
+.ta:before,.ta:after{content:"";flex:1;border-top:1px solid var(--ink)}
+.logo{display:flex;align-items:center;justify-content:center;gap:4mm;margin:3mm 0 2mm}
+.logo svg{width:16mm;height:16mm;color:var(--accent)}
+.logo b{font-size:22pt;letter-spacing:.02em}
+.contact{font-size:9pt;margin-top:2mm}
+.contact i{color:var(--accent);font-style:normal}
+.lh-small{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:2mm;font-size:9pt}
+.lh-small b{font-size:11pt}
+/* title */
+.title{display:flex;justify-content:space-between;align-items:flex-start;margin:6mm 0 5mm}
+h1{margin:0;font-size:24pt;letter-spacing:.12em;line-height:1}
+h1:after{content:"";display:block;width:16mm;border-bottom:3px solid var(--accent);margin-top:2.5mm}
+h1 small{display:block;font-size:10pt;letter-spacing:.04em;color:var(--accent);margin-top:2mm}
+.meta{border-collapse:collapse;font-size:9.5pt}
+.meta th{text-align:right;padding:.8mm 4mm .8mm 0;font-weight:600;white-space:nowrap}
+.meta td{min-width:42mm;border-bottom:1px solid var(--rule);padding:.8mm 0}
+/* parties */
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:10mm;margin-bottom:5mm}
+.parties h2,.sec{font-size:8.5pt;letter-spacing:.18em;color:var(--accent);margin:0 0 1.5mm;text-transform:uppercase;font-weight:700}
+.parties h2{border-bottom:1px solid var(--ink);padding-bottom:1.2mm}
+.kv{display:grid;grid-template-columns:24mm 1fr;row-gap:1mm;font-size:9.5pt}
+.kv span{color:var(--muted)}
+/* lines */
+table.lines{width:100%;border-collapse:collapse;font-size:9.5pt}
+.lines thead th{font-size:8pt;letter-spacing:.12em;text-transform:uppercase;text-align:left;padding:2mm 2mm;border-top:2px solid var(--ink);border-bottom:1px solid var(--ink);vertical-align:bottom}
+.lines td{padding:1.6mm 2mm;border-bottom:1px solid var(--rule);vertical-align:top}
+.lines .n{width:8mm;color:var(--muted);text-align:center}
+.lines .q{width:27mm;text-align:right}
+.lines .m{width:28mm;text-align:right;font-variant-numeric:tabular-nums}
+.lines .u{color:var(--muted);font-size:8.5pt}
+.cont{font-size:8.5pt;color:var(--muted);text-align:right;padding-top:2mm}
+/* after-table */
+.after{display:grid;grid-template-columns:1fr 78mm;gap:10mm;margin-top:5mm}
+.totals{border-collapse:collapse;width:100%;font-size:9.5pt}
+.totals td{padding:1.6mm 2mm;border-bottom:1px solid var(--rule)}
+.totals td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.totals tr.big td{font-weight:700;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);font-size:10.5pt}
+.totals .blank{color:transparent}
+.words{font-size:9pt;margin-top:3mm;font-style:italic}
+.notes p{margin:0 0 1.2mm}
+.notes .kv{grid-template-columns:30mm 1fr}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:10mm;margin-top:auto;padding-top:16mm}
+.sig div{border-top:1px solid var(--ink);padding-top:1.2mm;font-size:8.5pt;color:var(--muted);position:relative}
+.sig svg{position:absolute;bottom:100%;left:2mm;width:38mm;height:13mm;color:#1d3a8a}
+.sig b{color:var(--ink);font-weight:600}
+.sig .solo{grid-column:2}
+/* receipt */
+.rfields{display:grid;grid-template-columns:38mm 1fr;row-gap:2.6mm;font-size:10pt;margin-bottom:5mm}
+.rfields span{font-weight:600}
+.rfields div{border-bottom:1px dotted var(--muted);padding-bottom:.6mm}
+.amount{display:flex;border:2px solid var(--ink);margin-left:auto;width:78mm}
+.amount b{background:var(--ink);color:#fff;padding:3mm 4mm;font-size:11pt}
+.amount span{flex:1;text-align:right;padding:3mm 4mm;font-size:14pt;font-weight:700;font-variant-numeric:tabular-nums}
+.methods{display:flex;gap:5mm;font-size:9.5pt;flex-wrap:wrap}
+.box{display:inline-block;width:3.6mm;height:3.6mm;border:1px solid var(--ink);vertical-align:-.5mm;margin-right:1.5mm;text-align:center;line-height:3.2mm;font-size:8pt;font-weight:700}
+.payrow{display:flex;justify-content:space-between;align-items:flex-end;gap:8mm;margin:4mm 0 5mm}
+.notice{border-left:3px solid var(--accent);background:var(--faint);padding:2.5mm 4mm;font-size:9.5pt;margin-bottom:5mm}
+/* footer */
+.foot{border-top:2px solid var(--ink);margin-top:4mm;padding-top:2mm;text-align:center;font-size:8.5pt}
+.foot .what{color:var(--muted)}
+.foot .pg{display:flex;justify-content:space-between;color:var(--muted);font-size:8pt;margin-top:1.5mm}
+/* cancelled */
+.stamp{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:64pt;font-weight:700;letter-spacing:.12em;color:rgba(185,28,28,.22);border:5px solid rgba(185,28,28,.22);padding:2mm 8mm;pointer-events:none;white-space:nowrap}
+.stamp small{display:block;font-size:11pt;letter-spacing:.02em;text-align:center;color:rgba(185,28,28,.85);font-weight:600}
+.cancel-note{border:1.5px solid #b91c1c;color:#b91c1c;padding:2mm 4mm;font-size:9.5pt;margin-bottom:4mm}
+/* prototype bar */
+#bar{position:fixed;left:0;right:0;bottom:0;background:#111827;color:#fff;font:13px/1.3 system-ui,sans-serif;padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;z-index:9}
+#bar select,#bar button{font:inherit;padding:6px 8px;border-radius:6px;border:0;min-height:36px}
+#bar label{display:flex;align-items:center;gap:6px}
+#bar .q{flex-basis:100%;color:#cbd5e1;font-size:12px}
+#bar .tag{background:#f59e0b;color:#111;padding:2px 6px;border-radius:4px;font-weight:700;font-size:11px}
+@page{size:A4;margin:0}
+@media print{body{background:#fff}#bar{display:none}#doc{padding:0;gap:0;zoom:1}.page{box-shadow:none;break-after:page}}
+</style>
+</head>
+<body>
+<div id="doc"></div>
+<div id="bar">
+  <span class="tag">PROTOTYPE</span>
+  <label>Document <select id="v"></select></label>
+  <label>Accent <select id="acc">
+    <option value="#0f766e">Teal</option><option value="#b4532a">Brick</option><option value="#1d4ed8">Blue</option><option value="#374151">Grey</option>
+  </select></label>
+  <label><input type="checkbox" id="sigimg" checked> Signature image</label>
+  <button id="print">Print / save PDF</button>
+  <span class="q" id="desc"></span>
+</div>
+<script>
+// ---------- dummy data (made-up Business) ----------
+const BIZ={ta:'J. Sibanda T/A',name:'Demo Building Services',phones:'077 000 0000 · 078 000 0000',address:'12 Example Road, Waterfalls, Harare',email:'info@example.com',
+  what:'Electrical installations · Plumbing and borehole fitting · Electric fencing and gates · General building and repairs',
+  bank:{Bank:'Example Bank',['Account name']:'Demo Building Services',['Account No.']:'1234 5678 90',Branch:'Harare Main'},mobile:'EcoCash 077 000 0000',
+  vat:'VAT No. 10000000 (later)',preparer:'J. Sibanda'};
+const CUS={moyo:{name:'Tendai Moyo',address:'4 Acacia Close, Borrowdale, Harare',phone:'+263 77 123 4567'},
+  lodge:{name:'Harare Gardens Lodge',address:'1 Garden Lane, Avondale, Harare',phone:'+263 24 270 0000'},
+  ndlovu:{name:'Chipo Ndlovu',address:'Stand 88, Mbare, Harare',phone:'+263 71 987 6543'},
+  chikore:{name:'Farai Chikore',address:'Plot 22, Ruwa',phone:'+263 78 555 1212'}};
+const SITE={loc:'House, 4 Acacia Close, Borrowdale',job:'Electric fence and sliding gate motor',contact:'Mrs R. Moyo, 077 765 4321'};
+const L6=[
+ ['Electric fence energiser, 8 joule, with battery backup and lightning diverter',1,'each',28500],
+ ['Galvanised steel fence posts, 2.4m, set in concrete',24,'each',1850],
+ ['High-tensile aluminium wire, 2.5mm',6,'100m roll',4200],
+ ['Insulators, corner and intermediate',120,'each',85],
+ ['Sliding gate motor, 600kg, with two remotes and safety beams',1,'each',42000],
+ ['Labour: installation, earthing and testing (team of 3)',3,'day',13500]];
+const EXTRA=[['Warning signs, "Electric fence", bilingual',8,'each',450],['Earth spikes, 1.5m copper-clad',6,'each',1200],['Gate track, 6m galvanised, cast in',1,'each',9500],
+ ['Trenching for gate cable, including backfill and compaction to existing ground level',12,'m',600],['Armoured cable, 2.5mm 3-core',30,'m',420],['Cement, 50kg',10,'bag',1100],
+ ['Strain posts with bracing stays',8,'each',3200],['Siren and strobe alarm, wired to energiser',1,'each',3800],['Transport of materials to site',1,'trip',6000]];
+const LONG=[...L6,...EXTRA,...EXTRA.map(r=>[r[0]+' (rear boundary)',r[1],r[2],r[3]]),...EXTRA.slice(0,5).map(r=>[r[0]+' (staff gate)',r[1],r[2],r[3]]),...L6.slice(1,4).map(r=>[r[0]+' (front wall top)',r[1],r[2],r[3]])];
+
+// ---------- money: whole cents, quantities in thousandths ----------
+const amt=(q,p)=>Math.round(q*1000*p/1000); // q may have 3 decimals
+const f=c=>(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const qf=q=>Number.isInteger(q)?String(q):q.toFixed(3).replace(/0+$/,'');
+function words(c){const d=Math.floor(c/100),ct=c%100;const o=['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'],t=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+ const h=n=>{let s='';if(n>=100){s=o[Math.floor(n/100)]+' hundred';n%=100;if(n)s+=' and '}if(n>=20){s+=t[Math.floor(n/10)];if(n%10)s+='-'+o[n%10]}else if(n)s+=o[n];return s};
+ const w=n=>{if(!n)return'zero';let s='';if(n>=1e6){s+=h(Math.floor(n/1e6))+' million';n%=1e6;if(n)s+=n<100?' and ':' '}if(n>=1000){s+=h(Math.floor(n/1000))+' thousand';n%=1000;if(n)s+=n<100?' and ':' '}return s+h(n)};
+ let s=w(d)+' US dollar'+(d===1?'':'s');if(ct)s+=' and '+w(ct)+' cent'+(ct===1?'':'s');return s[0].toUpperCase()+s.slice(1)+' only'}
+function sums(lines,disc,vatRate){const rows=lines.map(([d,q,u,p])=>({d,q,u,p,a:amt(q,p)}));const sub=rows.reduce((s,r)=>s+r.a,0);
+ const dc=!disc?0:disc.pct?Math.round(sub*disc.pct/100):disc.c;const net=sub-dc;const vat=vatRate?Math.round(net*vatRate/1000):null;return {rows,sub,dc,vat,total:net+(vat||0)}}
+
+// ---------- page building ----------
+const SIG='<svg viewBox="0 0 120 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 28c8-14 14-20 16-14s-6 18 0 14 10-20 16-16-2 16 4 14 8-12 14-10 0 10 6 8 10-8 16-6 8 4 14 2"/><path d="M60 34c14-2 30-3 52-6"/></svg>';
+const LOGO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="21" height="21" rx="3" stroke-dasharray="2 2"/><path d="M5 18h14M7 18V10l5-4 5 4v8M10 18v-4h4v4"/></svg>';
+let D, pages=[];
+const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
+function letterhead(){return `<header class="lh"><div class="ta">${BIZ.ta}</div><div class="logo">${LOGO}<b>${BIZ.name}</b></div>
+ <div class="contact">Cell: ${BIZ.phones} <i>◆</i> ${BIZ.address}${D.vatLook?` <i>◆</i> ${BIZ.vat}`:''}</div></header>`}
+function newPage(first){const p=el(`<section class="page">${first?letterhead():`<header class="lh-small"><b>${BIZ.name}</b><span>${D.title} ${D.no} · continued</span></header>`}
+ <div class="body"></div><footer class="foot"><div class="what">${BIZ.what}</div><div class="pg"><span>${D.title} ${D.no}</span><span class="pgn"></span></div></footer>
+ ${D.cancelled?`<div class="stamp">CANCELLED<small>${D.cancelled.date} · ${D.cancelled.reason}${D.cancelled.by?' Replaced by '+D.cancelled.by+'.':''}</small></div>`:''}</section>`);document.getElementById('doc').append(p);pages.push(p);return p.querySelector('.body')}
+const over=b=>b.scrollHeight>b.clientHeight+1;
+function place(body,node){body.append(node);if(over(body)){node.remove();body=newPage(false);body.append(node)}return body}
+function titleBlock(meta){return el(`<div class="title"><h1>${D.title}${D.sub?`<small>${D.sub}</small>`:''}</h1><table class="meta">${meta.filter(m=>m[1]).map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table></div>`)}
+const kv=rows=>`<div class="kv">${rows.filter(r=>r[1]).map(([k,v])=>`<span>${k}</span><div>${v}</div>`).join('')}</div>`;
+function linesTable(){return el(`<table class="lines"><thead><tr><th class="n">#</th><th>Description</th><th class="q">Qty</th><th class="m">Unit price (USD)</th><th class="m">Amount (USD)</th></tr></thead><tbody></tbody></table>`)}
+function sigBlock(left,right){const img=document.getElementById('sigimg').checked;
+ const cell=(s,cls='')=>s?`<div class="${cls}">${s.signed&&img?SIG:''}${s.label}${s.signed?` · <b>${BIZ.preparer}, ${D.date}</b>`:''}</div>`:'';
+ return el(`<div class="sig">${left?cell(left):''}${cell(right,left?'':'solo')}</div>`)}
+
+function buildLineDoc(){
+ let body=newPage(true);
+ // cancellation details sit inside the stamp, so a cancelled copy never gains a page
+ body.append(titleBlock(D.meta));
+ body.append(el(`<div class="parties"><div><h2>${D.forLabel}</h2>${kv([['Name',D.cus.name],['Address',D.cus.address],['Phone',D.cus.phone]])}</div>
+  <div><h2>${D.siteLabel}</h2>${kv([['Location',SITE.loc],['Job',SITE.job],['Contact',SITE.contact],['Order No.',D.order]])}</div></div>`));
+ let t=linesTable();body.append(t);let n=0;
+ for(const r of D.s.rows){n++;const tr=el(`<table><tr><td class="n">${n}</td><td>${r.d}</td><td class="q">${qf(r.q)} <span class="u">${r.u}</span></td><td class="m">${f(r.p)}</td><td class="m">${f(r.a)}</td></tr></table>`).querySelector('tr');
+  t.tBodies[0].append(tr);
+  if(over(body)){tr.remove();body.append(el(`<div class="cont">Continued on the next page</div>`));if(over(body))body.lastChild.remove();
+   body=newPage(false);t=linesTable();body.append(t);t.tBodies[0].append(tr)}}
+ body=place(body,D.after());
+ body=place(body,D.sig());
+}
+function totalsRows(rows){return `<table class="totals">${rows.filter(Boolean).map(([k,v,cls])=>`<tr class="${cls||''}"><td>${k}</td><td>${v}</td></tr>`).join('')}</table>`}
+
+// ---------- the variants ----------
+const V={};
+V.quote={name:'Quotation, one page, Discount 10%',desc:'Quotation QUO-0012 with six real lines and a 10% Discount. No VAT row (version 1). Empty optional fields are left out, not printed as blank lines.',
+ make(){const s=sums(L6,{pct:10});return {title:'QUOTATION',no:'QUO-0012',date:'26 Nov 2026',s,cus:CUS.moyo,forLabel:'Quotation for',siteLabel:'Site / Job',
+  meta:[['Quote No.','QUO-0012'],['Date','26 Nov 2026'],['Valid until','26 Dec 2026']],
+  after:()=>el(`<div class="after"><div class="notes"><div class="sec">Terms</div>${kv([['Validity','30 days, until 26 Dec 2026'],['Deposit','50% on acceptance'],['Lead time','5 working days after deposit']])}</div>
+   <div>${totalsRows([['Subtotal',f(s.sub)+' USD'],['Discount (10%)','−'+f(s.dc)+' USD'],['Total',f(s.total)+' USD','big']])}<div class="words">${words(s.total)}</div></div></div>`),
+  sig:()=>sigBlock({label:'Prepared by',signed:true},{label:'Accepted by customer (name, signature & date)'})}}};
+V.quoteLong={name:'Quotation, long (several pages), Rev 2',desc:'QUO-0012 Rev 2 with 32 lines. Lines run onto further pages under a short header; totals, terms and signatures come after the last line. Each page shows "Page n of N".',
+ make(){const s=sums(LONG,{c:25000});const q=V.quote.make();return {...q,no:'QUO-0012 Rev 2',sub:'Revision 2 · replaces Rev 1 of 20 Nov 2026',s,
+  meta:[['Quote No.','QUO-0012 Rev 2'],['Date','26 Nov 2026'],['Valid until','26 Dec 2026']],
+  after:()=>el(`<div class="after"><div class="notes"><div class="sec">Terms</div>${kv([['Validity','30 days, until 26 Dec 2026'],['Deposit','50% on acceptance'],['Lead time','10 working days after deposit']])}</div>
+   <div>${totalsRows([['Subtotal',f(s.sub)+' USD'],['Discount','−'+f(s.dc)+' USD'],['Total',f(s.total)+' USD','big']])}<div class="words">${words(s.total)}</div></div></div>`)}}};
+function invoice(vat){const s=sums(L6,{pct:10},vat?155:0);const paid=50000;
+ return {title:'INVOICE',no:'INV-0009',date:'26 Nov 2026',s,cus:CUS.moyo,forLabel:'Bill to',siteLabel:'Job / Site',order:'PO 4471',vatLook:vat,
+  meta:[['Invoice No.','INV-0009'],['Date','26 Nov 2026'],['Due date','10 Dec 2026'],['Quote ref.','QUO-0012']],
+  after:()=>el(`<div class="after"><div class="notes"><div class="sec">Payment details</div>${kv([...Object.entries(BIZ.bank),['Mobile money',BIZ.mobile]])}</div>
+   <div>${totalsRows([['Subtotal',f(s.sub)+' USD'],['Discount (10%)','−'+f(s.dc)+' USD'],vat?['VAT 15.5%',f(s.vat)+' USD']:['VAT','<span class="blank">—</span>'],['Total',f(s.total)+' USD'],
+   ['Deposit applied (REC-0023)',f(paid)+' USD'],['Balance due',f(s.total-paid)+' USD','big']])}<div class="words">Total: ${words(s.total)}</div></div></div>`),
+  sig:()=>sigBlock(null,{label:'Authorised signature',signed:true})}}
+V.invoice={name:'Invoice from the Quotation, Deposit applied',desc:'INV-0009 from QUO-0012: the Discount carries over, the VAT row stays and is left blank (not 0.00), and the Deposit already applied shows as Amount paid.',make:()=>invoice(false)};
+V.invoiceVat={name:'Invoice, later VAT look (not version 1)',desc:'The same Invoice after a later VAT update: VAT number in the letterhead and VAT 15.5% filled in. Shown only to check the layout has room; the wording must be checked with ZIMRA before that update.',make:()=>invoice(true)};
+V.cancelled={name:'Invoice, CANCELLED copy',desc:'The CANCELLED copy made when INV-0007 is cancelled: a stamp on every page and a note with the date, reason and replacement. The original PDF is kept unchanged.',
+ make(){const d=invoice(false);return {...d,no:'INV-0007',date:'18 Nov 2026',meta:[['Invoice No.','INV-0007'],['Date','18 Nov 2026'],['Due date','2 Dec 2026'],['Quote ref.','QUO-0012']],
+  cancelled:{date:'26 Nov 2026',reason:'Issued to the wrong Site.',by:'INV-0009'}}}};
+
+function receiptDoc(o){return {...o,build(){let body=newPage(true);
+ if(o.cancelled)body.append(el(`<div class="cancel-note"><b>CANCELLED</b> on ${o.cancelled}</div>`));
+ body.append(titleBlock(o.meta));
+ if(o.notice)body.append(el(`<div class="notice">${o.notice}</div>`));
+ body.append(el(`<div class="rfields">${o.fields.filter(r=>r[1]).map(([k,v])=>`<span>${k}</span><div>${v}</div>`).join('')}</div>`));
+ body.append(el(`<div class="payrow"><div>${o.method?`<div class="sec">${o.methodLabel||'Payment method'}</div><div class="methods">${['Cash','Bank transfer','Card (swipe)','EcoCash','InnBucks','Other'].map(m=>`<span><span class="box">${m===o.method?'✓':''}</span>${m}</span>`).join('')}</div>`:''}</div>
+  <div class="amount"><b>USD</b><span>${f(o.total)}</span></div></div>`));
+ if(o.table){const t=el(`<table class="lines"><thead><tr><th>${o.tableHead||'Applied to'}</th><th>Job</th><th class="m">Total (USD)</th><th class="m">${o.nowHead||"Paid now"} (USD)</th><th class="m">Balance left (USD)</th></tr></thead><tbody>${o.table.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="m">${r[2]==null?'':f(r[2])}</td><td class="m">${f(r[3])}</td><td class="m">${f(r[4])}</td></tr>`).join('')}</tbody></table>`);body=place(body,t)}
+ body=place(body,o.sig())}}}
+V.receipt={name:'Receipt, one Payment over several Invoices',desc:'REC-0022: one bank transfer paying two Invoices and an Opening balance. Date received differs from the Receipt date, so both show. The Payment method list is the app\'s own, with one ticked.',
+ make:()=>receiptDoc({title:'RECEIPT',no:'REC-0022',date:'26 Nov 2026',total:125000,method:'Bank transfer',
+  meta:[['Receipt No.','REC-0022'],['Date','26 Nov 2026'],['Date received','24 Nov 2026']],
+  fields:[['Received from',CUS.lodge.name],['Address / Phone',CUS.lodge.address+' · '+CUS.lodge.phone],['The sum of',words(125000)],['Being payment for','Two Invoices and an Opening balance (see below)']],
+  table:[['INV-0006','Staff cottages rewiring',98000,68000,0],['INV-0008','Main lodge borehole pump',114000,42000,72000],['Opening balance (invoice 1234)','—',15000,15000,0]],
+  sig:()=>sigBlock({label:'Received by',signed:true},{label:'Customer signature'})})};
+V.applied={name:'Receipt, "Deposit applied"',desc:'REC-0023, made automatically when INV-0009 was issued: no new money, so no Payment method and no amount box wording about money received. Kept apart from money Receipts in lists and totals.',
+ make:()=>receiptDoc({title:'RECEIPT',sub:'Deposit applied',no:'REC-0023',date:'26 Nov 2026',total:50000,
+  meta:[['Receipt No.','REC-0023'],['Date','26 Nov 2026']],
+  notice:'No new money was received. This applies the Deposit paid on <b>REC-0018</b> (12 Nov 2026) to the Invoice below.',
+  fields:[['Customer',CUS.moyo.name],['Address / Phone',CUS.moyo.address+' · '+CUS.moyo.phone],['The sum of',words(50000)]],
+  table:[['INV-0009','Electric fence and sliding gate motor',invoice(false).s.total,50000,invoice(false).s.total-50000]],tableHead:'Applied to',nowHead:'Applied now',
+  sig:()=>sigBlock(null,{label:'Issued by',signed:true})})};
+V.appliedOB={name:'Receipt, "Credit applied from opening balance"',desc:'REC-0024: Credit the Business already held on the Start date, applied to a new Invoice. It names the Opening balance in place of an original Receipt.',
+ make:()=>receiptDoc({title:'RECEIPT',sub:'Credit applied from opening balance',no:'REC-0024',date:'26 Nov 2026',total:20000,
+  meta:[['Receipt No.','REC-0024'],['Date','26 Nov 2026']],
+  notice:'No new money was received. This applies Credit held from the opening balance (1 Sep 2026) to the Invoice below.',
+  fields:[['Customer',CUS.chikore.name],['Address / Phone',CUS.chikore.address+' · '+CUS.chikore.phone],['The sum of',words(20000)]],
+  table:[['INV-0010','Geyser replacement',61500,20000,41500]],nowHead:'Applied now',
+  sig:()=>sigBlock(null,{label:'Issued by',signed:true})})};
+V.refund={name:'Refund',desc:'REF-0001: an unused Deposit returned by EcoCash, with the reason and the Receipt the money came from.',
+ make:()=>receiptDoc({title:'REFUND',no:'REF-0001',date:'26 Nov 2026',total:12000,method:'EcoCash',methodLabel:'Paid by',
+  meta:[['Refund No.','REF-0001'],['Date','26 Nov 2026']],
+  fields:[['Paid to',CUS.ndlovu.name],['Address / Phone',CUS.ndlovu.address+' · '+CUS.ndlovu.phone],['The sum of',words(12000)],['Refund of','Unused Deposit on QUO-0010, paid on REC-0015 (2 Oct 2026)'],['Reason','Job dropped by the customer before work started']],
+  sig:()=>sigBlock({label:'Paid by',signed:true},{label:'Received by customer (name, signature & date)'})})};
+
+// ---------- render ----------
+const sel=document.getElementById('v');
+for(const k in V)sel.append(new Option(V[k].name,k));
+function render(){const k=sel.value;history.replaceState(null,'','?doc='+k);document.documentElement.style.setProperty('--accent',document.getElementById('acc').value);
+ document.getElementById('doc').style.setProperty('--z',1);document.getElementById('doc').innerHTML='';pages=[];D=V[k].make();document.getElementById('desc').textContent=V[k].desc;
+ if(D.build)D.build();else buildLineDoc();
+ pages.forEach((p,i)=>p.querySelector('.pgn').textContent=`Page ${i+1} of ${pages.length}`);
+ fit()}
+function fit(){const w=Math.min(1,(innerWidth-16)/(210*3.7795));document.getElementById('doc').style.setProperty('--z',w)}
+sel.value=new URLSearchParams(location.search).get('doc')||'quote';
+['v','acc','sigimg'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+document.getElementById('print').onclick=()=>print();
+addEventListener('resize',fit);
+render();if(document.fonts)Promise.all(["400","600","700"].map(w=>document.fonts.load(w+" 10pt \"Source Serif 4\""))).then(render,render);
+</script>
+</body>
+</html>
