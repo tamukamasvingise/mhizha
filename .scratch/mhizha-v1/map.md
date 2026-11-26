@@ -50,6 +50,7 @@ Settled while charting:
 - [Main screens prototype](issues/09-main-screens-prototype.md): four tabs (Home, Customers, Documents, Money), one New button, step-by-step Documents, a Discount as amount or %, one orange accent on greys, phone only.
 - [Backup and restore](issues/10-backup-and-restore.md): one manual password-locked file through the Share menu, weekly reminders when there are changes, restore from the first screen, and numbering that never reuses numbers issued after the backup.
 - [Data model](issues/12-data-model.md): time-ordered random IDs, frozen details and PDFs kept at issue, facts stored and status worked out, a double-entry ledger with Customer ledgers and reversing entries, forward-only database upgrades, and the table list.
+- [Design source files](issues/17-design-source-files.md): none needed; the layout is rebuilt from the reference PDFs with a made-up Business, a placeholder logo, dummy data and open-licence fonts.
 
 ## Not yet specified
 
