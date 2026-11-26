@@ -97,7 +97,7 @@ install_apk "install v2 over v1" proof-v2.apk "-r"
 [ "$(version_code)" = 2 ] && pass "version code is now 2" || fail "version code is now 2 (got $(version_code))"
 [ "$(first_install)" = "$FIRST" ] && pass "same install: first install time unchanged" || fail "first install time changed: $FIRST vs $(first_install)"
 launch v2-first-open
-check "first open after update copies the database before upgrading" v2-first-open '.dbVersionBefore == 1 and .safetyCopyMade == true and .safetyCopySize > 0'
+check "first open after update copies the database before upgrading" v2-first-open '.dbVersionBefore == 1 and .safetyCopyMade == true and .safetyCopyVersion == 1 and .safetyCopyCustomers == 1'
 check "upgrade step 2 runs and the database is at version 2" v2-first-open '.dbVersionAfter == 2 and .hasWhatsappColumn == true and .upgradeError == null'
 check "every record survives the update" v2-first-open '.seeded == false and .counts == {"customer":1,"document":1,"file":1}'
 check "the PDF survives the update unchanged" v2-first-open '.pdf.exists and .pdf.shaMatches and .pdf.sizeMatches'

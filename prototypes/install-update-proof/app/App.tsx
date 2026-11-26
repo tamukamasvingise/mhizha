@@ -48,9 +48,8 @@ const ALL_STEPS: Step[] = [
 ];
 const STEPS = ALL_STEPS.filter((s) => s.to <= BUILD);
 
-function dbDir(): Directory {
-  const d = SQLite.defaultDatabaseDirectory;
-  return new Directory(d.startsWith('file://') ? d : 'file://' + d);
+function dbPath(name: string): string {
+  return SQLite.defaultDatabaseDirectory.replace(/^file:\/\//, '').replace(/\/$/, '') + '/' + name;
 }
 
 function openDb(): SQLite.SQLiteDatabase {
@@ -78,24 +77,17 @@ async function runProof() {
   r.dbVersionBefore = before;
 
   const pending = STEPS.filter((s) => s.to > before);
-  const live = new File(dbDir(), DB_NAME);
-  const copy = new File(dbDir(), COPY_NAME);
 
   // Safety copy: only when an existing database is about to be upgraded.
+  // SQLite writes it (VACUUM INTO): a complete, consistent copy in one call.
   if (pending.length > 0 && before > 0) {
-    db.closeSync();
-    r.liveDb = { uri: live.uri, exists: live.exists, size: live.exists ? live.size : 0 };
-    try {
-      if (copy.exists) copy.delete();
-      live.copy(copy);
-    } catch (e) {
-      r.copyError = String(e);
-    }
-    const check = new File(dbDir(), COPY_NAME);
-    r.safetyCopyMade = check.exists;
-    r.safetyCopySize = check.exists ? check.size : 0;
-    r.copyDir = dbDir().list().map((x) => x.name);
-    db = openDb();
+    try { SQLite.deleteDatabaseSync(COPY_NAME); } catch { /* no old copy */ }
+    db.execSync(`VACUUM INTO '${dbPath(COPY_NAME)}'`);
+    const c = SQLite.openDatabaseSync(COPY_NAME);
+    r.safetyCopyMade = true;
+    r.safetyCopyVersion = c.getFirstSync<{ user_version: number }>('PRAGMA user_version')!.user_version;
+    r.safetyCopyCustomers = count(c, 'customer');
+    c.closeSync();
   }
 
   for (const step of pending) {
@@ -111,13 +103,13 @@ async function runProof() {
       });
     } catch (e) {
       r.upgradeError = String(e);
+      // Return to the copy: replace the live database with it.
       db.closeSync();
-      const saved = new File(dbDir(), COPY_NAME);
-      if (saved.exists) {
-        new File(dbDir(), DB_NAME).delete();
-        saved.copy(new File(dbDir(), DB_NAME));
-        r.restoredCopy = new File(dbDir(), DB_NAME).exists;
-      }
+      SQLite.deleteDatabaseSync(DB_NAME);
+      const c = SQLite.openDatabaseSync(COPY_NAME);
+      c.execSync(`VACUUM INTO '${dbPath(DB_NAME)}'`);
+      c.closeSync();
+      r.restoredCopy = true;
       db = openDb();
       db.runSync(
         'INSERT INTO upgrade_log (from_version, to_version, started, finished, result) VALUES (?, ?, ?, ?, ?)',
