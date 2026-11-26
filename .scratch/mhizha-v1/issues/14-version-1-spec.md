@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: claimed (owner)
 Blocked by: 07, 08, 09, 10, 11, 12, 13, 18, 19, 22, 23
 
 ## Question
