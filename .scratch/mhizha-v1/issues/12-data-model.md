@@ -112,3 +112,5 @@ Every table also has an ID, install ID, created time, last-changed time and chan
 Fiscal records are not in version 1. They attach later as their own tables pointing at Documents (Money and VAT rules).
 
 Added by Document PDF prototype (2026-11-26): business_details gains trading-as line (optional), what we do line, bank name, account name, account number, branch, mobile money details, brand colour, font, watermark on/off; the Quotation gains Deposit asked and lead time; site gains contact person; the Invoice gains the customer's Order No.
+
+Added by Install and update proof (2026-11-27): the safety copy before an upgrade is made with SQLite's VACUUM INTO and opened to check it before any step runs; returning to it uses the same method.

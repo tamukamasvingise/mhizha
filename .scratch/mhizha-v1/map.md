@@ -52,6 +52,7 @@ Settled while charting:
 - [Data model](issues/12-data-model.md): time-ordered random IDs, frozen details and PDFs kept at issue, facts stored and status worked out, a double-entry ledger with Customer ledgers and reversing entries, forward-only database upgrades, and the table list.
 - [Design source files](issues/17-design-source-files.md): none needed; the layout is rebuilt from the reference PDFs with a made-up Business, a placeholder logo, dummy data and open-licence fonts.
 - [Document PDF prototype](issues/08-document-pdf-prototype.md): one A4 layout for all Documents, each Business's own colour, font choice and optional watermark, no customer signatures, empty fields left off, and a CANCELLED stamp that never adds a page.
+- [Install and update proof](issues/13-install-and-update-proof.md): on GitHub's Android 10 and 16 emulators, installing over keeps every record and the PDF, the wrong key and downgrades are refused, and the safety copy (SQLite VACUUM INTO) is made before an upgrade and returned to when a step fails.
 
 ## Not yet specified
 
