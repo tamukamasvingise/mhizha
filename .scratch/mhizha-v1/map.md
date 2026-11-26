@@ -26,7 +26,7 @@ Settled while charting:
 - CRM: contact details, notes, call and WhatsApp buttons, Document history, balance owed, follow-up date with reminder. Phone contacts import is optional.
 - PDFs match the existing designs, USD only, continuing onto further pages when long.
 - Version 1 serves a Business not registered for VAT. VAT: see Money and VAT rules.
-- Backup covers all records and PDFs, is password-protected and restores onto a new phone. The owner wants it automatic to Google Drive, like WhatsApp, if free.
+- Backup covers all records and PDFs, is password-protected and restores onto a new phone. Version 1 backup is manual: "Back up" makes a password-locked file the user saves through the phone's Share menu (Drive, WhatsApp); "Restore" reads it on a new phone (owner, 2026-11-26).
 - No import of old records; first Document numbers are settable.
 - Baseline is the weakest phone: Android 10, 2 GB RAM, small 720p screen, no fingerprint reader, 32-bit. The APK must run on 32-bit and 64-bit phones. No specific model is required; test on one weak and one strong phone.
 - The full accounting cycle is provided for from day one, even though version 1 starts small: see Accounting foundation.
@@ -63,3 +63,4 @@ Settled while charting:
 - Stock, staff, expenses, profit, closing, financial statements and accountant export: later versions; see Accounting foundation.
 - The developer account route after Google's developer verification reaches Zimbabwe: owner's call, see Signing and delivery.
 - Play Store release, iPhone, other currencies, and importing old records.
+- [Google Cloud without a domain](issues/16-google-cloud-without-a-domain.md): automatic Google Drive backup is out of version 1, so no Google Cloud project is needed; backup is manual through the Share menu (owner, 2026-11-26).

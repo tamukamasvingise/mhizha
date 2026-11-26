@@ -3,11 +3,13 @@
 Label: wayfinder:grilling
 Type: grilling
 Status: open
-Blocked by: 01, 04, 16
+Blocked by: 01, 04
 
 ## Question
 
-Which backup method, schedule and password handling does version 1 use, what does the user see when a backup fails, and what is the restore path on a new phone?
+From the owner, 2026-11-26: version 1 backup is manual, no automatic Google Drive backup and no Google Cloud project. "Back up" makes one password-locked file, saved through the phone's Share menu; "Restore" reads that file on a new phone.
+
+Which reminders, password handling does version 1 use, what does the user see when a backup fails, and what is the restore path on a new phone?
 
 From Document lifecycle: restoring an older backup must never reuse Document numbers already issued since that backup. Records are kept at least six years.
 
