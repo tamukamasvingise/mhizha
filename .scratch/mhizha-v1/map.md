@@ -56,6 +56,7 @@ Settled while charting:
 - [Real phone check](issues/05-accounts-and-test-phone.md): install and update work on a Galaxy S22 Ultra; Samsung's Auto Blocker must be turned off; no cheap phone, the Android 10 emulator stands in; the 32-bit build stays untested.
 - [Version 1 spec](issues/14-version-1-spec.md): [spec.md](spec.md) assembled from every decision; six gaps left as tickets, folded in by Finish the version 1 spec.
 - [Test strategy](issues/24-test-strategy.md): Vitest and fast-check on every push for money, ledger, rules, upgrades from every release and Backup round trips; emulator smoke run on pull requests and tags; one arm APK; release key only on approved, all-green `v*` tags; S22 checklist before each release.
+- [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): local error log with IDs only; plain error screen; ledger checks on every open with a red banner; a plain-text problem report sent through the Share menu; a Backup only with the User's agreement.
 
 ## Not yet specified
 
