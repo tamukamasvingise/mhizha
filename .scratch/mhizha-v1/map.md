@@ -47,6 +47,7 @@ Settled while charting:
 - [Signing and delivery](issues/11-signing-and-delivery.md): one developer-held release key with three copies, a permanent package name from the new product name, separate `.test` builds, updates by Google Drive link.
 - [Product name and open source](issues/22-product-name-and-open-source.md): the product is Mhizha, the owner's own, for construction service providers; GPL-3.0, issues only, a fresh public repo with the reference user named nowhere.
 - [Go public](issues/23-go-public.md): planning continues in the public repo tamukamasvingise/mhizha (GPL-3.0); the old private repo is archived.
+- [Main screens prototype](issues/09-main-screens-prototype.md): four tabs (Home, Customers, Documents, Money), one New button, step-by-step Documents, a Discount as amount or %, one orange accent on greys, phone only.
 
 ## Not yet specified
 
