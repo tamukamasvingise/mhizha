@@ -2,7 +2,7 @@
 
 Label: wayfinder:task
 Type: task
-Status: open
+Status: resolved
 Blocked by: 13
 
 ## Question
@@ -32,4 +32,12 @@ Warnings: Samsung's Auto Blocker refused the install until the owner turned it o
 
 Still open: this is a flagship running the 64-bit build, so speed on a weak phone and the 32-bit build are unchecked. The app lock and the Share-menu Backup need a later build, since the proof app has neither.
 
-Owner, 2026-11-27: keep the cheap phone in the plan. Users may have Android 10 phones, so speed on a weak phone and the 32-bit build must still be checked on one, with the app lock and the Share-menu Backup once a build has them.
+## Answer
+
+Decided by the owner on 2026-11-27, after the Galaxy S22 Ultra run above.
+
+- **No cheap real phone.** Android 10 phones with 2 GB stay fully supported as the baseline; the GitHub Android 10, 2 GB, 720p emulator stands in for them, speed included.
+- **Proved on a real phone (S22 Ultra, Android 16, One UI 8.0):** Drive-link install, update over the old version, the wrong key and a downgrade refused, and the safety copy.
+- **Install warnings:** Samsung's Auto Blocker refuses the APK until it is turned off; no Play Protect or other security warning after that. Handled in Handover and support.
+- **Unchecked, accepted:** the 32-bit (armeabi-v7a) build never runs anywhere: the emulators are x86_64 and the S22 runs the 64-bit build. It is still built and shipped.
+- **Later, on the S22:** the app lock and saving a Backup through the Share menu, once a build has them (Test strategy); reminders (Reminders on real phones).

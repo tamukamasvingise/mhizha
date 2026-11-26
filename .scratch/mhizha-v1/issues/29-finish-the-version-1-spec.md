@@ -3,8 +3,8 @@
 Label: wayfinder:task
 Type: task
 Status: open
-Blocked by: 05, 24, 25, 26, 27, 28
+Blocked by: 24, 25, 26, 27, 28
 
 ## Question
 
-Fold the answers of Real phone check, Test strategy, Noticing problems with no server, Handover and support, Reminders on real phones and Re-entering records after a restore into [spec.md](../spec.md), empty its Open gaps section, and mark it ready to build from.
+Fold the answers of Test strategy, Noticing problems with no server, Handover and support, Reminders on real phones and Re-entering records after a restore into [spec.md](../spec.md), empty its Open gaps section, and mark it ready to build from.

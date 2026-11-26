@@ -22,7 +22,7 @@ Open gaps are listed at the end. Each is its own ticket; nothing here guesses at
 - **Version code** rises with every build. Going back means rebuilding old code under a higher number.
 - **Delivery:** the developer shares the signed APK by Google Drive link; the User installs over the old version. No developer account today. Google's developer verification may change this from January 2027 (out of scope). Declare no SMS, notification-listener or accessibility permissions. ([Installing outside the Play Store](issues/02-installing-outside-the-play-store.md))
 - **In the app:** Settings shows the version number and short plain-language notes on what changed. No update check. The update message tells the User to check that the last Backup is recent.
-- **Proven on GitHub's Android 10 and 16 emulators:** an install over the old version keeps every record and PDF; a build signed with the wrong key and a downgrade are both refused; the safety copy and the upgrade steps work. Real-phone confirmation is pending (Real phone check). ([Install and update proof](issues/13-install-and-update-proof.md))
+- **Proven on GitHub's Android 10 and 16 emulators:** an install over the old version keeps every record and PDF; a build signed with the wrong key and a downgrade are both refused; the safety copy and the upgrade steps work. Confirmed on a Galaxy S22 Ultra (Android 16, One UI 8.0); Samsung's Auto Blocker must be turned off first. No cheap real phone: the Android 10 emulator stands in for the baseline, and the 32-bit build is shipped untested. ([Real phone check](issues/05-accounts-and-test-phone.md)) ([Install and update proof](issues/13-install-and-update-proof.md))
 - **Known build facts:** list config plugins (expo-sqlite) in `app.config.js` by hand; `expo install` cannot edit it. One APK carrying three processor types is about 54 MB; separate APKs per processor type cut this.
 
 ## 3. App shell and look
@@ -172,8 +172,7 @@ Several users or phones, sync and login; charging VAT and ZIMRA fiscalisation; s
 
 Each gap is a ticket on the map. This spec is ready to build from once they are resolved and folded in here.
 
-- [Real phone check](issues/05-accounts-and-test-phone.md): install warnings, app lock, Share-menu backup and speed on a real cheap phone.
-- [Test strategy](issues/24-test-strategy.md): what automated tests must cover (money sums, the ledger rules, database upgrades, Backup and Restore) and how the CI build is set up.
+- [Test strategy](issues/24-test-strategy.md): what automated tests must cover (money sums, the ledger rules, database upgrades, Backup and Restore), the app lock and Share-menu checks on the S22, and how the CI build is set up.
 - [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): how problems on the User's phone get noticed and diagnosed.
 - [Handover and support](issues/26-handover-and-support.md): first install, training, support, and whether the User ever holds a sealed copy of the signing key.
 - [Reminders on real phones](issues/27-reminders-on-real-phones.md): whether follow-up and backup reminders survive phones that kill background work.

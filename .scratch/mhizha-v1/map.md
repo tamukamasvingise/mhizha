@@ -28,7 +28,7 @@ Settled while charting:
 - Version 1 serves a Business not registered for VAT. VAT: see Money and VAT rules.
 - Backup covers all records and PDFs, is password-protected and restores onto a new phone. Version 1 backup is manual: "Back up" makes a password-locked file the user saves through the phone's Share menu (Drive, WhatsApp); "Restore" reads it on a new phone (owner, 2026-11-26).
 - No import of old records; first Document numbers are settable.
-- Baseline is the weakest phone: Android 10, 2 GB RAM, small 720p screen, no fingerprint reader, 32-bit. The APK must run on 32-bit and 64-bit phones. No specific model is required; test on GitHub's emulator (Android 10 and current), then on one cheap real phone (owner, 2026-11-26).
+- Baseline is the weakest phone: Android 10, 2 GB RAM, small 720p screen, no fingerprint reader, 32-bit. The APK must run on 32-bit and 64-bit phones. No specific model is required; test on GitHub's emulator (Android 10 and current) and on the owner's Galaxy S22 Ultra; no cheap real phone (owner, 2026-11-27).
 - The full accounting cycle is provided for from day one, even though version 1 starts small: see Accounting foundation.
 
 ## Decisions so far
@@ -53,6 +53,7 @@ Settled while charting:
 - [Design source files](issues/17-design-source-files.md): none needed; the layout is rebuilt from the reference PDFs with a made-up Business, a placeholder logo, dummy data and open-licence fonts.
 - [Document PDF prototype](issues/08-document-pdf-prototype.md): one A4 layout for all Documents, each Business's own colour, font choice and optional watermark, no customer signatures, empty fields left off, and a CANCELLED stamp that never adds a page.
 - [Install and update proof](issues/13-install-and-update-proof.md): on GitHub's Android 10 and 16 emulators, installing over keeps every record and the PDF, the wrong key and downgrades are refused, and the safety copy (SQLite VACUUM INTO) is made before an upgrade and returned to when a step fails.
+- [Real phone check](issues/05-accounts-and-test-phone.md): install and update work on a Galaxy S22 Ultra; Samsung's Auto Blocker must be turned off; no cheap phone, the Android 10 emulator stands in; the 32-bit build stays untested.
 - [Version 1 spec](issues/14-version-1-spec.md): [spec.md](spec.md) assembled from every decision; six gaps left as tickets, folded in by Finish the version 1 spec.
 
 ## Not yet specified
