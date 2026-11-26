@@ -55,6 +55,7 @@ Settled while charting:
 - [Install and update proof](issues/13-install-and-update-proof.md): on GitHub's Android 10 and 16 emulators, installing over keeps every record and the PDF, the wrong key and downgrades are refused, and the safety copy (SQLite VACUUM INTO) is made before an upgrade and returned to when a step fails.
 - [Real phone check](issues/05-accounts-and-test-phone.md): install and update work on a Galaxy S22 Ultra; Samsung's Auto Blocker must be turned off; no cheap phone, the Android 10 emulator stands in; the 32-bit build stays untested.
 - [Version 1 spec](issues/14-version-1-spec.md): [spec.md](spec.md) assembled from every decision; six gaps left as tickets, folded in by Finish the version 1 spec.
+- [Test strategy](issues/24-test-strategy.md): Vitest and fast-check on every push for money, ledger, rules, upgrades from every release and Backup round trips; emulator smoke run on pull requests and tags; one arm APK; release key only on approved, all-green `v*` tags; S22 checklist before each release.
 
 ## Not yet specified
 
