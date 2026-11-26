@@ -24,7 +24,7 @@ Settled while charting:
 - Drafts are editable; Issued Invoices and Receipts are locked, then cancelled and reissued; Quotations get Revisions.
 - Price list without stock; prices can be changed per Document.
 - CRM: contact details, notes, call and WhatsApp buttons, Document history, balance owed, follow-up date with reminder. Phone contacts import is optional.
-- PDFs match the existing designs, USD only, continuing onto further pages when long.
+- PDFs follow the reference layout, unbranded, USD only, continuing onto further pages when long: see Document PDF prototype.
 - Version 1 serves a Business not registered for VAT. VAT: see Money and VAT rules.
 - Backup covers all records and PDFs, is password-protected and restores onto a new phone. Version 1 backup is manual: "Back up" makes a password-locked file the user saves through the phone's Share menu (Drive, WhatsApp); "Restore" reads it on a new phone (owner, 2026-11-26).
 - No import of old records; first Document numbers are settable.
@@ -51,6 +51,7 @@ Settled while charting:
 - [Backup and restore](issues/10-backup-and-restore.md): one manual password-locked file through the Share menu, weekly reminders when there are changes, restore from the first screen, and numbering that never reuses numbers issued after the backup.
 - [Data model](issues/12-data-model.md): time-ordered random IDs, frozen details and PDFs kept at issue, facts stored and status worked out, a double-entry ledger with Customer ledgers and reversing entries, forward-only database upgrades, and the table list.
 - [Design source files](issues/17-design-source-files.md): none needed; the layout is rebuilt from the reference PDFs with a made-up Business, a placeholder logo, dummy data and open-licence fonts.
+- [Document PDF prototype](issues/08-document-pdf-prototype.md): one A4 layout for all Documents, each Business's own colour, font choice and optional watermark, no customer signatures, empty fields left off, and a CANCELLED stamp that never adds a page.
 
 ## Not yet specified
 
