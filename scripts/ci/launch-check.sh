@@ -49,14 +49,23 @@ tap() {
   adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
 }
 
-# set_night light|dark: switch the phone's dark theme. Android 10's emulator
-# needs the secure setting as well as `cmd uimode`.
+# set_night light|dark: switch the phone's dark theme. Android 10 locks the
+# day/night mode against `cmd uimode`, so there the secure setting is written
+# and the emulator restarted to pick it up.
 set_night() {
   local yes=no val=1
   [ "$1" = dark ] && yes=yes val=2
   adb shell settings put secure ui_night_mode "$val"
   adb shell cmd uimode night "$yes" >/dev/null
-  note "  ($1: $(adb shell cmd uimode night | tr -d ''))"
+  if ! adb shell cmd uimode night | grep -q "Night mode: $yes"; then
+    adb reboot
+    adb wait-for-device
+    until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; do sleep 2; done
+    adb shell input keyevent KEYCODE_WAKEUP
+    adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
+    sleep 5
+  fi
+  note "  ($1: $(adb shell cmd uimode night | tr -d '\r'))"
 }
 
 # page_is <name> light|dark: the page behind the empty state has that theme's colour.
