@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addMonths, dateFromParts, longDate, todayAt } from './dates';
-import { nextPeriodStart, periodContaining, type PeriodSetting } from './period';
+import { nextPeriodStart, periodContaining, periodLabel, type PeriodSetting } from './period';
 
 describe('plain dates', () => {
   it('takes today in Harare time, two hours ahead of UTC', () => {
@@ -56,5 +56,10 @@ describe('Accounting period', () => {
     expect(nextPeriodStart('2026-11-27', monthly)).toBe('2026-12-01');
     expect(nextPeriodStart('2026-12-31', monthly)).toBe('2027-01-01');
     expect(nextPeriodStart('2026-11-27', yearlyFromJuly)).toBe('2027-07-01');
+  });
+
+  it('is described in plain words', () => {
+    expect(periodLabel(monthly)).toBe('Every month, year starts in January');
+    expect(periodLabel(quarterlyFromMarch)).toBe('Every 3 months, year starts in March');
   });
 });

@@ -248,6 +248,11 @@ export function firstNumber(c: DocumentCounter): string {
   return formatNumber(c.prefix, c.startingNumber);
 }
 
+/** The number the next Document of this type gets. */
+export function nextNumber(c: DocumentCounter): string {
+  return formatNumber(c.prefix, c.lastNumber == null ? c.startingNumber : c.lastNumber + 1);
+}
+
 export function setStartingNumber(db: Db, type: DocumentType, n: number): void {
   if (!Number.isInteger(n) || n < 1 || n > MAX_STARTING_NUMBER)
     throw new SetupError(`Enter a whole number from 1 to ${MAX_STARTING_NUMBER}.`);

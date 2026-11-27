@@ -1,6 +1,6 @@
 // The Accounting period: how often the records are reviewed, counted from the
 // month the year starts.
-import { addMonths, dayBefore, monthStart, type PlainDate } from './dates';
+import { addMonths, dayBefore, MONTHS, monthStart, type PlainDate } from './dates';
 
 /** `every` is the length in months; `yearStarts` is 1 (January) to 12. */
 export type PeriodSetting = { every: 1 | 3 | 12; yearStarts: number };
@@ -24,4 +24,10 @@ export function periodContaining(date: PlainDate, s: PeriodSetting): { start: Pl
 /** The first day of the period after the one `date` falls in. */
 export function nextPeriodStart(date: PlainDate, s: PeriodSetting): PlainDate {
   return addMonths(periodContaining(date, s).start, s.every);
+}
+
+/** "Every 3 months, year starts in March". */
+export function periodLabel(s: PeriodSetting): string {
+  const every = PERIOD_CHOICES.find((c) => c.every === s.every)?.label ?? 'Every month';
+  return `${every}, year starts in ${MONTHS[s.yearStarts - 1]}`;
 }

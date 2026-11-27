@@ -9,6 +9,7 @@ import {
   emptyBusiness,
   finishSetup,
   firstNumber,
+  nextNumber,
   periodSetting,
   problemsWith,
   saveBusinessDetails,
@@ -141,6 +142,13 @@ describe('Document numbers', () => {
     // The database itself refuses it too.
     expect(() => db.run("UPDATE document_counter SET starting_number = 10 WHERE type = 'QUO'")).toThrow();
     setStartingNumber(db, 'INV', 10);
+  });
+
+  it('say which number comes next: the starting number, then the one after the last Issued', () => {
+    setStartingNumber(db, 'INV', 46);
+    db.run("UPDATE document_counter SET last_number = 12 WHERE type = 'QUO'");
+    const byType = Object.fromEntries(documentCounters(db).map((c) => [c.type, nextNumber(c)]));
+    expect(byType).toMatchObject({ QUO: 'QUO-0013', INV: 'INV-0046' });
   });
 });
 
