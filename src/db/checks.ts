@@ -7,6 +7,7 @@ import type { SqlPlatform } from './sql';
 import { noAddress, people, type CustomerDetails } from '../people';
 import { documents } from '../documents';
 import { customerOwes } from '../ledger';
+import { payments } from '../payments';
 import { emptyBusiness, saveBusinessDetails, startNew } from '../setup/store';
 
 export type DbCheck = { name: string; run: (platform: SqlPlatform) => void };
@@ -331,6 +332,39 @@ dbChecks.push({
     same([d.issued(id).total, customerOwes(db, c)], [8100, 8100], 'the Total and what the Customer owes');
     throws(() => db.run('UPDATE document SET total = 1 WHERE id = ?', [id]), 'a change to an Issued Invoice');
     throws(() => db.run('DELETE FROM journal_line'), 'a deleted entry');
+    db.close();
+  },
+});
+
+dbChecks.push({
+  name: 'a Payment saves with its Receipt, split and ledger entry in one save, or not at all',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    startNew(db, '2026-11-27');
+    saveBusinessDetails(db, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-11-27');
+    const p = people(db, () => '2026-11-27');
+    const c = p.addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const job = p.addJob(c, { title: 'Work', siteId: p.sites(c)[0]!.id });
+    const clock = () => Date.UTC(2026, 10, 27, 12, 0, 0);
+    const d = documents(db, clock);
+    const inv = d.newInvoice(c);
+    d.setJob(inv, job);
+    d.setLines(inv, [{ priceListItemId: null, description: 'Labour', unit: '', quantity: 1000, unitPrice: 10000 }]);
+    d.issue(inv);
+    const pay = payments(db, clock);
+    const input = {
+      customerId: c, amount: 4000, dateReceived: '2026-11-27', method: 'cash' as const, otherDescription: '',
+      parts: [{ invoiceId: inv, amount: 4000 }], separate: false,
+    };
+    db.run("CREATE TRIGGER fail_lines BEFORE INSERT ON receipt_line BEGIN SELECT RAISE(ABORT, 'disk full'); END;");
+    throws(() => pay.record(input), 'a save that fails half way');
+    same([db.get('SELECT count(*) AS n FROM payment')?.n, customerOwes(db, c)], [0, 10000], 'nothing saved');
+    db.run('DROP TRIGGER fail_lines');
+    const [receipt] = pay.record(input);
+    same([pay.receipt(receipt!).number, customerOwes(db, c), d.issued(inv).status], ['REC-0001', 6000, 'part-paid'], 'saved');
+    throws(() => db.run('DELETE FROM payment'), 'a deleted Payment');
     db.close();
   },
 });

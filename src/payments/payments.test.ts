@@ -5,6 +5,7 @@ import { documents, type Documents } from '../documents';
 import { customerOwes, readJournal } from '../ledger';
 import { InputError, noAddress, people, type People } from '../people';
 import { emptyBusiness, saveBusinessDetails, startNew } from '../setup/store';
+import { runChecks } from '../health/checks';
 import { freshDb } from '../testing';
 import { payments, type PaymentInput, type Payments } from '.';
 
@@ -285,5 +286,28 @@ describe('the records after Payments', () => {
     }
     const journal = readJournal(db);
     expect(checkLedger(journal, new Map([[tendai, { owes: 9_000, depositsHeld: 0, creditHeld: 0 }]]))).toEqual([]);
+  });
+});
+
+describe('the check on open for Rule 5', () => {
+  const rule5 = () => runChecks(db).find((r) => r.name.startsWith('Rule 5'))!;
+
+  it('passes when each Payment, its split and its Receipt agree', () => {
+    const a = invoice(10_000, '2026-11-02');
+    now = day('2026-11-27');
+    pay.record(cash(4_000, [{ invoiceId: a, amount: 4_000 }]));
+    expect(rule5()).toMatchObject({ outcome: 'passed', problems: [] });
+  });
+
+  it('fails, naming the Payment, when what it paid does not add up to it', () => {
+    const a = invoice(10_000, '2026-11-02');
+    now = day('2026-11-27');
+    pay.record(cash(4_000, [{ invoiceId: a, amount: 4_000 }]));
+    const payment = db.get('SELECT id, journal_entry_id FROM payment')!;
+    db.insert('allocation', {
+      journal_entry_id: String(payment.journal_entry_id), from_kind: 'payment', from_id: String(payment.id),
+      to_kind: 'invoice', to_id: a, amount: 1,
+    });
+    expect(rule5()).toMatchObject({ outcome: 'failed', problems: [`Payment ${String(payment.id)}: what it paid does not add up to it.`] });
   });
 });

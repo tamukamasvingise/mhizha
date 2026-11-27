@@ -134,8 +134,25 @@ const checks: readonly Check[] = [
   },
   {
     name: 'Rule 5: a Payment, its split and its Receipt are saved together',
-    needs: ['payment', 'allocation', 'document'],
-    waitingFor: 'Payments and Receipts',
+    needs: ['payment', 'allocation', 'document', 'receipt_line'],
+    run(db) {
+      const problems: string[] = [];
+      for (const r of db.all(
+        `SELECT p.id, p.amount, d.total, d.number,
+           (SELECT coalesce(sum(amount), 0) FROM allocation WHERE from_kind = 'payment' AND from_id = p.id AND reverses_id IS NULL) AS split,
+           (SELECT coalesce(sum(amount), 0) FROM receipt_line WHERE receipt_id = p.receipt_id) AS printed,
+           (SELECT count(*) FROM journal_entry WHERE id = p.journal_entry_id) AS entries
+         FROM payment p LEFT JOIN document d ON d.id = p.receipt_id AND d.type = 'REC' ORDER BY p.rowid`,
+      )) {
+        const id = String(r.id);
+        if (r.number == null) problems.push(`Payment ${id}: it has no Issued Receipt.`);
+        else if (Number(r.total) !== Number(r.amount)) problems.push(`Payment ${id}: its Receipt shows another amount.`);
+        if (Number(r.split) !== Number(r.amount)) problems.push(`Payment ${id}: what it paid does not add up to it.`);
+        if (Number(r.printed) !== Number(r.amount)) problems.push(`Payment ${id}: its Receipt lines do not add up to it.`);
+        if (Number(r.entries) !== 1) problems.push(`Payment ${id}: it has no ledger entry.`);
+      }
+      return problems;
+    },
   },
   {
     name: 'Rule 6: applied Receipts, Quotations and Drafts never count as money received',
