@@ -198,6 +198,8 @@ describe('Jobs', () => {
     const s = p.addSite(c, cottages);
     p.archiveSite(s);
     expect(() => p.addJob(c, { title: 'Sockets', siteId: s })).toThrow(InputError);
+    const job = p.jobs(c)[0]!.id;
+    expect(() => p.updateJob(job, { title: 'Kitchen rewiring', siteId: s })).toThrow('This Site is archived. Pick another Site.');
   });
 });
 
@@ -225,5 +227,18 @@ describe('notes and follow-ups', () => {
     p.followUpDone(c);
     expect(p.followUp(c)).toBeNull();
     expect(db.get('SELECT count(*) AS n FROM follow_up')).toEqual({ n: 1 });
+  });
+});
+
+describe('nothing is deleted', () => {
+  it('the records refuse to delete a Customer, Site, Job, note or follow-up: they are archived instead', () => {
+    const c = p.addCustomer(tendai({ note: 'Prefers WhatsApp.' }));
+    const site = p.sites(c)[0]!.id;
+    const job = p.addJob(c, { title: 'Kitchen rewiring', siteId: site });
+    p.setFollowUp(c, '2026-12-01');
+    for (const table of ['job_event', 'job', 'site', 'customer_note', 'follow_up', 'customer']) {
+      expect(() => db.run(`DELETE FROM ${table}`), table).toThrow('never deleted');
+    }
+    expect(p.job(job).status).toBe('open');
   });
 });

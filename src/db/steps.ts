@@ -132,6 +132,10 @@ CREATE TABLE job_event (
 ) STRICT;
 CREATE INDEX job_event_job ON job_event (job_id);
 `);
+      for (const table of ['customer', 'customer_note', 'follow_up', 'site', 'job', 'job_event']) {
+        ctx.exec(`CREATE TRIGGER ${table}_never_deleted BEFORE DELETE ON ${table}
+BEGIN SELECT RAISE(ABORT, '${table} records are never deleted'); END;`);
+      }
     },
   },
 ];

@@ -166,7 +166,7 @@ export type FollowUp = { id: string; dueDate: string };
 
 const stamp = () => new Date().toISOString();
 
-export type CustomerListItem ={ id: string; name: string; firstSite: string; followUpDue: boolean };
+export type CustomerListItem = { id: string; name: string; firstSite: string; followUpDue: boolean };
 
 function customerColumns(d: CustomerDetails): Record<string, SqlValue> {
   return {
@@ -186,6 +186,14 @@ export function people(db: Db, today: () => string) {
     if (!r) throw new Error(`No record ${id}`);
     return map(r);
   };
+
+  function jobProblems(customerId: string, j: JobDetails): Record<string, string> {
+    const problems: Record<string, string> = {};
+    if (j.title.trim() === '') problems.title = 'Say what the work is, for example "Kitchen rewiring".';
+    const site = db.get('SELECT archived_at FROM site WHERE id = ? AND customer_id = ?', [j.siteId, customerId]);
+    if (site?.archived_at != null) problems.siteId = 'This Site is archived. Pick another Site.';
+    return problems;
+  }
 
   function addEvent(jobId: string, event: 'done' | 'dropped' | 'reopened', finishedOn: string | null) {
     db.transaction(() => {
@@ -214,7 +222,6 @@ export function people(db: Db, today: () => string) {
 
     customer: (id: string): Customer => one('SELECT * FROM customer WHERE id = ?', id, toCustomer),
 
-    /** Customers by name. `search` matches part of a name, or the digits of a phone number. */
     addSite(customerId: string, s: SiteDetails): string {
       check(siteProblems(s));
       return db.insert('site', { customer_id: customerId, ...siteColumns(s) });
@@ -250,11 +257,7 @@ export function people(db: Db, today: () => string) {
     unarchiveSite: (id: string) => db.update('site', id, { archived_at: null }),
 
     addJob(customerId: string, j: JobDetails): string {
-      const problems: Record<string, string> = {};
-      if (j.title.trim() === '') problems.title = 'Say what the work is, for example "Kitchen rewiring".';
-      const site = db.get('SELECT archived_at FROM site WHERE id = ? AND customer_id = ?', [j.siteId, customerId]);
-      if (site?.archived_at != null) problems.siteId = 'This Site is archived. Pick another Site.';
-      check(problems);
+      check(jobProblems(customerId, j));
       return db.transaction(() => {
         const id = db.insert('job', { customer_id: customerId, site_id: j.siteId, title: j.title.trim() });
         db.insert('job_event', { job_id: id, event: 'opened' });
@@ -263,7 +266,7 @@ export function people(db: Db, today: () => string) {
     },
 
     updateJob(id: string, j: JobDetails) {
-      if (j.title.trim() === '') throw new InputError({ title: 'Say what the work is, for example "Kitchen rewiring".' });
+      check(jobProblems(one('SELECT customer_id FROM job WHERE id = ?', id, (r) => String(r.customer_id)), j));
       db.update('job', id, { title: j.title.trim(), site_id: j.siteId });
     },
 
@@ -313,6 +316,7 @@ export function people(db: Db, today: () => string) {
       if (r) db.update('follow_up', String(r.id), { done_at: stamp() });
     },
 
+    /** Customers by name. `search` matches part of a name, or the digits of a phone number. */
     customers({ search = '', archived = false } = {}): CustomerListItem[] {
       const rows = db.all(
         `SELECT c.id, c.name, c.phones, c.whatsapp,
@@ -334,7 +338,7 @@ export function people(db: Db, today: () => string) {
         .map((r) => ({ id: String(r.id), name: String(r.name), firstSite: text(r.first_site), followUpDue: Number(r.due) === 1 }));
     },
 
-    archiveCustomer: (id: string) => db.update('customer', id, { archived_at: new Date().toISOString() }),
+    archiveCustomer: (id: string) => db.update('customer', id, { archived_at: stamp() }),
     unarchiveCustomer: (id: string) => db.update('customer', id, { archived_at: null }),
 
     /** Sets the date to follow up this Customer, replacing any open follow-up. */
