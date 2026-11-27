@@ -6,6 +6,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] On every open the ledger balances and the seven rules are checked; a failure is logged and shows a red banner "A check failed. Please send a problem report." without blocking work
-- [ ] Send a problem report in Settings and on the error screen makes `Mhizha problem report <date>.txt`: versions, phone model, Android version, error log, upgrade log, check results, record counts
-- [ ] The report holds no Customer details and the User can open it before sharing
+- [x] On every open the ledger balances and the seven rules are checked; a failure is logged and shows a red banner "A check failed. Please send a problem report." without blocking work
+- [x] Send a problem report in Settings and on the error screen makes `Mhizha problem report <date>.txt`: versions, phone model, Android version, error log, upgrade log, check results, record counts
+- [x] The report holds no Customer details and the User can open it before sharing
