@@ -4,6 +4,7 @@
 import { openDatabase, type Db, type OpenOptions } from './database';
 import { recordColumns, steps as appSteps, type Step } from './steps';
 import type { SqlPlatform } from './sql';
+import { noAddress, people, type CustomerDetails } from '../people';
 
 export type DbCheck = { name: string; run: (platform: SqlPlatform) => void };
 
@@ -281,6 +282,28 @@ dbChecks.push({
     throws(() => db.insert('price_list_item', { name: 'x', unit: '', unit_price: -1 }), 'a negative price');
     throws(() => db.insert('price_list_item', { name: 'x', unit: '', unit_price: 1.5 }), 'a part-cent price');
     throws(() => db.insert('price_list_item', { name: ' ', unit: '', unit_price: 1 }), 'an empty name');
+    db.close();
+  },
+});
+
+dbChecks.push({
+  name: "Customers, Sites and Jobs save as one unit, keep a Job at its own Customer's Site, and are never deleted",
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    const p = people(db, () => '2026-11-27');
+    const details: CustomerDetails = { kind: 'person', name: '', phones: ['077 123 4567'], whatsapp: '', email: '', address: noAddress, taxNumber: '' };
+    const c = p.addCustomer({ ...details, name: 'Test Customer', firstSiteName: 'House', note: 'A note' });
+    const other = p.addCustomer({ ...details, name: 'Other Customer', firstSiteName: '', note: '' });
+    const site = p.sites(c)[0]!.id;
+    same(p.sites(c).map((s) => s.name), ['House'], 'the first Site');
+    const job = p.addJob(c, { title: 'Work', siteId: site });
+    throws(() => p.addJob(other, { title: 'Work', siteId: site }), "a Job at another Customer's Site");
+    throws(() => p.markDone(job, '2026-11-28'), 'a finish date after today');
+    p.markDone(job, '2026-11-27');
+    same(p.job(job).status, 'done', 'Done');
+    throws(() => db.run('DELETE FROM customer'), 'a deleted Customer');
+    throws(() => db.run('DELETE FROM job'), 'a deleted Job');
+    same(p.customers().length, 2, 'Customers kept');
     db.close();
   },
 });

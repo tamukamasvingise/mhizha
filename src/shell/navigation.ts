@@ -57,10 +57,22 @@ export const newChoices = ['Quotation', 'Invoice', 'Payment', 'Customer'] as con
 /** The setup pages reached from Settings. */
 export type SettingsPage = 'business' | 'numbers' | 'start' | 'period';
 
-/** `prices` is the Price list, a sub screen of Settings; `page` is a setup page in Settings. */
-export type Place = { tab: TabId; screen: 'tab' | 'settings' | 'prices'; page?: SettingsPage };
+/** A screen opened over a tab, with a back button and no tabs or New button. */
+export type Sub =
+  | { screen: 'customer'; id: string }
+  /** A new Customer without `id`, otherwise a change to one. */
+  | { screen: 'customer-form'; id?: string }
+  | { screen: 'site-form'; customerId: string; id?: string }
+  | { screen: 'job-form'; customerId: string; id?: string }
+  | { screen: 'job'; id: string };
+
+/** Where the User is: a tab, Settings (with `page`, one of its setup pages) or the Price list, and any sub screens opened over it, last on top. */
+export type Place = { tab: TabId; screen: 'tab' | 'settings' | 'prices'; page?: SettingsPage; subs?: readonly Sub[] };
 
 export const start: Place = { tab: 'home', screen: 'tab' };
+
+const withSubs = (from: Place, subs: readonly Sub[]): Place =>
+  subs.length > 0 ? { tab: from.tab, screen: from.screen, subs } : { tab: from.tab, screen: from.screen };
 
 export function selectTab(_from: Place, tab: TabId): Place {
   return { tab, screen: 'tab' };
@@ -78,8 +90,24 @@ export function openPriceList(from: Place): Place {
   return { tab: from.tab, screen: 'prices' };
 }
 
-/** The phone's back button: the Price list and Settings pages go to Settings, Settings closes, other tabs go Home, Home exits. */
+/** Opens a sub screen on top. */
+export function open(from: Place, sub: Sub): Place {
+  return withSubs(from, [...(from.subs ?? []), sub]);
+}
+
+/** Swaps the top sub screen for another, as when a saved form shows what it made. */
+export function replace(from: Place, sub: Sub): Place {
+  return withSubs(from, [...(from.subs ?? []).slice(0, -1), sub]);
+}
+
+/** The sub screen on top, or null when a tab or Settings shows. */
+export function current(place: Place): Sub | null {
+  return place.subs?.at(-1) ?? null;
+}
+
+/** The phone's back button: a sub screen closes, the Price list and Settings pages go to Settings, Settings closes, other tabs go Home, Home exits. */
 export function back(from: Place): Place | 'exit' {
+  if (from.subs?.length) return withSubs(from, from.subs.slice(0, -1));
   if (from.screen === 'prices') return { tab: from.tab, screen: 'settings' };
   if (from.screen === 'settings' && from.page) return { tab: from.tab, screen: 'settings' };
   if (from.screen === 'settings') return { tab: from.tab, screen: 'tab' };

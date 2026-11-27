@@ -3,24 +3,31 @@ import { useEffect, useState } from 'react';
 import { BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Mark } from '../ui/Icon';
+import { CustomersTab } from '../people/screens/CustomersTab';
+import { SubScreen } from '../people/screens/SubScreen';
 import { priceItems } from '../prices/priceList';
 import { PriceListScreen } from '../prices/PriceListScreen';
 import { EmptyState, IconButton, Sheet, SubTopBar, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
+import { Row } from '../ui/forms';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
 import { SettingsPageScreen, SetupSettings } from '../setup/SettingsPages';
 import { useDb } from './Records';
 import {
   back,
+  current,
   newChoices,
+  open,
   openPriceList,
   openSettings,
   openSettingsPage,
+  replace,
   selectTab,
   start,
   tabs,
   type Place,
   type SettingsPage,
+  type Sub,
   type TabId,
 } from './navigation';
 
@@ -42,6 +49,21 @@ export function Shell() {
     });
     return () => sub.remove();
   }, [place]);
+
+  const nav = {
+    open: (sub: Sub) => setPlace((p) => open(p, sub)),
+    replace: (sub: Sub) => setPlace((p) => replace(p, sub)),
+    back: () => setPlace((p) => back(p) as Place),
+  };
+  const sub = current(place);
+  if (sub) {
+    return (
+      <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
+        <View style={{ height: insets.top, backgroundColor: c.surface }} />
+        <SubScreen key={JSON.stringify(place.subs)} sub={sub} nav={nav} />
+      </View>
+    );
+  }
 
   if (place.screen !== 'tab') {
     const goBack = () => setPlace(back(place) as Place);
@@ -79,13 +101,20 @@ export function Shell() {
         )}
       </TopBar>
       <View style={local.content}>
-        <ScrollView contentContainerStyle={local.main}>
-          <EmptyState title={tab.empty.title} body={tab.empty.body} />
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
+          {tab.id === 'customers' ? <CustomersTab nav={nav} /> : <EmptyState title={tab.empty.title} body={tab.empty.body} />}
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
       </View>
       <TabBar current={place.tab} onSelect={(id) => setPlace(selectTab(place, id))} bottom={insets.bottom} />
-      <NewSheet visible={newOpen} onClose={() => setNewOpen(false)} />
+      <NewSheet
+        visible={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCustomer={() => {
+          setNewOpen(false);
+          nav.open({ screen: 'customer-form' });
+        }}
+      />
     </View>
   );
 }
@@ -137,21 +166,25 @@ function NewButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function NewSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function NewSheet({ visible, onClose, onCustomer }: { visible: boolean; onClose: () => void; onCustomer: () => void }) {
   const c = useColours();
   return (
     <Sheet visible={visible} title="Make something new" onClose={onClose}>
       <View style={[local.list, { borderColor: c.line }]}>
-        {newChoices.map((choice, i) => (
-          <View
-            key={choice}
-            accessible
-            style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
-          >
-            <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
-            <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
-          </View>
-        ))}
+        {newChoices.map((choice, i) =>
+          choice === 'Customer' ? (
+            <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
+          ) : (
+            <View
+              key={choice}
+              accessible
+              style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
+            >
+              <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
+              <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
+            </View>
+          ),
+        )}
       </View>
     </Sheet>
   );

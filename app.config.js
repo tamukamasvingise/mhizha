@@ -32,9 +32,11 @@ module.exports = {
         'android.permission.SEND_SMS',
         'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',
         'android.permission.BIND_ACCESSIBILITY_SERVICE',
+        // expo-contacts asks for both; Mhizha only reads one picked contact.
+        'android.permission.WRITE_CONTACTS',
       ],
     },
     extra: { build, selfTest: true },
-    plugins: ['expo-sqlite', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
+    plugins: ['expo-sqlite', 'expo-contacts', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
   },
 };

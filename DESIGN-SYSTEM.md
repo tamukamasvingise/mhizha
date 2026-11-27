@@ -70,6 +70,13 @@ Colour rules:
 - Text field: a 14/600 label above, an optional 14 `label` hint, then the input: min 44, radius 8, 1px `input` border, 3px `ring` border while typing. An error shows under it in `bad` with "! " and the border turns `bad`.
 - Toast: `toast` on the page's bottom, radius 8, 16 text in `toastFg`, an optional action such as Undo at the right; read out by screen readers; gone after 5 s.
 - Price list (Settings > Documents and money): rows of name (16/600) with the price at the right (16/600, tabular) and "per day" under it; tap a row to change or delete it in a sheet; "Add an item" (primary) under the list.
+- Section: a 14/600 `label` heading with an optional small button at its right, then its list or a `label` line saying what goes there.
+- Small button: min 44, radius 8, 1px `input` border, `surface`, optional 18 icon, 16/600 text. For actions beside a heading (Add Job) and Call / WhatsApp.
+- Choice: pills min 44, radius 999; the chosen one `sel` with a `brand` border, `selFg` bold text and a "✓ " prefix; read out as radio buttons.
+- Date field: looks like a text field, shows the long date ("27 November 2026") or "Not set" in `label`, with a calendar icon; opens the phone's calendar.
+- Customers tab: a search field (name or phone), then the Customers by name with their first Site and "Follow up due". "Show archived" appears once one is archived.
+- Customer screen (sub screen): kind, the name at 24/700, Call and WhatsApp; then Follow up on, Jobs, Notes, Sites, Documents, Contact details, and Change details / Archive at the end.
+- Job screen (sub screen): Customer and Site, the title at 24/700, its status in words ("✓ Done. Work finished 20 November 2026."), Mark Job Done (primary) and Mark Job Dropped, or Open the Job again. Done asks for the date work finished in a sheet: today by default, no later day.
 
 ## Rule changes
 
