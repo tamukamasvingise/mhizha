@@ -1,5 +1,5 @@
-// Invoice PDFs on the phone (spec section 10). App only: the page itself is
-// made in invoice.ts. An Issued Invoice's PDF is made once, kept in the app's
+// Document PDFs (Invoices and Quotations) on the phone (spec section 10). App only: the page itself is
+// made in invoice.ts. An Issued Document's PDF is made once, kept in the app's
 // own `pdfs` folder with its checksum, and never made again or overwritten;
 // sharing sends that same file. A Draft is only ever previewed.
 import { Directory, File, Paths } from 'expo-file-system';
@@ -61,25 +61,25 @@ async function printWithRetries(html: string): Promise<string> {
 const making = new Map<string, Promise<string>>();
 
 /**
- * The PDF of an Issued Invoice: made from its frozen copy the first time it is
+ * The PDF of an Issued Document: made from its frozen copy the first time it is
  * asked for (right after issuing), then always the same file. Returns the file record's ID.
  */
-export function invoicePdf(db: Db, docs: Documents, id: string): Promise<string> {
+export function documentPdf(db: Db, docs: Documents, id: string): Promise<string> {
   const have = docs.issued(id).pdfFileId;
   if (have) return Promise.resolve(have);
   let job = making.get(id);
   if (!job) {
-    job = makeInvoicePdf(db, docs, id).finally(() => making.delete(id));
+    job = makeDocumentPdf(db, docs, id).finally(() => making.delete(id));
     making.set(id, job);
   }
   return job;
 }
 
-async function makeInvoicePdf(db: Db, docs: Documents, id: string): Promise<string> {
+async function makeDocumentPdf(db: Db, docs: Documents, id: string): Promise<string> {
   const printed = docs.printable(id);
   const { html } = invoiceHtml(printed, printAssets(db, printed.business));
   const made = new File(await printWithRetries(html));
-  // Each Invoice gets its own folder, so the shared file keeps a plain name ("INV-0001.pdf").
+  // Each Document gets its own folder, so the shared file keeps a plain name ("INV-0001.pdf").
   const dir = new Directory(Paths.document, FOLDER, id);
   if (!dir.exists) dir.create({ intermediates: true });
   const name = `${printed.number}.pdf`;
@@ -95,9 +95,9 @@ async function makeInvoicePdf(db: Db, docs: Documents, id: string): Promise<stri
   });
 }
 
-/** Opens the Share menu with the Issued Invoice's PDF. */
-export async function shareInvoicePdf(db: Db, docs: Documents, id: string): Promise<void> {
-  const fileId = await invoicePdf(db, docs, id);
+/** Opens the Share menu with the Issued Document's PDF. */
+export async function shareDocumentPdf(db: Db, docs: Documents, id: string): Promise<void> {
+  const fileId = await documentPdf(db, docs, id);
   const r = fileRecord(db, fileId);
   const file = r ? new File(Paths.document, r.path) : null;
   if (!file?.exists) throw new Error('The PDF file is missing.');

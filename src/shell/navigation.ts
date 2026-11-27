@@ -65,14 +65,14 @@ export type Sub =
   | { screen: 'site-form'; customerId: string; id?: string }
   | { screen: 'job-form'; customerId: string; id?: string }
   | { screen: 'job'; id: string }
-  /** One step of making an Invoice. `id` is the Draft, once there is one. */
-  | { screen: 'invoice-step'; step: InvoiceStep; id?: string }
+  /** One step of making an Invoice, or a Quotation (`type: 'QUO'`). `id` is the Draft, once there is one; its own type then wins. */
+  | { screen: 'invoice-step'; step: InvoiceStep; id?: string; type?: 'QUO' | 'INV' }
   /** An Issued Document, or a Draft opened from a list. */
   | { screen: 'document'; id: string }
   /** A Draft's pages as they would print, marked DRAFT. */
   | { screen: 'preview'; id: string };
 
-/** The steps of making an Invoice, one question each: who, which Job, the lines, then check and issue. */
+/** The steps of making a Quotation or Invoice, one question each: who, which Job, the lines, then check and issue. */
 export type InvoiceStep = 'who' | 'job' | 'lines' | 'check';
 export const invoiceSteps: readonly InvoiceStep[] = ['who', 'job', 'lines', 'check'];
 

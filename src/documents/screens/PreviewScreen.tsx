@@ -19,6 +19,7 @@ export function PreviewScreen({ id, nav }: { id: string; nav: Nav }) {
   const db = useDb();
   const d = useDocuments();
   const { width } = useWindowDimensions();
+  const name = d.draft(id).type === 'QUO' ? 'Quotation' : 'Invoice';
   const page = useMemo(() => {
     try {
       const printed = d.printable(id);
@@ -31,7 +32,7 @@ export function PreviewScreen({ id, nav }: { id: string; nav: Nav }) {
 
   return (
     <View style={styles.screen}>
-      <SubTopBar title="Draft Invoice preview" onBack={nav.back} />
+      <SubTopBar title={`Draft ${name} preview`} onBack={nav.back} />
       <View style={[styles.note, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
         <Text style={[parts.small, { color: c.label }]}>
           {page
@@ -52,7 +53,7 @@ export function PreviewScreen({ id, nav }: { id: string; nav: Nav }) {
               <ActivityIndicator color={c.primary} accessibilityLabel="Making the preview" />
             </View>
           )}
-          accessibilityLabel="The Draft Invoice's pages"
+          accessibilityLabel={`The Draft ${name}'s pages`}
         />
       ) : null}
     </View>

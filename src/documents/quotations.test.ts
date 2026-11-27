@@ -152,6 +152,7 @@ describe('a Revision', () => {
     expect(d.draft(rev)).toMatchObject({ revisesId: first, jobId: kitchen, depositAsked: 10_000, leadTime: '2 weeks' });
     expect(d.draft(rev).lines.map((l) => l.description)).toEqual(['Labour', 'Cable 2.5mm']);
     expect(d.revise(first)).toBe(rev);
+    expect(d.numberFor(rev)).toBe('QUO-0001 Rev 2');
     d.setLines(rev, [labour]);
     d.setTerms(rev, { validUntil: null, depositAsked: 5_000, leadTime: '2 weeks' });
     expect(d.issue(rev)).toBe('QUO-0001 Rev 2');

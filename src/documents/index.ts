@@ -527,6 +527,14 @@ export function documents(db: Db, clock: () => number) {
       touch(id, { deleted_at: new Date(clock()).toISOString() });
     },
 
+    /** The number this Draft gets when issued: a Revision keeps its Quotation's number with the next Rev. */
+    numberFor(id: string): string {
+      const r = draftRow(id);
+      if (r.revises_id == null) return this.nextNumber(r.type as DocumentType);
+      const o = row(String(r.revises_id));
+      return `${String(o.printed_number).replace(/ Rev \d+$/, '')} Rev ${Number(o.revision) + 1}`;
+    },
+
     /** The number the next Document of this type gets. */
     nextNumber(type: DocumentType): string {
       const c = counter(type);

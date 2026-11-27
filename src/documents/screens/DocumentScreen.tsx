@@ -3,7 +3,7 @@ import { AccessibilityInfo, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { discountLabel, formatQuantity, formatUsd } from '../../core';
 import { customerOwes } from '../../ledger';
 import { addressLine } from '../../people';
-import { invoicePdf, shareInvoicePdf } from '../../pdf/files';
+import { documentPdf, shareDocumentPdf } from '../../pdf/files';
 import type { Nav } from '../../people/screens/common';
 import { useDb } from '../../shell/Records';
 import { longDate, longDateTime } from '../../setup/dates';
@@ -11,16 +11,25 @@ import { List, Row, Section } from '../../ui/forms';
 import { Button, SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, size, space, type } from '../../ui/tokens';
+import type { Issued } from '..';
 import { STATUS_WORDS, useDocuments } from './common';
+import { QuotationScreen } from './QuotationScreen';
 
 // One Issued Invoice: its number and status, what it printed (from its frozen
-// copy), its lines and totals, and what the Customer owes now.
+// copy), its lines and totals, and what the Customer owes now. A Quotation
+// has its own screen.
 
 export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
+  const d = useDocuments();
+  return d.issued(id).type === 'QUO' ? <QuotationScreen id={id} nav={nav} /> : <InvoiceScreen id={id} nav={nav} />;
+}
+
+function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const db = useDb();
   const d = useDocuments();
   const inv = d.issued(id);
+  const from = inv.quotationId ? d.issued(inv.quotationId) : null;
   const f = inv.frozen;
   const owes = customerOwes(db, inv.customerId);
   const facts: [string, string][] = [
@@ -57,31 +66,17 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
           {facts.map(([k, v], i) => (
             <Row key={k} first={i === 0} title={v} subtitle={k} label={`${k}: ${v}`} />
           ))}
+          {from ? (
+            <Row
+              title={from.number}
+              subtitle="From the Quotation"
+              label={`From the Quotation ${from.number}. Opens it.`}
+              onPress={() => nav.open({ screen: 'document', id: from.id })}
+            />
+          ) : null}
         </List>
 
-        <Section title="Lines">
-          <List>
-            {inv.lines.map((l, i) => (
-              <Row
-                key={l.id}
-                first={i === 0}
-                title={l.description}
-                subtitle={`${formatQuantity(l.quantity)}${l.unit ? ` ${l.unit}` : ''} × ${formatUsd(l.unitPrice)}`}
-                right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
-              />
-            ))}
-          </List>
-        </Section>
-
-        <View style={styles.totals}>
-          <Line k="Subtotal" v={formatUsd(inv.subtotal)} />
-          {inv.discount > 0 && inv.discountKind ? <Line k={discountLabel(inv.discountKind)} v={`−${formatUsd(inv.discount)}`} /> : null}
-          <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
-            <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Total</Text>
-            <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(inv.total)}</Text>
-          </View>
-          <Text style={[parts.small, { color: c.label }]}>{inv.sumInWords}</Text>
-        </View>
+        <LinesAndTotals doc={inv} />
 
         <Section title={f.customer.name}>
           <Text style={[parts.body, { color: c.fg }]}>
@@ -93,10 +88,42 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
   );
 }
 
+/** An Issued Document's lines, then Subtotal, Discount, Total and the sum in words. */
+export function LinesAndTotals({ doc }: { doc: Pick<Issued, 'lines' | 'subtotal' | 'discount' | 'discountKind' | 'total' | 'sumInWords'> }) {
+  const c = useColours();
+  return (
+    <>
+      <Section title="Lines">
+        <List>
+          {doc.lines.map((l, i) => (
+            <Row
+              key={l.id}
+              first={i === 0}
+              title={l.description}
+              subtitle={`${formatQuantity(l.quantity)}${l.unit ? ` ${l.unit}` : ''} × ${formatUsd(l.unitPrice)}`}
+              right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
+            />
+          ))}
+        </List>
+      </Section>
+
+      <View style={styles.totals}>
+        <Line k="Subtotal" v={formatUsd(doc.subtotal)} />
+        {doc.discount > 0 && doc.discountKind ? <Line k={discountLabel(doc.discountKind)} v={`−${formatUsd(doc.discount)}`} /> : null}
+        <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
+          <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Total</Text>
+          <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(doc.total)}</Text>
+        </View>
+        <Text style={[parts.small, { color: c.label }]}>{doc.sumInWords}</Text>
+      </View>
+    </>
+  );
+}
+
 type PdfState = 'making' | 'ready' | 'failed';
 
 /** The PDF, made once at issue: Share once it is ready; what went wrong if it could not be made or sent. */
-function PdfPart({ id, number }: { id: string; number: string }) {
+export function PdfPart({ id, number }: { id: string; number: string }) {
   const c = useColours();
   const db = useDb();
   const d = useDocuments();
@@ -107,7 +134,7 @@ function PdfPart({ id, number }: { id: string; number: string }) {
     setState(d.issued(id).pdfFileId ? 'ready' : 'making');
     setProblem(null);
     let live = true;
-    invoicePdf(db, d, id).then(
+    documentPdf(db, d, id).then(
       () => live && setState('ready'),
       (e: unknown) => {
         db.logError('invoice pdf', e);
@@ -127,7 +154,7 @@ function PdfPart({ id, number }: { id: string; number: string }) {
 
   const share = () => {
     setProblem(null);
-    shareInvoicePdf(db, d, id).catch((e: unknown) => {
+    shareDocumentPdf(db, d, id).catch((e: unknown) => {
       db.logError('share pdf', e);
       const text = 'The PDF could not be shared. Try again; if it keeps happening, send a problem report from Settings.';
       setProblem(text);

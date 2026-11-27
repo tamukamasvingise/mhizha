@@ -23,7 +23,7 @@ export function SubScreen({ sub, nav }: { sub: Sub; nav: Nav }) {
     case 'job':
       return <JobScreen id={sub.id} nav={nav} />;
     case 'invoice-step':
-      return <InvoiceStepScreen step={sub.step} id={sub.id} nav={nav} />;
+      return <InvoiceStepScreen step={sub.step} id={sub.id} type={sub.type} nav={nav} />;
     case 'document':
       return <DocumentScreen id={sub.id} nav={nav} />;
     case 'preview':

@@ -17,34 +17,50 @@ import { jobStatusWord } from '../../people/screens/JobScreen';
 import { priceItems } from '../../prices/priceList';
 import { useDb } from '../../shell/Records';
 import { invoiceSteps, type InvoiceStep } from '../../shell/navigation';
-import { todayAt } from '../../setup/dates';
+import { addDays, todayAt } from '../../setup/dates';
 import { Choice, TextField } from '../../ui/fields';
 import { DateField, List, Row, Section, SmallButton } from '../../ui/forms';
 import { Button, Sheet, SubTopBar, styles as parts } from '../../ui/parts';
 import { StepFoot, StepHead } from '../../ui/steps';
 import { useColours } from '../../ui/theme';
-import { lineHeight, size, space, type } from '../../ui/tokens';
-import type { Draft, LineInput } from '..';
+import { lineHeight, radius, size, space, type } from '../../ui/tokens';
+import { VALID_DAYS, type Documents, type Draft, type LineInput } from '..';
 import { useDocuments } from './common';
 
-// Making an Invoice with no Quotation, one question per screen: who, which
-// Job, the lines, then check and issue. Each step is a sub screen on top of
-// the one before, so Back (on screen or the phone's) goes a step back. The
-// Draft is saved as the User goes; it has no number until it is issued.
+// Making a Quotation or an Invoice, one question per screen: who, which Job,
+// the lines, then check and issue. Each step is a sub screen on top of the one
+// before, so Back (on screen or the phone's) goes a step back. The Draft is
+// saved as the User goes; it has no number until it is issued. A Revision and
+// an Invoice from a Quotation keep their Quotation's Customer and Job.
 
-const QUESTIONS: Record<InvoiceStep, string> = {
-  who: 'Who is it for?',
-  job: 'Which Job?',
-  lines: 'What are you charging for?',
-  check: 'Check and issue',
+const QUESTIONS: Record<'QUO' | 'INV', Record<InvoiceStep, string>> = {
+  QUO: { who: 'Who is it for?', job: 'Which Job?', lines: 'What are you quoting for?', check: 'Check and issue' },
+  INV: { who: 'Who is it for?', job: 'Which Job?', lines: 'What are you charging for?', check: 'Check and issue' },
 };
 
-type Props = { step: InvoiceStep; id?: string; nav: Nav };
+type Kind = 'QUO' | 'INV';
+const NAME: Record<Kind, string> = { QUO: 'Quotation', INV: 'Invoice' };
 
-export function InvoiceStepScreen({ step, id, nav }: Props) {
+type Props = { step: InvoiceStep; id?: string; type?: Kind; nav: Nav };
+
+/** "Draft Quotation", "Revision 2 of QUO-0012", "New Invoice". */
+function titleFor(d: Documents, draft: Draft | null, kind: Kind): string {
+  if (!draft) return `New ${NAME[kind]}`;
+  if (draft.revisesId) {
+    const [base, rev] = d.numberFor(draft.id).split(' Rev ');
+    return `Revision ${rev} of ${base}`;
+  }
+  return `Draft ${NAME[kind]}`;
+}
+
+export function InvoiceStepScreen({ step, id, type, nav }: Props) {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const d = useDocuments();
+  const p = usePeople();
   const draft = id ? d.draft(id) : null;
+  const kind: Kind = draft ? (draft.type as Kind) : (type ?? 'INV');
+  const name = NAME[kind];
+  const fixed = draft !== null && (draft.revisesId !== null || draft.quotationId !== null);
   const n = invoiceSteps.indexOf(step) + 1;
   const goTo = (next: InvoiceStep, draftId: string) => nav.open({ screen: 'invoice-step', step: next, id: draftId });
 
@@ -53,32 +69,37 @@ export function InvoiceStepScreen({ step, id, nav }: Props) {
   let lead: string | undefined;
   switch (step) {
     case 'who':
-      lead = 'Pick the Customer. The Invoice is saved as a Draft as you go.';
-      body = <WhoStep draft={draft} nav={nav} />;
+      lead = fixed ? `It is for the Customer of its Quotation.` : `Pick the Customer. The ${name} is saved as a Draft as you go.`;
+      body = fixed ? <FixedChoice title={p.customer(draft!.customerId).name} /> : <WhoStep draft={draft} kind={kind} nav={nav} />;
       if (draft) next = { label: 'Next', onPress: () => goTo('job', draft.id) };
       break;
     case 'job':
-      lead = 'The piece of work you are charging for.';
-      body = <JobStep draft={draft!} onChosen={() => goTo('lines', draft!.id)} />;
+      lead = fixed ? 'It is for the Job of its Quotation.' : kind === 'QUO' ? 'The piece of work you are quoting for.' : 'The piece of work you are charging for.';
+      body = fixed ? <FixedJob jobId={draft!.jobId!} /> : <JobStep draft={draft!} onChosen={() => goTo('lines', draft!.id)} />;
       if (draft?.jobId) next = { label: 'Next', onPress: () => goTo('lines', draft.id) };
       break;
     case 'lines':
-      lead = 'Add lines from your Price list or type them. Prices can be changed for this Invoice only.';
+      lead = draft!.quotationId
+        ? 'Copied from the Quotation. Change the lines if the work changed, or keep only the part you are invoicing now.'
+        : `Add lines from your Price list or type them. Prices can be changed for this ${name} only.`;
       body = <LinesStep draft={draft!} onChange={refresh} />;
       next = { label: 'Next', onPress: () => goTo('check', draft!.id) };
       break;
     case 'check':
-      lead = 'Once issued, the Invoice gets its number and can no longer be changed.';
+      lead =
+        kind === 'QUO'
+          ? 'Once issued, the Quotation gets its number and can no longer be changed. To change it later, make a Revision.'
+          : 'Once issued, the Invoice gets its number and can no longer be changed.';
       body = <CheckStep draft={draft!} nav={nav} onChange={refresh} />;
       break;
   }
 
   return (
     <View style={styles.screen}>
-      <SubTopBar title={draft ? 'Draft Invoice' : 'New Invoice'} onBack={nav.back} />
+      <SubTopBar title={titleFor(d, draft, kind)} onBack={nav.back} />
       <KeyboardAvoidingView behavior="padding" style={styles.screen}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.main}>
-          <StepHead n={n} of={invoiceSteps.length} question={QUESTIONS[step]} lead={lead} />
+          <StepHead n={n} of={invoiceSteps.length} question={QUESTIONS[kind][step]} lead={lead} />
           {body}
         </ScrollView>
         <StepFoot onBack={n > 1 ? nav.back : undefined} next={next} />
@@ -87,7 +108,21 @@ export function InvoiceStepScreen({ step, id, nav }: Props) {
   );
 }
 
-function WhoStep({ draft, nav }: { draft: Draft | null; nav: Nav }) {
+/** A choice made already, shown with a tick, for a Draft whose Quotation decides it. */
+function FixedChoice({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <List>
+      <Row first title={`✓ ${title}`} subtitle={subtitle} label={`${title}${subtitle ? `, ${subtitle}` : ''}, chosen`} />
+    </List>
+  );
+}
+
+function FixedJob({ jobId }: { jobId: string }) {
+  const j = usePeople().job(jobId);
+  return <FixedChoice title={j.title} subtitle={`${j.siteName} · ${jobStatusWord(j)}`} />;
+}
+
+function WhoStep({ draft, kind, nav }: { draft: Draft | null; kind: Kind; nav: Nav }) {
   const c = useColours();
   const p = usePeople();
   const d = useDocuments();
@@ -99,7 +134,7 @@ function WhoStep({ draft, nav }: { draft: Draft | null; nav: Nav }) {
       d.setCustomer(draft.id, customerId);
       nav.open({ screen: 'invoice-step', step: 'job', id: draft.id });
     } else {
-      const id = d.newInvoice(customerId);
+      const id = kind === 'QUO' ? d.newQuotation(customerId) : d.newInvoice(customerId);
       nav.replace({ screen: 'invoice-step', step: 'who', id });
       nav.open({ screen: 'invoice-step', step: 'job', id });
     }
@@ -107,7 +142,7 @@ function WhoStep({ draft, nav }: { draft: Draft | null; nav: Nav }) {
   if (all.length === 0)
     return (
       <View style={styles.group}>
-        <Text style={[parts.body, { color: c.label }]}>No Customers yet. Add the Customer first, then make the Invoice from their screen.</Text>
+        <Text style={[parts.body, { color: c.label }]}>{`No Customers yet. Add the Customer first, then make the ${NAME[kind]}.`}</Text>
         <Button label="Add a Customer" onPress={() => nav.replace({ screen: 'customer-form' })} />
       </View>
     );
@@ -168,7 +203,9 @@ function JobStep({ draft, onChosen }: { draft: Draft; onChosen: () => void }) {
             })}
           </List>
         ) : (
-          <Text style={[parts.body, { color: c.label }]}>No Jobs yet for {customer.name}. Tap New Job to add the work this Invoice is for.</Text>
+          <Text style={[parts.body, { color: c.label }]}>
+            {`No Jobs yet for ${customer.name}. Tap New Job to add the work this ${NAME[draft.type as Kind]} is for.`}
+          </Text>
         )}
       </Section>
       <NewJobSheet visible={adding} customerId={draft.customerId} onClose={() => setAdding(false)} onAdded={(jobId) => (setAdding(false), choose(jobId))} />
@@ -236,14 +273,17 @@ function LinesStep({ draft, onChange }: { draft: Draft; onChange: () => void }) 
           })}
         </List>
       ) : (
-        <Text style={[parts.body, { color: c.label }]}>No lines yet. Add what you are charging for: labour, materials, call-out.</Text>
+        <Text style={[parts.body, { color: c.label }]}>
+          {`No lines yet. Add what you are ${draft.type === 'QUO' ? 'quoting' : 'charging'} for: labour, materials, call-out.`}
+        </Text>
       )}
       <View style={styles.buttons}>
         <SmallButton icon="plus" label="Add from Price list" onPress={() => setPicking(true)} />
         <SmallButton icon="plus" label="Type a line" onPress={() => setEditing({ index: null, line: blankLine })} />
       </View>
-      <DiscountField draft={draft} onChange={onChange} />
+      {draft.quotationId ? <ShareField draft={draft} onChange={onChange} /> : <DiscountField draft={draft} onChange={onChange} />}
       <Totals draft={draft} />
+      <OverNotice draft={draft} />
 
       <Sheet visible={picking} title="Add from Price list" onClose={() => setPicking(false)}>
         {items.length > 0 ? (
@@ -336,7 +376,7 @@ function LineSheet({
       <TextField label="Description" value={f.description} onChange={set('description')} error={errors.description} autoFocus={f.description === ''} />
       <TextField label="Quantity" value={f.quantity} onChange={set('quantity')} error={errors.quantity} keyboardType="decimal-pad" />
       <TextField label="Unit (optional)" hint='For example "day", "m" or "each"' value={f.unit} onChange={set('unit')} />
-      <TextField label="Unit price (US$)" hint="Changes this Invoice only, not the Price list" value={f.unitPrice} onChange={set('unitPrice')} error={errors.unitPrice} keyboardType="decimal-pad" />
+      <TextField label="Unit price (US$)" hint="Changes this Document only, not the Price list" value={f.unitPrice} onChange={set('unitPrice')} error={errors.unitPrice} keyboardType="decimal-pad" />
       <Button primary label={isNew ? 'Add line' : 'Save line'} onPress={save} />
       {!isNew ? <Button label="Remove line" onPress={onRemove} /> : null}
     </Sheet>
@@ -419,6 +459,77 @@ function DiscountField({ draft, onChange }: { draft: Draft; onChange: () => void
   );
 }
 
+/** An Invoice from a Quotation takes a share of its Discount, filled in by the app and changeable, in US$. */
+function ShareField({ draft, onChange }: { draft: Draft; onChange: () => void }) {
+  const c = useColours();
+  const d = useDocuments();
+  const from = d.fromQuotation(draft.id)!;
+  const saved = draft.discount?.kind === 'amount' ? draft.discount.cents : 0;
+  const [text, setText] = useState(saved > 0 ? (saved / 100).toFixed(2) : '');
+  const [shownFor, setShownFor] = useState(saved);
+  const [error, setError] = useState<string | undefined>();
+  if (from.discount === 0) return null;
+  // The app moves the share when the lines change; show the new one.
+  if (saved !== shownFor && !error) {
+    setShownFor(saved);
+    setText(saved > 0 ? (saved / 100).toFixed(2) : '');
+  }
+  const apply = (t: string) => {
+    setText(t);
+    const a = t.trim() === '' ? { ok: true as const, cents: 0 } : parseUsd(t);
+    if (!a.ok) return setError(a.message);
+    try {
+      d.setDiscount(draft.id, { kind: 'amount', cents: a.cents });
+      setError(undefined);
+      setShownFor(a.cents);
+      onChange();
+    } catch (e) {
+      if (!(e instanceof InputError)) throw e;
+      setError(e.problems.discount);
+    }
+  };
+  return (
+    <View style={styles.group}>
+      <TextField
+        label="Discount (US$)"
+        hint={`This Invoice's share of the ${formatUsd(from.discount)} Discount on ${from.number}. ${formatUsd(from.discountLeft)} of it is left.`}
+        value={text}
+        onChange={apply}
+        error={error}
+        keyboardType="decimal-pad"
+      />
+      {from.suggestedShare !== saved ? (
+        <View style={styles.buttons}>
+          <SmallButton label={`Use the share, ${formatUsd(from.suggestedShare)}`} onPress={() => apply((from.suggestedShare / 100).toFixed(2))} />
+        </View>
+      ) : null}
+      <Text style={[parts.small, { color: c.label }]}>The share is worked out from this Invoice's Subtotal; the last Invoice takes what is left.</Text>
+    </View>
+  );
+}
+
+/** For an Invoice from a Quotation: a notice when it and the earlier Invoices come to more than the Quotation. */
+function OverNotice({ draft }: { draft: Draft }) {
+  const c = useColours();
+  const from = useDocuments().fromQuotation(draft.id);
+  if (!from) return null;
+  return (
+    <View accessible style={[styles.notice, { backgroundColor: c.surface, borderColor: c.line }]}>
+      <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`From ${from.number}, ${formatUsd(from.total)}`}</Text>
+      <Text style={[parts.small, { color: c.label }]}>
+        {from.invoicedBefore > 0
+          ? `Invoiced before: ${formatUsd(from.invoicedBefore)}. Remaining: ${formatUsd(Math.max(0, from.total - from.invoicedBefore))}.`
+          : 'Nothing invoiced from it yet.'}
+      </Text>
+      {from.over > 0 ? (
+        <Text accessibilityLiveRegion="polite" style={[parts.small, styles.strong, { color: c.fg }]}>
+          {`This Invoice and earlier ones come to ${formatUsd(from.over)} more than ${from.number}. You can still issue it.`}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 /** Subtotal, Discount and Total, amounts at the right. */
 function Totals({ draft, words }: { draft: Draft; words?: boolean }) {
   const c = useColours();
@@ -449,10 +560,31 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
   const [sheet, setSheet] = useState<'issue' | 'delete' | null>(null);
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [orderNo, setOrderNo] = useState(draft.orderNo);
+  const [deposit, setDeposit] = useState(draft.depositAsked ? (draft.depositAsked / 100).toFixed(2) : '');
+  const [leadTime, setLeadTime] = useState(draft.leadTime);
   const today = todayAt(Date.now());
   const customer = p.customer(draft.customerId);
   const job = draft.jobId ? p.job(draft.jobId) : null;
-  const number = d.nextNumber('INV');
+  const quotation = draft.type === 'QUO';
+  const name = NAME[draft.type as Kind];
+  const number = d.numberFor(draft.id);
+  const fixed = draft.revisesId !== null || draft.quotationId !== null;
+  const validUntil = draft.validUntil ?? addDays(today, VALID_DAYS);
+
+  const terms = (next: { validUntil?: string | null; deposit?: string; leadTime?: string }) => {
+    const t = { validUntil: draft.validUntil, deposit, leadTime, ...next };
+    const cents = t.deposit.trim() === '' ? null : parseUsd(t.deposit);
+    if (cents !== null && !cents.ok) return setProblems({ ...problems, depositAsked: cents.message });
+    try {
+      d.setTerms(draft.id, { validUntil: t.validUntil, depositAsked: cents === null ? null : cents.cents, leadTime: t.leadTime });
+      const { depositAsked: _d, validUntil: _v, ...rest } = problems;
+      setProblems(rest);
+      onChange();
+    } catch (e) {
+      if (!(e instanceof InputError)) throw e;
+      setProblems({ ...problems, ...e.problems });
+    }
+  };
 
   const details = (next: { dueDate?: string | null; orderNo?: string }) => {
     d.setDetails(draft.id, { dueDate: draft.dueDate, orderNo, ...next });
@@ -461,7 +593,10 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
   const issue = () => {
     try {
       d.issue(draft.id);
-      nav.leave(draft.id, { screen: 'document', id: draft.id });
+      // A Revision or an Invoice from a Quotation opened over the Quotation's screen: show the new Document in its place.
+      if (draft.revisesId) nav.leave(draft.id);
+      if (draft.revisesId) nav.replace({ screen: 'document', id: draft.id });
+      else nav.leave(draft.id, { screen: 'document', id: draft.id });
     } catch (e) {
       if (!(e instanceof InputError)) throw e;
       setSheet(null);
@@ -473,11 +608,17 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
   return (
     <View style={styles.group}>
       <List>
-        <Row first title={customer.name} subtitle="Bill to" label={`Bill to ${customer.name}`} onPress={() => nav.open({ screen: 'invoice-step', step: 'who', id: draft.id })} />
+        <Row
+          first
+          title={customer.name}
+          subtitle={quotation ? 'Quotation for' : 'Bill to'}
+          label={`${quotation ? 'Quotation for' : 'Bill to'} ${customer.name}`}
+          onPress={fixed ? undefined : () => nav.open({ screen: 'invoice-step', step: 'who', id: draft.id })}
+        />
         <Row
           title={job ? job.title : 'No Job chosen'}
-          subtitle={job ? `${job.siteName} · Job` : 'Pick the Job this Invoice is for'}
-          onPress={() => nav.open({ screen: 'invoice-step', step: 'job', id: draft.id })}
+          subtitle={job ? `${job.siteName} · Job` : `Pick the Job this ${name} is for`}
+          onPress={fixed ? undefined : () => nav.open({ screen: 'invoice-step', step: 'job', id: draft.id })}
         />
       </List>
       {problems.job ? <ProblemText text={problems.job} /> : null}
@@ -496,51 +637,101 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
             ))}
           </List>
         ) : (
-          <Text style={[parts.body, { color: c.label }]}>No lines yet. Tap Change lines to add what you are charging for.</Text>
+          <Text style={[parts.body, { color: c.label }]}>{`No lines yet. Tap Change lines to add what you are ${quotation ? 'quoting' : 'charging'} for.`}</Text>
         )}
         {problems.lines ? <ProblemText text={problems.lines} /> : null}
       </Section>
       <Totals draft={draft} words />
       {problems.total || problems.discount ? <ProblemText text={(problems.total ?? problems.discount)!} /> : null}
+      <OverNotice draft={draft} />
+      {problems.quotation ? <ProblemText text={problems.quotation} /> : null}
 
-      <DateField
-        label="Due date"
-        hint="The day the Customer should pay by"
-        value={draft.dueDate ?? ''}
-        empty="The issue date"
-        min={today}
-        onChange={(dueDate) => details({ dueDate })}
-        error={problems.dueDate}
-      />
-      {draft.dueDate ? (
-        <View style={styles.buttons}>
-          <SmallButton label="Due on the issue date" onPress={() => details({ dueDate: null })} />
-        </View>
-      ) : null}
-      <TextField
-        label="Order No. (optional)"
-        hint="The Customer's own order number, printed on the Invoice"
-        value={orderNo}
-        onChange={(t) => {
-          setOrderNo(t);
-          d.setDetails(draft.id, { dueDate: draft.dueDate, orderNo: t });
-        }}
-      />
+      {quotation ? (
+        <>
+          <DateField
+            label="Valid until"
+            hint="The last day the prices hold"
+            value={draft.validUntil ?? ''}
+            empty={`30 days after issue, ${longDate(validUntil)}`}
+            min={today}
+            onChange={(v) => terms({ validUntil: v })}
+            error={problems.validUntil}
+          />
+          {draft.validUntil ? (
+            <View style={styles.buttons}>
+              <SmallButton label="Valid for 30 days" onPress={() => terms({ validUntil: null })} />
+            </View>
+          ) : null}
+          <TextField
+            label="Deposit asked (US$, optional)"
+            hint="Printed in the Terms, for example half the Total"
+            value={deposit}
+            onChange={(t) => {
+              setDeposit(t);
+              terms({ deposit: t });
+            }}
+            error={problems.depositAsked}
+            keyboardType="decimal-pad"
+          />
+          <TextField
+            label="Lead time (optional)"
+            hint='For example "5 working days after the Deposit"'
+            value={leadTime}
+            onChange={(t) => {
+              setLeadTime(t);
+              terms({ leadTime: t });
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <DateField
+            label="Due date"
+            hint="The day the Customer should pay by"
+            value={draft.dueDate ?? ''}
+            empty="The issue date"
+            min={today}
+            onChange={(dueDate) => details({ dueDate })}
+            error={problems.dueDate}
+          />
+          {draft.dueDate ? (
+            <View style={styles.buttons}>
+              <SmallButton label="Due on the issue date" onPress={() => details({ dueDate: null })} />
+            </View>
+          ) : null}
+          <TextField
+            label="Order No. (optional)"
+            hint="The Customer's own order number, printed on the Invoice"
+            value={orderNo}
+            onChange={(t) => {
+              setOrderNo(t);
+              d.setDetails(draft.id, { dueDate: draft.dueDate, orderNo: t });
+            }}
+          />
+        </>
+      )}
       {problems.clock ? <ProblemText text={problems.clock} /> : null}
       {problems.business ? <ProblemText text={problems.business} /> : null}
 
       <Button primary label={`Issue ${number}`} onPress={() => setSheet('issue')} />
-      <Button label="Preview the Invoice" onPress={() => nav.open({ screen: 'preview', id: draft.id })} />
+      <Button label={`Preview the ${name}`} onPress={() => nav.open({ screen: 'preview', id: draft.id })} />
       <Button label="Delete Draft" onPress={() => setSheet('delete')} />
 
       <Sheet visible={sheet === 'issue'} title={`Issue ${number}?`} onClose={() => setSheet(null)}>
         <Text style={[parts.body, { color: c.fg }]}>
-          {`${customer.name} will owe you ${formatUsd(draft.totals.total)}. The Invoice is dated today, ${longDate(today)}, and can no longer be changed or deleted. Its PDF is made once, ready to share.`}
+          {quotation
+            ? `${formatUsd(draft.totals.total)} for ${customer.name}, dated today, ${longDate(today)}, valid until ${longDate(validUntil)}. Nobody owes anything until you invoice it. It can no longer be changed or deleted; its PDF is made once, ready to share.`
+            : `${customer.name} will owe you ${formatUsd(draft.totals.total)}. The Invoice is dated today, ${longDate(today)}, and can no longer be changed or deleted. Its PDF is made once, ready to share.`}
         </Text>
+        {draft.revisesId ? (
+          <Text style={[parts.body, { color: c.fg }]}>{`The older version becomes Superseded. ${number} must be accepted again.`}</Text>
+        ) : null}
         <Button primary label={`Issue ${number}`} onPress={issue} />
       </Sheet>
       <Sheet visible={sheet === 'delete'} title="Delete this Draft?" onClose={() => setSheet(null)}>
-        <Text style={[parts.body, { color: c.fg }]}>It has no number yet, so nothing else changes.</Text>
+        <Text style={[parts.body, { color: c.fg }]}>
+          {draft.revisesId ? 'The Quotation stays as it is.' : 'It has no number yet, so nothing else changes.'}
+        </Text>
         <Button
           primary
           label="Delete Draft"
@@ -575,4 +766,6 @@ const styles = StyleSheet.create({
   totalText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
   grow: { flex: 1 },
   problem: { fontWeight: '700' },
+  strong: { fontWeight: '600' },
+  notice: { borderWidth: size.hairline, borderRadius: radius.r, padding: space.s3, gap: space.s1 },
 });
