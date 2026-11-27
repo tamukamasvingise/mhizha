@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Draft with no number, can be deleted; lines from the Price list or typed, editable per Document; one Discount
-- [ ] Issuing gives the next INV number, sets the issue date and time, locks it, keeps a frozen copy of Business, Customer, Site and Job details, and records tax status "not registered"
-- [ ] Issuing is blocked while the phone clock is earlier than the last recorded entry
-- [ ] Issuing posts Customers owe / Sales in the same save
-- [ ] Documents list (Drafts first, then newest Issued, with filters); Customer balance; Home shows "Customers owe you"
-- [ ] Due date defaults to the issue date; optional Order No.
+- [x] Draft with no number, can be deleted; lines from the Price list or typed, editable per Document; one Discount
+- [x] Issuing gives the next INV number, sets the issue date and time, locks it, keeps a frozen copy of Business, Customer, Site and Job details, and records tax status "not registered"
+- [x] Issuing is blocked while the phone clock is earlier than the last recorded entry
+- [x] Issuing posts Customers owe / Sales in the same save
+- [x] Documents list (Drafts first, then newest Issued, with filters); Customer balance; Home shows "Customers owe you"
+- [x] Due date defaults to the issue date; optional Order No.
