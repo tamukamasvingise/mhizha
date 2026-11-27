@@ -76,20 +76,25 @@ export function documentTotals(input: { lines: readonly Line[]; discount?: Disco
  * The share of a Quotation's Discount an Invoice from it takes:
  * Discount x Invoice Subtotal / Quotation Subtotal, rounded to the cent; the last Invoice
  * takes the leftover cents. Never more than is left of the Discount or than the Invoice Subtotal.
+ * An earlier Invoice takes at least enough that what is left of the Discount still fits in the
+ * part of the Quotation not yet invoiced, so the last Invoice can always take the leftover.
  */
 export function discountShare(input: {
   discount: Cents;
   quotationSubtotal: Cents;
   invoiceSubtotal: Cents;
+  /** Sum of the Subtotals of earlier Invoices from the Quotation. */
+  subtotalBefore: Cents;
   /** Cents of the Discount already taken by earlier Invoices from the Quotation. */
   alreadyTaken: Cents;
   last: boolean;
 }): Cents {
-  const { discount, quotationSubtotal, invoiceSubtotal, alreadyTaken, last } = input;
+  const { discount, quotationSubtotal, invoiceSubtotal, subtotalBefore, alreadyTaken, last } = input;
   for (const [v, what] of [
     [discount, "Discount"],
     [quotationSubtotal, "Quotation Subtotal"],
     [invoiceSubtotal, "Invoice Subtotal"],
+    [subtotalBefore, "Subtotal of earlier Invoices"],
     [alreadyTaken, "Discount already taken"],
   ] as const) {
     wholeNonNegative(v, what);
@@ -102,5 +107,6 @@ export function discountShare(input: {
           (BigInt(discount) * BigInt(invoiceSubtotal) * 2n + BigInt(quotationSubtotal)) /
             (2n * BigInt(quotationSubtotal)),
         );
-  return Math.min(share, left, invoiceSubtotal);
+  const notYetInvoiced = Math.max(0, quotationSubtotal - subtotalBefore - invoiceSubtotal);
+  return Math.min(Math.max(share, left - notYetInvoiced), left, invoiceSubtotal);
 }

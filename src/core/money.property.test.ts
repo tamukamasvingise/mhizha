@@ -29,22 +29,26 @@ describe("money properties", () => {
           const quotationSubtotal = invoiceSubtotals.reduce((a, b) => a + b, 0);
           const discount = Math.floor((quotationSubtotal * perMille) / 1000);
           let taken = 0;
+          let before = 0;
           invoiceSubtotals.forEach((invoiceSubtotal, i) => {
             const share = discountShare({
               discount,
               quotationSubtotal,
               invoiceSubtotal,
+              subtotalBefore: before,
               alreadyTaken: taken,
               last: i === invoiceSubtotals.length - 1,
             });
             expect(share).toBeGreaterThanOrEqual(0);
             expect(share).toBeLessThanOrEqual(invoiceSubtotal);
             taken += share;
+            before += invoiceSubtotal;
             expect(taken).toBeLessThanOrEqual(discount);
           });
           expect(taken).toBe(discount);
         },
       ),
+      { numRuns: 5000 },
     );
   });
 });
