@@ -19,12 +19,23 @@ function yes(value: boolean, what: string) {
   if (!value) throw new CheckFailed(what);
 }
 
-let seed = 0;
+// Different bytes on every call, as a real random source gives.
+let counter = 0;
+function countingBytes(n: number): Uint8Array {
+  let c = ++counter;
+  const bytes = new Uint8Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    bytes[i] = c % 256;
+    c = Math.floor(c / 256);
+  }
+  return bytes;
+}
+
 const fixed = (platform: SqlPlatform, more: Partial<OpenOptions> = {}): OpenOptions => ({
   platform,
   appVersion: '1.0.0',
   clock: () => Date.UTC(2026, 10, 27, 12, 0, 0),
-  random: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 31 + 7) % 256)),
+  random: countingBytes,
   ...more,
 });
 
@@ -162,6 +173,101 @@ dbChecks.push(
       same(tables(opened.db).includes('note'), false, 'no step ran');
       same(opened.db.errorLog().at(-1)?.place, 'upgrade: safety copy', 'logged');
       opened.db.close();
+    },
+  },
+);
+
+// Test steps for record rules: a parent and a child that must name one.
+const family: Step = {
+  to: 2,
+  name: 'family',
+  run: (ctx) =>
+    ctx.exec(`
+CREATE TABLE parent (${recordColumns()}, label TEXT NOT NULL) STRICT;
+CREATE TABLE child (${recordColumns()}, parent_id TEXT NOT NULL REFERENCES parent (id)) STRICT;`),
+};
+
+const uuid7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function throws(fn: () => unknown, what: string) {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new CheckFailed(`${what}: expected an error`);
+}
+
+dbChecks.push(
+  {
+    name: 'every record gets a UUID v7, the install ID, both times and a change counter',
+    run(platform) {
+      let ms = Date.UTC(2026, 10, 27, 12, 0, 0);
+      const opened = openDatabase(fixed(platform, { steps: [base, family], clock: () => ms }));
+      if (!opened.ok) throw new CheckFailed('opens');
+      const { db } = opened;
+      const id = db.insert('parent', { label: 'a' });
+      yes(uuid7.test(id), 'ID is a UUID v7');
+      same(
+        db.get('SELECT install_id, created_at, changed_at, change_count FROM parent WHERE id = ?', [id]),
+        { install_id: db.installId, created_at: '2026-11-27T12:00:00.000Z', changed_at: '2026-11-27T12:00:00.000Z', change_count: 0 },
+        'new record',
+      );
+      ms += 60_000;
+      db.update('parent', id, { label: 'b' });
+      db.update('parent', id, { label: 'c' });
+      same(
+        db.get('SELECT label, created_at, changed_at, change_count FROM parent WHERE id = ?', [id]),
+        { label: 'c', created_at: '2026-11-27T12:00:00.000Z', changed_at: '2026-11-27T12:01:00.000Z', change_count: 2 },
+        'changed record',
+      );
+      throws(() => db.update('parent', 'no-such-id', { label: 'x' }), 'changing a missing record');
+      throws(() => db.insert('parent; DROP TABLE parent', { label: 'x' }), 'a table name that is not a name');
+      db.close();
+    },
+  },
+  {
+    name: 'links to records that do not exist are refused',
+    run(platform) {
+      const { db } = open(platform, [base, family]);
+      const parent = db.insert('parent', { label: 'a' });
+      db.insert('child', { parent_id: parent });
+      throws(() => db.insert('child', { parent_id: '00000000-0000-7000-8000-000000000000' }), 'a link to nothing');
+      db.close();
+    },
+  },
+  {
+    name: 'an action touching several records saves all of them or none',
+    run(platform) {
+      const { db } = open(platform, [base, family]);
+      throws(
+        () =>
+          db.transaction(() => {
+            const p = db.insert('parent', { label: 'a' });
+            db.transaction(() => db.insert('child', { parent_id: p }));
+            throw new Error('stop');
+          }),
+        'the action fails',
+      );
+      same(db.get('SELECT count(*) AS n FROM parent'), { n: 0 }, 'nothing saved');
+      db.transaction(() => {
+        const p = db.insert('parent', { label: 'a' });
+        db.insert('child', { parent_id: p });
+      });
+      same(db.get('SELECT count(*) AS n FROM child'), { n: 1 }, 'all saved');
+      db.close();
+    },
+  },
+  {
+    name: 'the error log keeps the last 500 entries, with versions and no quoted contents',
+    run(platform) {
+      const { db } = open(platform, [base]);
+      for (let i = 1; i <= 505; i++) db.logError('customers', new Error(`failed ${i} on "Jane's Plumbing"`));
+      const log = db.errorLog();
+      same(log.length, 500, 'entries kept');
+      same(log[0]!.error, 'Error: failed 6 on "…"', 'oldest kept, quoted text removed');
+      same([log[0]!.place, log[0]!.appVersion, log[0]!.dbVersion], ['customers', '1.0.0', 1], 'place and versions');
+      db.close();
     },
   },
 );
