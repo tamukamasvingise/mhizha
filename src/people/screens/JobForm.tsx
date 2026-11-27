@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Choice } from '../../ui/forms';
-import { Button, SubTopBar, TextField } from '../../ui/parts';
+
+import { Button, SubTopBar } from '../../ui/parts';
+import { Choice, TextField } from '../../ui/fields';
 import type { JobDetails } from '..';
 import { styles, useProblems, usePeople, type Nav } from './common';
 

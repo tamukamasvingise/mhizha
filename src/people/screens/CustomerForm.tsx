@@ -1,8 +1,9 @@
 import { Contact, ContactField, requestPermissionsAsync } from 'expo-contacts';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { Choice, SmallButton, useToast } from '../../ui/forms';
-import { Button, SubTopBar, TextField, styles as parts } from '../../ui/parts';
+import { SmallButton, useToast } from '../../ui/forms';
+import { Choice, TextField } from '../../ui/fields';
+import { Button, SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { noAddress, type CustomerDetails, type CustomerKind } from '..';
 import { fromContact } from '../fromContact';

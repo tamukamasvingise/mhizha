@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import type { Db } from '../db';
-import { Choice, Field, FieldGroup, Toggle } from '../ui/fields';
+import { Choice, FieldGroup, TextField, Toggle } from '../ui/fields';
 import { Button, Tappable, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { lineHeight, radius, size, space, type } from '../ui/tokens';
@@ -151,25 +151,25 @@ export function NameForm({ form, autoFocus }: { form: SetupForm; autoFocus?: boo
   const { business: b, edit, errors } = form;
   return (
     <>
-      <Field
+      <TextField
         label="Business name"
         value={b.name}
-        onChangeText={(name) => edit({ name })}
+        onChange={(name) => edit({ name })}
         error={errors.name}
         autoFocus={autoFocus}
         autoCapitalize="words"
       />
-      <Field
+      <TextField
         label="Trading as (optional)"
         hint="A short line above your name, if you trade under another name."
         value={b.tradingAs}
-        onChangeText={(tradingAs) => edit({ tradingAs })}
+        onChange={(tradingAs) => edit({ tradingAs })}
       />
-      <Field
+      <TextField
         label="What you do"
         hint="One line at the foot of your Documents, such as Plumbing, tiling and building."
         value={b.whatWeDo}
-        onChangeText={(whatWeDo) => edit({ whatWeDo })}
+        onChange={(whatWeDo) => edit({ whatWeDo })}
       />
       <LogoPicker form={form} />
     </>
@@ -221,30 +221,30 @@ export function ContactForm({ form }: { form: SetupForm }) {
   return (
     <>
       <FieldGroup>
-        <Field label="Phone" value={phone(0)} onChangeText={(t) => setPhone(0, t)} keyboardType="phone-pad" />
-        <Field label="Second phone (optional)" value={phone(1)} onChangeText={(t) => setPhone(1, t)} keyboardType="phone-pad" />
-        <Field
+        <TextField label="Phone" value={phone(0)} onChange={(t) => setPhone(0, t)} keyboardType="phone-pad" />
+        <TextField label="Second phone (optional)" value={phone(1)} onChange={(t) => setPhone(1, t)} keyboardType="phone-pad" />
+        <TextField
           label="Email (optional)"
           value={b.email}
-          onChangeText={(email) => edit({ email })}
+          onChange={(email) => edit({ email })}
           error={errors.email}
           keyboardType="email-address"
           autoCapitalize="none"
         />
       </FieldGroup>
       <FieldGroup title="Address">
-        <Field label="Street address" value={b.address.line1} onChangeText={(line1) => address({ line1 })} />
-        <Field label="Address line 2 (optional)" value={b.address.line2} onChangeText={(line2) => address({ line2 })} />
-        <Field label="Suburb" value={b.address.suburb} onChangeText={(suburb) => address({ suburb })} />
-        <Field label="City or town" value={b.address.city} onChangeText={(city) => address({ city })} />
-        <Field label="Province" value={b.address.province} onChangeText={(province) => address({ province })} />
-        <Field label="Country" value={b.address.country} onChangeText={(country) => address({ country })} />
+        <TextField label="Street address" value={b.address.line1} onChange={(line1) => address({ line1 })} />
+        <TextField label="Address line 2 (optional)" value={b.address.line2} onChange={(line2) => address({ line2 })} />
+        <TextField label="Suburb" value={b.address.suburb} onChange={(suburb) => address({ suburb })} />
+        <TextField label="City or town" value={b.address.city} onChange={(city) => address({ city })} />
+        <TextField label="Province" value={b.address.province} onChange={(province) => address({ province })} />
+        <TextField label="Country" value={b.address.country} onChange={(country) => address({ country })} />
       </FieldGroup>
-      <Field
+      <TextField
         label="Tax number (optional)"
         hint="Printed on your Documents if you have one."
         value={b.taxNumber}
-        onChangeText={(taxNumber) => edit({ taxNumber })}
+        onChange={(taxNumber) => edit({ taxNumber })}
         autoCapitalize="characters"
       />
     </>
@@ -285,11 +285,11 @@ export function LookForm({ form }: { form: SetupForm }) {
         </View>
         <Text style={[parts.small, { color: c.label }]}>{premade ? `Chosen: ${premade.name}` : 'Chosen: your own colour'}</Text>
       </View>
-      <Field
+      <TextField
         label="Or your own colour (optional)"
         hint="Its code, such as #0F766E."
         value={own}
-        onChangeText={(t) => {
+        onChange={(t) => {
           setOwn(t);
           edit({ brandColour: t.trim() ? t : (premade?.hex ?? BRAND_COLOURS[0]!.hex) });
         }}
@@ -325,21 +325,21 @@ export function PaymentForm({ form }: { form: SetupForm }) {
   return (
     <>
       <FieldGroup title="Bank">
-        <Field label="Bank (optional)" value={b.bankName} onChangeText={(bankName) => edit({ bankName })} />
-        <Field label="Account name" value={b.accountName} onChangeText={(accountName) => edit({ accountName })} />
-        <Field
+        <TextField label="Bank (optional)" value={b.bankName} onChange={(bankName) => edit({ bankName })} />
+        <TextField label="Account name" value={b.accountName} onChange={(accountName) => edit({ accountName })} />
+        <TextField
           label="Account number"
           value={b.accountNumber}
-          onChangeText={(accountNumber) => edit({ accountNumber })}
+          onChange={(accountNumber) => edit({ accountNumber })}
           keyboardType="number-pad"
         />
-        <Field label="Branch" value={b.branch} onChangeText={(branch) => edit({ branch })} />
+        <TextField label="Branch" value={b.branch} onChange={(branch) => edit({ branch })} />
       </FieldGroup>
-      <Field
+      <TextField
         label="Mobile money (optional)"
         hint="The service and number, such as EcoCash 077 123 4567."
         value={b.mobileMoney}
-        onChangeText={(mobileMoney) => edit({ mobileMoney })}
+        onChange={(mobileMoney) => edit({ mobileMoney })}
       />
     </>
   );
@@ -403,12 +403,12 @@ export function NumbersForm({ form }: { form: SetupForm }) {
         const text = numbers[counter.type];
         const n = /^\d+$/.test(text.trim()) ? Number(text) : null;
         return (
-          <Field
+          <TextField
             key={counter.type}
             label={`First ${name.slice(0, -1)} number`}
             hint={n ? `Printed as ${formatNumber(counter.prefix, n)}` : undefined}
             value={text}
-            onChangeText={(t) => setNumbers((x) => ({ ...x, [counter.type]: t }))}
+            onChange={(t) => setNumbers((x) => ({ ...x, [counter.type]: t }))}
             error={errors[counter.type]}
             keyboardType="number-pad"
           />
@@ -426,13 +426,13 @@ export function StartForm({ form }: { form: SetupForm }) {
     <>
       <View style={local.dateRow}>
         <View style={local.dateDay}>
-          <Field label="Day" value={start.day} onChangeText={(day) => setStart((s) => ({ ...s, day }))} keyboardType="number-pad" />
+          <TextField label="Day" value={start.day} onChange={(day) => setStart((s) => ({ ...s, day }))} keyboardType="number-pad" />
         </View>
         <View style={local.dateDay}>
-          <Field label="Month" value={start.month} onChangeText={(month) => setStart((s) => ({ ...s, month }))} keyboardType="number-pad" />
+          <TextField label="Month" value={start.month} onChange={(month) => setStart((s) => ({ ...s, month }))} keyboardType="number-pad" />
         </View>
         <View style={local.dateYear}>
-          <Field label="Year" value={start.year} onChangeText={(year) => setStart((s) => ({ ...s, year }))} keyboardType="number-pad" />
+          <TextField label="Year" value={start.year} onChange={(year) => setStart((s) => ({ ...s, year }))} keyboardType="number-pad" />
         </View>
       </View>
       <Text style={[parts.body, { color: c.fg }]}>{date ? longDate(date) : ' '}</Text>

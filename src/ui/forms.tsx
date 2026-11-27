@@ -7,8 +7,8 @@ import { Tappable, Toast, styles as parts } from './parts';
 import { useColours } from './theme';
 import { lineHeight, radius, size, space, type } from './tokens';
 
-// More shared parts: list sections and rows, a choice between a few options, a
-// date field, and a toast that goes by itself. Screens use these, never their own copies.
+// More shared parts: list sections and rows, a small button, a date field, and
+// a toast that goes by itself. Text fields and choices are in fields.tsx. Screens use these, never their own copies.
 
 /** A group on a screen: a 14/600 `label` heading, an optional small action at the right, then its content. */
 export function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -100,51 +100,6 @@ export function SmallButton({ label, icon, onPress, a11yLabel }: { label: string
         {label}
       </Text>
     </Tappable>
-  );
-}
-
-/** A choice of one among a few options, shown as pills: the chosen one in `sel` with a "✓ ". */
-export function Choice<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  error,
-}: {
-  label: string;
-  options: readonly { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  error?: string;
-}) {
-  const c = useColours();
-  return (
-    <View style={styles.field} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      <Text style={[styles.fieldLabel, { color: c.fg }]}>{label}</Text>
-      <View style={styles.pills}>
-        {options.map((o) => {
-          const on = o.value === value;
-          return (
-            <Tappable
-              key={o.value}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={o.label}
-              onPress={() => onChange(o.value)}
-              style={[
-                styles.pill,
-                on ? { backgroundColor: c.sel, borderColor: c.brand } : { backgroundColor: c.surface, borderColor: c.input },
-              ]}
-            >
-              <Text style={[styles.pillText, { color: on ? c.selFg : c.fg, fontWeight: on ? '700' : '400' }]}>
-                {on ? `✓ ${o.label}` : o.label}
-              </Text>
-            </Tappable>
-          );
-        })}
-      </View>
-      {error ? <Text style={[parts.small, { color: c.bad }]}>{`! ${error}`}</Text> : null}
-    </View>
   );
 }
 
@@ -274,15 +229,6 @@ const styles = StyleSheet.create({
   smallText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600' },
   field: { gap: space.s1 },
   fieldLabel: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
-  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s2 },
-  pill: {
-    minHeight: size.touch,
-    borderRadius: radius.pill,
-    borderWidth: size.hairline,
-    paddingHorizontal: space.s4,
-    justifyContent: 'center',
-  },
-  pillText: { fontSize: type.m, lineHeight: lineHeight(type.m) },
   dateInput: {
     minHeight: size.touch,
     borderRadius: radius.r,

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatUsd } from '../core';
 import { useDb } from '../shell/Records';
-import { Button, EmptyState, Sheet, SubTopBar, Tappable, TextField, Toast, styles as parts } from '../ui/parts';
+import { Button, EmptyState, Sheet, SubTopBar, Tappable, Toast, styles as parts } from '../ui/parts';
+import { TextField } from '../ui/fields';
 import { useColours } from '../ui/theme';
 import { lineHeight, radius, size, space, type } from '../ui/tokens';
 import {

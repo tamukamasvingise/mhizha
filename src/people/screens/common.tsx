@@ -3,7 +3,7 @@ import { AccessibilityInfo, Linking, StyleSheet, View } from 'react-native';
 import { today } from '../../dates';
 import { useDb } from '../../shell/Records';
 import type { Sub } from '../../shell/navigation';
-import { TextField } from '../../ui/parts';
+import { TextField } from '../../ui/fields';
 import { space } from '../../ui/tokens';
 import { InputError, people, type Address, type People } from '..';
 

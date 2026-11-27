@@ -7,9 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
-  type KeyboardTypeOptions,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
@@ -128,52 +126,6 @@ export function Button({ label, onPress, primary }: { label: string; onPress: ()
   );
 }
 
-/** A labelled text field. An error shows under it in red with a "! " prefix. */
-export function TextField({
-  label,
-  value,
-  onChange,
-  hint,
-  error,
-  keyboardType,
-  autoFocus,
-}: {
-  label: string;
-  value: string;
-  onChange: (text: string) => void;
-  hint?: string;
-  error?: string;
-  keyboardType?: KeyboardTypeOptions;
-  autoFocus?: boolean;
-}) {
-  const c = useColours();
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: c.fg }]}>{label}</Text>
-      {hint ? <Text style={[styles.small, { color: c.label }]}>{hint}</Text> : null}
-      <TextInput
-        accessibilityLabel={label}
-        accessibilityHint={error ?? hint}
-        value={value}
-        onChangeText={onChange}
-        keyboardType={keyboardType}
-        autoFocus={autoFocus}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        cursorColor={c.fg}
-        selectionColor={c.ring}
-        style={[
-          styles.input,
-          { color: c.fg, backgroundColor: c.surface, borderColor: error ? c.bad : focused ? c.ring : c.input },
-          focused && { borderWidth: size.ring },
-        ]}
-      />
-      {error ? <Text style={[styles.small, { color: c.bad }]}>{`! ${error}`}</Text> : null}
-    </View>
-  );
-}
-
 /** A bottom sheet over a scrim: a bold title, its content, then Close. Fades when the phone asks for reduced motion. */
 export function Sheet({
   visible,
@@ -278,16 +230,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600', textAlign: 'center' },
-  field: { gap: space.s1 },
-  fieldLabel: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
-  input: {
-    minHeight: size.touch,
-    borderRadius: radius.r,
-    borderWidth: size.hairline,
-    paddingHorizontal: space.s3,
-    paddingVertical: space.s2,
-    fontSize: type.m,
-  },
   scrim: { flex: 1, justifyContent: 'flex-end' },
   scrimTap: { flex: 1 },
   sheet: {

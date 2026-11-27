@@ -4,13 +4,13 @@ import { Tappable, styles as parts } from './parts';
 import { useColours } from './theme';
 import { lineHeight, radius, size, space, type } from './tokens';
 
-// Form parts: text fields, choices and on/off switches. Screens use these,
-// never their own copies.
+// The form parts: text fields, choices and on/off switches. Screens use these,
+// never their own copies. (Date fields are in forms.tsx.)
 
-type FieldProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
+type FieldProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText' | 'onChange'> & {
   label: string;
   value: string;
-  onChangeText: (text: string) => void;
+  onChange: (text: string) => void;
   /** Says what to type, under the label. */
   hint?: string;
   /** What is wrong, in plain words. Shown under the field with a "! " prefix. */
@@ -18,7 +18,7 @@ type FieldProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
 };
 
 /** A labelled text field: a ring border while typing; an error turns the border red and shows the message under it. */
-export function Field({ label, hint, error, value, onChangeText, onFocus, onBlur, ...rest }: FieldProps) {
+export function TextField({ label, hint, error, value, onChange, onFocus, onBlur, ...rest }: FieldProps) {
   const c = useColours();
   const [focused, setFocused] = useState(false);
   return (
@@ -36,7 +36,7 @@ export function Field({ label, hint, error, value, onChangeText, onFocus, onBlur
           onBlur?.(e);
         }}
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={onChange}
         accessibilityLabel={label}
         accessibilityHint={error ? `${error}${hint ? ` ${hint}` : ''}` : hint}
         placeholderTextColor={c.label}
@@ -70,16 +70,19 @@ export function Choice<T extends string | number>({
   options,
   value,
   onChange,
+  error,
 }: {
   label: string;
   options: readonly ChoiceOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** What is wrong, in plain words, shown under the pills with a "! " prefix. */
+  error?: string;
 }) {
   const c = useColours();
   return (
     <View style={local.field} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      <Text style={[local.label, { color: c.fg }]}>{label}</Text>
+      <Text style={[local.fieldLabel, { color: c.fg }]}>{label}</Text>
       <View style={local.pills}>
         {options.map((o) => {
           const on = o.value === value;
@@ -104,6 +107,11 @@ export function Choice<T extends string | number>({
           );
         })}
       </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={[local.error, { color: c.bad }]}>
+          {`! ${error}`}
+        </Text>
+      ) : null}
     </View>
   );
 }
