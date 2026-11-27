@@ -476,7 +476,7 @@ for mode in light dark; do
   adb shell input text '450'
   hide_keyboard
   to_end
-  tap 'Save opening balance' || fail "$mode: save the Opening balance"
+  tap Save || fail "$mode: save the Opening balance"
   sleep 2
   to_end
   capture "$mode-customer-opening"

@@ -242,7 +242,7 @@ export function AddOpeningSheet({
         />
       ) : null}
       {problems.clock ? <ProblemLine text={problems.clock} /> : null}
-      <Button primary label="Save opening balance" onPress={save} />
+      <Button primary label="Save" onPress={save} />
     </Sheet>
   );
 }
