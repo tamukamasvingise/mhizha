@@ -164,8 +164,8 @@ export type ListItem = {
   /** The issue date; for a Draft, the day it was last changed. */
   date: string;
   total: Cents;
-  /** Worked out: an Invoice's or Quotation's status; 'received' for a money Receipt, 'applied' for a "Deposit applied" one. */
-  status: InvoiceStatus | QuotationStatus | 'draft' | 'received' | 'applied';
+  /** Worked out: an Invoice's or Quotation's status; 'received' for a money Receipt, 'applied' for a "Deposit applied" or "Credit applied" one, 'refunded' for a Refund. */
+  status: InvoiceStatus | QuotationStatus | 'draft' | 'received' | 'applied' | 'refunded';
 };
 
 const TYPE_NAMES: Record<DocumentType, string> = { QUO: 'Quotation', INV: 'Invoice', REC: 'Receipt', REF: 'Refund' };
@@ -897,7 +897,7 @@ export function documents(db: Db, clock: () => number) {
           quotation,
           depositsApplied:
             inv.type === 'INV'
-              ? depositsAppliedTo(db, id).map((x) => ({ label: `Deposit applied (${x.receiptNumber})`, amount: x.amount }))
+              ? depositsAppliedTo(db, id).map((x) => ({ label: x.label, amount: x.amount }))
               : [],
         });
       }
@@ -1003,7 +1003,9 @@ export function documents(db: Db, clock: () => number) {
             status:
               type === 'QUO'
                 ? statusOf(r, today)
-                : type === 'REC'
+                : type === 'REF'
+                  ? 'refunded'
+                  : type === 'REC'
                   ? db.get('SELECT 1 AS x FROM payment WHERE receipt_id = ?', [String(r.id)])
                     ? 'received'
                     : 'applied'

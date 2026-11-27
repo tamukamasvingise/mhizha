@@ -61,6 +61,73 @@ function journalLines(db: Db): Line[] {
     }));
 }
 
+/** Not reversed, and not itself a reversal. */
+const LIVE = (a: string) =>
+  `${a}.reverses_id IS NULL AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = ${a}.id)`;
+
+/** Each Customer's balance on a held account in the ledger, as the Business owes it. */
+function heldInLedger(db: Db, account: AccountCode): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const r of db.all(
+    `SELECT customer_id AS c, coalesce(sum(credit), 0) - coalesce(sum(debit), 0) AS n FROM journal_line
+     WHERE account_code = ? GROUP BY customer_id`,
+    [account],
+  )) {
+    out.set(String(r.c), Number(r.n));
+  }
+  return out;
+}
+
+/** Adds up what is left per Customer; a use above what was held makes the Customer's total NaN, so it never agrees. */
+function leftPerCustomer(rows: readonly Readonly<Record<string, unknown>>[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const left = Number(r.left);
+    out.set(String(r.c), left < 0 ? Number.NaN : (out.get(String(r.c)) ?? 0) + left);
+  }
+  return out;
+}
+
+function disagreeing(records: Map<string, number>, ledger: Map<string, number>): string[] {
+  return [...new Set([...records.keys(), ...ledger.keys()])].filter((c) => (records.get(c) ?? 0) !== (ledger.get(c) ?? 0));
+}
+
+function depositsAgree(db: Db): string[] {
+  const records = leftPerCustomer(
+    db.all(
+      `SELECT q.customer_id AS c, a.amount - (SELECT coalesce(sum(u.amount), 0) FROM allocation u
+         WHERE u.from_kind = 'deposit' AND u.from_id = a.id AND ${LIVE('u')}) AS left
+       FROM allocation a JOIN document q ON q.id = a.to_id
+       WHERE a.from_kind IN ('payment', 'opening-credit') AND a.to_kind = 'quotation' AND ${LIVE('a')}`,
+    ),
+  );
+  return disagreeing(records, heldInLedger(db, ACCOUNT.depositsHeld)).map(
+    (c) => `Customer ${c}: Deposits held in the ledger do not agree with the Deposits on their Quotations.`,
+  );
+}
+
+function creditAgrees(db: Db): string[] {
+  const rows = db.all(
+    `SELECT a.to_id AS c, a.amount - (SELECT coalesce(sum(u.amount), 0) FROM allocation u
+       WHERE u.from_kind = 'credit' AND u.from_id = a.id AND ${LIVE('u')}) AS left
+     FROM allocation a
+     WHERE a.to_kind = 'credit' AND a.from_kind IN ('payment', 'deposit') AND ${LIVE('a')}`,
+  );
+  // Credit held on the Start date: what is left of each Opening balance item of Credit not Cancelled.
+  if (db.get("SELECT 1 AS x FROM sqlite_schema WHERE type = 'table' AND name = 'opening_balance_item'")) {
+    rows.push(
+      ...db.all(
+        `SELECT o.customer_id AS c, o.amount - (SELECT coalesce(sum(u.amount), 0) FROM allocation u
+           WHERE u.from_kind = 'opening-credit' AND u.from_id = o.id AND ${LIVE('u')}) AS left
+         FROM opening_balance_item o WHERE o.kind = 'credit' AND o.cancelled_on IS NULL`,
+      ),
+    );
+  }
+  return disagreeing(leftPerCustomer(rows), heldInLedger(db, ACCOUNT.creditHeld)).map(
+    (c) => `Customer ${c}: Credit held in the ledger does not agree with the Credit in their records.`,
+  );
+}
+
 const checks: readonly Check[] = [
   {
     name: 'Records file: sound, and every link points to a record',
@@ -111,8 +178,31 @@ const checks: readonly Check[] = [
   },
   {
     name: 'Rule 1: net money received = money applied to active Invoices + unused Deposits + Credit',
-    needs: ['payment', 'refund', 'allocation'],
-    waitingFor: 'Payments, Deposits and Credit',
+    needs: ['payment', 'refund', 'allocation', 'journal_line'],
+    // Valid Payments less valid Refunds is what the money accounts hold, and
+    // each Refund paid back exactly what it took from Deposits or Credit. (Each
+    // Payment's split adding up to it is Rule 5; uses never above what is held, Rule 3.)
+    run(db) {
+      const problems: string[] = [];
+      for (const r of db.all(
+        `SELECT f.id, f.amount, (SELECT coalesce(sum(a.amount), 0) FROM allocation a
+           WHERE a.to_kind = 'refund' AND a.to_id = f.document_id AND ${LIVE('a')}) AS used
+         FROM refund f ORDER BY f.rowid`,
+      )) {
+        if (Number(r.used) !== Number(r.amount)) problems.push(`Refund ${String(r.id)}: what it paid back from does not add up to it.`);
+      }
+      const paid = Number(db.get('SELECT coalesce(sum(amount), 0) AS n FROM payment')?.n);
+      const refunded = Number(db.get('SELECT coalesce(sum(amount), 0) AS n FROM refund')?.n);
+      const held = Number(
+        db.get(
+          `SELECT coalesce(sum(debit), 0) - coalesce(sum(credit), 0) AS n FROM journal_line
+           WHERE account_code IN (${MONEY_ACCOUNTS.map(() => '?').join(', ')})`,
+          [...MONEY_ACCOUNTS],
+        )?.n,
+      );
+      if (held !== paid - refunded) problems.push('The money accounts in the ledger do not agree with Payments less Refunds.');
+      return problems;
+    },
   },
   {
     name: 'Rule 2: balance owed = active Invoices + Opening balance items - money applied - Write-offs',
@@ -122,37 +212,13 @@ const checks: readonly Check[] = [
   {
     name: 'Rule 3: Deposits and Credit are held for the Customer, apart from debt',
     needs: ['allocation', 'payment', 'document', 'journal_line'],
-    // Deposits for now: each Customer's Deposits held in the ledger is the
-    // unused part of the Deposits paid on their Quotations. Credit joins when
-    // its records do (Credit, Refunds and Opening balances).
+    // Each Customer's Deposits held in the ledger is the unused part of the
+    // Deposits paid on their Quotations, and their Credit held is the unused
+    // part of their Credit (overpayments and Deposits moved to Credit, and
+    // Opening balance items of Credit once those records exist). A use above
+    // what a Deposit or Credit holds fails too.
     run(db) {
-      const fromRecords = new Map<string, number>();
-      for (const r of db.all(
-        `SELECT q.customer_id AS c, a.amount - (SELECT coalesce(sum(u.amount), 0) FROM allocation u
-           WHERE u.from_kind = 'deposit' AND u.from_id = a.id AND u.reverses_id IS NULL
-             AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = u.id)) AS left
-         FROM allocation a JOIN document q ON q.id = a.to_id
-         WHERE a.from_kind IN ('payment', 'opening-credit') AND a.to_kind = 'quotation' AND a.reverses_id IS NULL
-           AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = a.id)`,
-      )) {
-        const left = Number(r.left);
-        if (left < 0) {
-          fromRecords.set(String(r.c), Number.NaN);
-          continue;
-        }
-        fromRecords.set(String(r.c), (fromRecords.get(String(r.c)) ?? 0) + left);
-      }
-      const ledger = new Map<string, number>();
-      for (const r of db.all(
-        `SELECT customer_id AS c, coalesce(sum(credit), 0) - coalesce(sum(debit), 0) AS n FROM journal_line
-         WHERE account_code = ? GROUP BY customer_id`,
-        [ACCOUNT.depositsHeld],
-      )) {
-        ledger.set(String(r.c), Number(r.n));
-      }
-      return [...new Set([...fromRecords.keys(), ...ledger.keys()])]
-        .filter((c) => (fromRecords.get(c) ?? 0) !== (ledger.get(c) ?? 0))
-        .map((c) => `Customer ${c}: Deposits held in the ledger do not agree with the Deposits on their Quotations.`);
+      return [...depositsAgree(db), ...creditAgrees(db)];
     },
   },
   {

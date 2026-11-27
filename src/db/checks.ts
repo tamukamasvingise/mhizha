@@ -439,3 +439,38 @@ dbChecks.push({
     db.close();
   },
 });
+
+dbChecks.push({
+  name: 'upgrade step 10 makes allocation again with every row kept, and a Refund pays back Credit in one save',
+  run(platform) {
+    const clock = () => Date.UTC(2026, 10, 27, 12, 0, 0);
+    const before = open(platform, appSteps.filter((s) => s.to <= 9)).db;
+    startNew(before, '2026-11-27');
+    saveBusinessDetails(before, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-11-27');
+    const c = people(before, () => '2026-11-27').addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const entry = before.insert('journal_entry', {
+      accounting_date: '2026-11-27', recorded_at: '2026-11-27T12:00:00.000Z', time_zone: 'Africa/Harare', source_kind: 'test', source_id: 'x',
+    });
+    const kept = before.insert('allocation', { journal_entry_id: entry, from_kind: 'payment', from_id: 'p', to_kind: 'invoice', to_id: 'i', amount: 5 });
+    const rows = before.all('SELECT * FROM allocation ORDER BY rowid');
+    before.close();
+
+    const { db } = open(platform, appSteps);
+    same(db.all('SELECT * FROM allocation ORDER BY rowid'), rows, 'every allocation kept as it was');
+    throws(() => db.run('DELETE FROM allocation WHERE id = ?', [kept]), 'a deleted allocation');
+    throws(() => db.run('UPDATE allocation SET amount = 6 WHERE id = ?', [kept]), 'a changed allocation');
+    throws(() => db.insert('allocation', { journal_entry_id: 'nope', from_kind: 'payment', from_id: 'p', to_kind: 'refund', to_id: c, amount: 1 }), 'a link to no entry');
+    const pay = payments(db, clock);
+    pay.record({
+      customerId: c, amount: 3000, dateReceived: '2026-11-27', method: 'cash', otherDescription: '', parts: [], separate: false, toCredit: 3000,
+    });
+    const ref = pay.refund({
+      customerId: c, from: { kind: 'credit' }, amount: 1000, date: '2026-11-27', method: 'cash', otherDescription: '', reason: 'Not needed',
+    });
+    same([pay.refundDoc(ref).number, pay.creditHeld(c)], ['REF-0001', 2000], 'the Refund');
+    throws(() => db.run('DELETE FROM refund'), 'a deleted Refund');
+    db.close();
+  },
+});

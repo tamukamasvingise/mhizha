@@ -548,4 +548,60 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
       }
     },
   },
+  {
+    to: 10,
+    name: 'Refunds, and allocations that can go to a Refund',
+    run(ctx) {
+      // A Refund (spec section 6) returns unused Deposit or Credit: a locked
+      // Document of type REF, with this record of what was paid back, when,
+      // how and why. What it used is allocations to the Refund from the
+      // Deposit or Credit it took the money from. SQLite cannot change a
+      // CHECK, so allocation is made again with 'refund' as a place money
+      // goes, every row copied as it was.
+      ctx.exec(`
+DROP TRIGGER allocation_never_deleted;
+DROP TRIGGER allocation_never_changed;
+CREATE TABLE allocation_new (
+  ${recordColumns()},
+  journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
+  from_kind TEXT NOT NULL CHECK (from_kind IN ('payment', 'deposit', 'credit', 'opening-credit')),
+  from_id TEXT NOT NULL,
+  to_kind TEXT NOT NULL CHECK (to_kind IN ('invoice', 'opening-balance', 'quotation', 'credit', 'refund')),
+  to_id TEXT NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  reverses_id TEXT UNIQUE REFERENCES allocation_new (id)
+) STRICT;
+INSERT INTO allocation_new (id, install_id, created_at, changed_at, change_count, journal_entry_id, from_kind, from_id, to_kind, to_id, amount, reverses_id)
+  SELECT id, install_id, created_at, changed_at, change_count, journal_entry_id, from_kind, from_id, to_kind, to_id, amount, reverses_id
+  FROM allocation ORDER BY rowid;
+DROP TABLE allocation;
+ALTER TABLE allocation_new RENAME TO allocation;
+CREATE INDEX allocation_to ON allocation (to_id);
+CREATE INDEX allocation_from ON allocation (from_id);
+CREATE TRIGGER allocation_never_deleted BEFORE DELETE ON allocation
+BEGIN SELECT RAISE(ABORT, 'allocation records are never deleted'); END;
+CREATE TRIGGER allocation_never_changed BEFORE UPDATE ON allocation
+BEGIN SELECT RAISE(ABORT, 'allocation records are never changed'); END;
+CREATE TABLE refund (
+  ${recordColumns()},
+  customer_id TEXT NOT NULL REFERENCES customer (id),
+  document_id TEXT NOT NULL UNIQUE REFERENCES document (id),
+  from_kind TEXT NOT NULL CHECK (from_kind IN ('deposit', 'credit')),
+  quotation_id TEXT REFERENCES document (id),
+  refund_date TEXT NOT NULL CHECK (refund_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  method_code TEXT NOT NULL REFERENCES payment_method (code),
+  other_description TEXT NOT NULL DEFAULT '',
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  reason TEXT NOT NULL CHECK (length(trim(reason)) > 0),
+  journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
+  CHECK ((from_kind = 'deposit') = (quotation_id IS NOT NULL))
+) STRICT;
+CREATE INDEX refund_customer ON refund (customer_id);
+CREATE TRIGGER refund_never_deleted BEFORE DELETE ON refund
+BEGIN SELECT RAISE(ABORT, 'refund records are never deleted'); END;
+CREATE TRIGGER refund_never_changed BEFORE UPDATE ON refund
+BEGIN SELECT RAISE(ABORT, 'refund records are never changed'); END;
+`);
+    },
+  },
 ];

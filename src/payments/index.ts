@@ -27,11 +27,18 @@ import type { ReceiptPrint } from '../pdf/receipt';
 import { longDateTime, todayAt } from '../setup/dates';
 import { businessDetails, formatNumber } from '../setup/store';
 import { appliedTo } from './allocations';
+import { applyCredit, appliesCredit, creditFrom, creditHeld } from './credit';
 import { appliedFrom, depositHeld, moveDepositToCredit } from './deposits';
 import { issueReceipt, listed, receiptCounter } from './receipts';
+import { refunds, type RefundInput } from './refunds';
 
 export { appliedTo } from './allocations';
+export { creditHeld } from './credit';
 export { depositHeld, depositsAppliedTo } from './deposits';
+export type { Refund, RefundFrom, RefundInput, RefundPrint, RefundSource } from './refunds';
+
+/** The Receipt line for the part of a Payment kept as Credit. */
+export const KEPT_AS_CREDIT = 'Kept as Credit';
 
 /** An Issued Invoice that still has money owing. */
 export type OwingInvoice = {
@@ -77,6 +84,11 @@ export type PaymentInput = {
   parts: readonly PaymentPart[];
   /** One Payment and Receipt per part instead of one for all. */
   separate: boolean;
+  /**
+   * What is more than the parts take, kept as Credit for the Customer once
+   * the User has confirmed it. The parts and this make the amount.
+   */
+  toCredit?: Cents;
 };
 
 export type Method = { code: PaymentMethod; name: string; hidden: boolean; needsDescription: boolean };
@@ -93,9 +105,9 @@ export type ReceiptLine = {
 export type Receipt = {
   id: string;
   number: string;
-  /** A money Receipt acknowledges a Payment; a "Deposit applied" one, no new money. */
-  kind: 'money' | 'deposit-applied';
-  /** For a "Deposit applied" Receipt: the Receipts the Deposit was paid on, oldest first; number null for Credit from an Opening balance. */
+  /** A money Receipt acknowledges a Payment; a "Deposit applied" or "Credit applied" one, no new money. */
+  kind: 'money' | 'deposit-applied' | 'credit-applied';
+  /** For an applied Receipt: the Receipts the Deposit or Credit was paid on, oldest first; number null for Credit from an Opening balance. */
   appliedFrom: { number: string | null; dateReceived: string }[];
   customerId: string;
   customerName: string;
@@ -115,22 +127,39 @@ export type Receipt = {
 
 const isDeposit = (part: PaymentPart): part is { quotationId: string; amount: Cents } => 'quotationId' in part;
 
-/** "Deposit applied", or "Credit applied from opening balance" when all of it was Credit held on the Start date. */
-export function appliedTitle(r: Pick<Receipt, 'appliedFrom'>): string {
-  return r.appliedFrom.length > 0 && r.appliedFrom.every((x) => x.number === null) ? 'Credit applied from opening balance' : 'Deposit applied';
+/**
+ * "Deposit applied" or "Credit applied", or "Credit applied from opening
+ * balance" when all of it was Credit held on the Start date.
+ */
+export function appliedTitle(r: Pick<Receipt, 'appliedFrom' | 'kind'>): string {
+  if (r.appliedFrom.length > 0 && r.appliedFrom.every((x) => x.number === null)) return 'Credit applied from opening balance';
+  return r.kind === 'credit-applied' ? 'Credit applied' : 'Deposit applied';
 }
 
-/** "No new money was received. This applies the Deposit paid on REC-0018 (12 Nov 2026) to the Invoice below." */
-export function appliedNotice(r: Pick<Receipt, 'appliedFrom'>): string {
+/**
+ * "No new money was received. This applies the Deposit paid on REC-0018 (12 Nov 2026) to the Invoice below.",
+ * or "... applies Credit from REC-0018 (12 Nov 2026) ..." for Credit.
+ */
+export function appliedNotice(r: Pick<Receipt, 'appliedFrom' | 'kind'>): string {
   const paid = r.appliedFrom.filter((x) => x.number !== null).map((x) => `${x.number} (${shortDate(x.dateReceived)})`);
   const opening = r.appliedFrom.filter((x) => x.number === null).map((x) => `Credit held from the opening balance (${shortDate(x.dateReceived)})`);
-  const parts = [...(paid.length ? [`the Deposit paid on ${listed(paid)}`] : []), ...opening];
+  const what = r.kind === 'credit-applied' ? 'Credit from' : 'the Deposit paid on';
+  const parts = [...(paid.length ? [`${what} ${listed(paid)}`] : []), ...opening];
   return `No new money was received. This applies ${listed(parts)} to the Invoice below.`;
 }
 
 export function payments(db: Db, clock: () => number) {
   const today = () => todayAt(clock());
   const docs = documents(db, clock);
+  const refunding = refunds(db, clock);
+
+  /** Why nothing can be saved while the phone's clock is behind the last record, or null. */
+  function clockProblem(): string | null {
+    const last = lastRecordedAt(db);
+    return last !== null && new Date(clock()).toISOString() < last
+      ? `The phone's clock is earlier than your last record (${longDateTime(last)}). Set the phone's date and time right, then save.`
+      : null;
+  }
 
   function invoiceRow(id: string) {
     return db.get("SELECT * FROM document WHERE id = ? AND type = 'INV' AND number IS NOT NULL AND deleted_at IS NULL", [id]);
@@ -192,9 +221,10 @@ export function payments(db: Db, clock: () => number) {
     return code === 'other' && other ? `${name}: ${other}` : name;
   }
 
-  /** The Payments a save makes: one, or one per part. */
-  function groups(input: PaymentInput) {
-    return input.separate && input.parts.length > 1 ? input.parts.map((part) => [part]) : [input.parts];
+  /** The Payments a save makes: one, or one per part; Credit kept goes with the last. */
+  function groups(input: PaymentInput): { parts: readonly PaymentPart[]; credit: Cents }[] {
+    const all = input.separate && input.parts.length > 1 ? input.parts.map((part) => [part]) : [input.parts];
+    return all.map((parts, i) => ({ parts, credit: i === all.length - 1 ? (input.toCredit ?? 0) : 0 }));
   }
 
   /** Every problem with the Payment, by field; and the warnings to show before saving. */
@@ -211,7 +241,9 @@ export function payments(db: Db, clock: () => number) {
     if (!PAYMENT_METHODS.includes(input.method)) problems.method = 'Pick how they paid.';
     else if (input.method === 'other' && input.otherDescription.trim() === '')
       problems.other = 'Say how they paid, for example "Cheque".';
-    if (input.parts.length === 0) problems.parts ??= 'Tick the Invoices this Payment is for.';
+    const toCredit = input.toCredit ?? 0;
+    if (!Number.isSafeInteger(toCredit) || toCredit < 0) problems.amount = 'Keep zero or more of it as Credit.';
+    if (input.parts.length === 0 && toCredit === 0) problems.parts ??= 'Tick the Invoices this Payment is for.';
     const seen = new Set<string>();
     let spread = 0;
     for (const part of input.parts) {
@@ -255,21 +287,23 @@ export function payments(db: Db, clock: () => number) {
       if (!Number.isSafeInteger(part.amount) || part.amount <= 0) problems.parts ??= `Put more than US$0.00 on ${name}, or untick it.`;
       spread += part.amount;
     }
-    if (!problems.amount && !problems.parts && spread !== input.amount) {
+    if (!problems.amount && !problems.parts && spread + toCredit !== input.amount) {
       problems.amount =
-        spread < input.amount
-          ? `${formatUsd(input.amount - spread)} of this is more than the ticked Invoices owe. Lower the amount, or tick another Invoice.`
-          : `The amounts on the Invoices add up to ${formatUsd(spread)}, more than the ${formatUsd(input.amount)} received.`;
+        spread + toCredit < input.amount
+          ? `${formatUsd(input.amount - spread - toCredit)} of this is more than the ticked Invoices owe. Lower the amount, tick another Invoice, or keep it as Credit.`
+          : toCredit > 0
+            ? `The amounts on the Invoices and Credit add up to ${formatUsd(spread + toCredit)}, more than the ${formatUsd(input.amount)} received.`
+            : `The amounts on the Invoices add up to ${formatUsd(spread)}, more than the ${formatUsd(input.amount)} received.`;
     }
     if (!businessDetails(db)) problems.business = 'Enter your business details in Settings first.';
     return { problems, warnings };
   }
 
   /** Saves one Payment and issues its Receipt. Call inside a transaction. */
-  function saveOne(input: PaymentInput, parts: PaymentInput['parts']): string {
+  function saveOne(input: PaymentInput, parts: PaymentInput['parts'], kept: Cents): string {
     const at = clock();
     const issuedAt = new Date(at).toISOString();
-    const amount = parts.reduce((s, x) => s + x.amount, 0);
+    const amount = parts.reduce((s, x) => s + x.amount, 0) + kept;
 
     const owing = parts
       .filter((x): x is { invoiceId: string; amount: Cents } => !isDeposit(x))
@@ -300,7 +334,7 @@ export function payments(db: Db, clock: () => number) {
       method: input.method,
       toInvoices: sum(onTime),
       toDeposits: sum(deposits),
-      toCredit: sum(early),
+      toCredit: sum(early) + kept,
     });
     const source = { kind: 'receipt', id: receiptId };
     const entryId = postEntry(db, { accountingDate: input.dateReceived, recordedAt: issuedAt, source, lines });
@@ -364,6 +398,28 @@ export function payments(db: Db, clock: () => number) {
         total: x.due.total,
         amount: x.part.amount,
         balance_left: x.due.room - x.part.amount,
+      });
+    }
+    if (kept > 0) {
+      // Money more than the parts take, kept as Credit for the Customer.
+      db.insert('allocation', {
+        journal_entry_id: entryId,
+        from_kind: 'payment',
+        from_id: payment,
+        to_kind: 'credit',
+        to_id: input.customerId,
+        amount: kept,
+      });
+      db.insert('receipt_line', {
+        receipt_id: receiptId,
+        position: ++position,
+        invoice_id: null,
+        job_id: null,
+        applied_to: KEPT_AS_CREDIT,
+        job_title: '',
+        total: kept,
+        amount: kept,
+        balance_left: 0,
       });
     }
     return receiptId;
@@ -442,7 +498,7 @@ export function payments(db: Db, clock: () => number) {
       return db.transaction(() => {
         const { problems } = problemsOf(input);
         if (Object.keys(problems).length > 0) throw new InputError(problems);
-        return groups(input).map((parts) => saveOne(input, parts));
+        return groups(input).map((g) => saveOne(input, g.parts, g.credit));
       });
     },
 
@@ -452,11 +508,12 @@ export function payments(db: Db, clock: () => number) {
       const pay = db.get('SELECT * FROM payment WHERE receipt_id = ?', [id]);
       const frozen = JSON.parse(String(r.frozen)) as FrozenCopy;
       const code = pay ? (String(pay.method_code) as PaymentMethod) : null;
+      const credit = !pay && appliesCredit(db, id);
       return {
         id,
         number: String(r.printed_number),
-        kind: pay ? 'money' : 'deposit-applied',
-        appliedFrom: pay ? [] : appliedFrom(db, id),
+        kind: pay ? 'money' : credit ? 'credit-applied' : 'deposit-applied',
+        appliedFrom: pay ? [] : credit ? creditFrom(db, id, 'invoice') : appliedFrom(db, id),
         customerId: String(r.customer_id),
         customerName: frozen.customer.name,
         issuedAt: String(r.issued_at),
@@ -493,11 +550,60 @@ export function payments(db: Db, clock: () => number) {
         method: x.methodCode,
         otherDescription: x.methodCode === 'other' ? x.method.replace(/^[^:]*: /, '') : '',
         amount: x.amount,
-        beingPaymentFor: listed(x.lines.map((l) => l.appliedTo)),
+        beingPaymentFor: listed(x.lines.map((l) => (l.appliedTo === KEPT_AS_CREDIT ? 'Credit kept for later' : l.appliedTo))),
         lines: x.lines,
-        applied: x.kind === 'deposit-applied' ? { title: appliedTitle(x), notice: appliedNotice(x) } : null,
+        applied: x.kind === 'money' ? null : { title: appliedTitle(x), notice: appliedNotice(x) },
       };
     },
+
+    /** The unused Credit held for the Customer. */
+    creditHeld: (customerId: string): Cents => creditHeld(db, customerId),
+
+    /** What Credit could go on an Issued Invoice: what the Customer holds, and the most that can be applied. */
+    creditFor(invoiceId: string): { held: Cents; most: Cents } {
+      const r = invoiceRow(invoiceId);
+      if (!r) return { held: 0, most: 0 };
+      const held = creditHeld(db, String(r.customer_id));
+      return { held, most: Math.min(held, owingOf(r).owed) };
+    },
+
+    /**
+     * Applies `amount` of the Customer's Credit to an Issued Invoice, once the
+     * User agrees, with a "Credit applied" Receipt. Throws InputError, saving
+     * nothing, when it is more than can be applied. Returns the Receipt id.
+     */
+    applyCredit(invoiceId: string, amount: Cents): string {
+      return db.transaction(() => {
+        const { most } = this.creditFor(invoiceId);
+        const clockIsWrong = clockProblem();
+        if (clockIsWrong) throw new InputError({ clock: clockIsWrong });
+        if (!Number.isSafeInteger(amount) || amount <= 0) throw new InputError({ amount: 'Apply more than US$0.00 of Credit.' });
+        if (amount > most) throw new InputError({ amount: `Apply at most ${formatUsd(most)} of Credit.` });
+        return applyCredit(db, { invoiceId, amount, at: clock() });
+      });
+    },
+
+    /** Applies the Customer's Credit to what they owe, oldest Invoice first, once the User agrees. Returns the Receipt ids. */
+    applyCreditToOwing(customerId: string): string[] {
+      return db.transaction(() => {
+        const ids: string[] = [];
+        for (const o of this.owing(customerId)) {
+          const { most } = this.creditFor(o.id);
+          if (most <= 0) break;
+          ids.push(this.applyCredit(o.id, most));
+        }
+        return ids;
+      });
+    },
+
+    /** What the Customer has held that can be refunded: each Deposit, then Credit. */
+    refundSources: (customerId: string) => refunding.sources(customerId),
+    /** The problems that stop a Refund, and the number it would get. */
+    checkRefund: (input: RefundInput) => refunding.check(input),
+    /** Issues a Refund in one save. Throws InputError, saving nothing, when anything is wrong. Returns its id. */
+    refund: (input: RefundInput) => refunding.record(input),
+    refundDoc: (id: string) => refunding.refund(id),
+    refundPrintable: (id: string) => refunding.printable(id),
   };
 }
 

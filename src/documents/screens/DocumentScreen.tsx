@@ -92,7 +92,7 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
         {paid > 0 ? (
           <View style={styles.totals}>
             {deposits.map((x) => (
-              <Line key={x.receiptNumber} k={`Deposit applied (${x.receiptNumber})`} v={`−${formatUsd(x.amount)}`} />
+              <Line key={x.label} k={x.label} v={`−${formatUsd(x.amount)}`} />
             ))}
             {paidMoney > 0 ? <Line k="Paid" v={`−${formatUsd(paidMoney)}`} /> : null}
             <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>

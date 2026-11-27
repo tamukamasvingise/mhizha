@@ -202,7 +202,7 @@ describe('a Payment is refused, saving nothing,', () => {
 
   it('when the amounts on the Invoices do not add up to the amount received', () => {
     expect(problems(() => pay.record(cash(12_000, [{ invoiceId: a, amount: 10_000 }])))).toMatchObject({
-      amount: 'US$20.00 of this is more than the ticked Invoices owe. Lower the amount, or tick another Invoice.',
+      amount: 'US$20.00 of this is more than the ticked Invoices owe. Lower the amount, tick another Invoice, or keep it as Credit.',
     });
     nothingSaved();
   });

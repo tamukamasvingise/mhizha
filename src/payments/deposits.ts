@@ -28,7 +28,7 @@ export type DepositLot = {
 };
 
 /** Not reversed, and not itself a reversal. */
-const LIVE = (a: string) =>
+export const LIVE = (a: string) =>
   `${a}.reverses_id IS NULL AND NOT EXISTS (SELECT 1 FROM allocation r WHERE r.reverses_id = ${a}.id)`;
 
 /** Every Issued version of a Quotation: the ids under its number. */
@@ -73,11 +73,11 @@ export function depositHeld(db: Db, quotationId: string): Cents {
 }
 
 /** Takes `amount` from the lots oldest first: one allocation per lot used. */
-function useLots(
+export function useLots(
   db: Db,
   quotationId: string,
   amount: Cents,
-  to: { kind: 'invoice' | 'credit'; id: string; entryId: string },
+  to: { kind: 'invoice' | 'credit' | 'refund'; id: string; entryId: string },
 ) {
   let rest = amount;
   for (const lot of depositLots(db, quotationId)) {
@@ -176,15 +176,31 @@ export function appliedFrom(db: Db, receiptId: string): { number: string | null;
     .map((r) => ({ number: r.printed_number == null ? null : String(r.printed_number), dateReceived: String(r.accounting_date) }));
 }
 
-/** The Deposits applied to an Invoice, by the "Deposit applied" Receipt that applied each. */
-export function depositsAppliedTo(db: Db, invoiceId: string): { receiptNumber: string; amount: Cents }[] {
+/**
+ * The Deposits and Credit applied to an Invoice, by the "Deposit applied" or
+ * "Credit applied" Receipt that applied each, with what it prints:
+ * "Deposit applied (REC-0003)".
+ */
+export function depositsAppliedTo(
+  db: Db,
+  invoiceId: string,
+): { receiptNumber: string; amount: Cents; kind: 'deposit' | 'credit'; label: string }[] {
   return db
     .all(
-      `SELECT d.printed_number, sum(a.amount) AS amount FROM allocation a
+      `SELECT d.printed_number, a.from_kind, sum(a.amount) AS amount FROM allocation a
        JOIN journal_entry e ON e.id = a.journal_entry_id JOIN document d ON d.id = e.source_id
-       WHERE a.to_kind = 'invoice' AND a.to_id = ? AND a.from_kind = 'deposit' AND ${LIVE('a')}
-       GROUP BY d.id ORDER BY d.number`,
+       WHERE a.to_kind = 'invoice' AND a.to_id = ? AND a.from_kind IN ('deposit', 'credit') AND ${LIVE('a')}
+       GROUP BY d.id, a.from_kind ORDER BY d.number`,
       [invoiceId],
     )
-    .map((r) => ({ receiptNumber: String(r.printed_number), amount: Number(r.amount) }));
+    .map((r) => {
+      const kind = r.from_kind === 'credit' ? ('credit' as const) : ('deposit' as const);
+      const receiptNumber = String(r.printed_number);
+      return {
+        receiptNumber,
+        amount: Number(r.amount),
+        kind,
+        label: `${kind === 'credit' ? 'Credit' : 'Deposit'} applied (${receiptNumber})`,
+      };
+    });
 }

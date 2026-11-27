@@ -277,7 +277,11 @@ describe('the checks on open for Deposits', () => {
     });
     expect(rule(3)).toMatchObject({
       outcome: 'failed',
-      problems: [`Customer ${tendai}: Deposits held in the ledger do not agree with the Deposits on their Quotations.`],
+      problems: [
+        `Customer ${tendai}: Deposits held in the ledger do not agree with the Deposits on their Quotations.`,
+        // The stray use moved it to Credit in the records only.
+        `Customer ${tendai}: Credit held in the ledger does not agree with the Credit in their records.`,
+      ],
     });
   });
 

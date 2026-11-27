@@ -91,7 +91,7 @@ describe('checks on open', () => {
   it('an entry whose debits and credits differ fails, is logged without amounts, and work goes on', () => {
     const db = open(nodePlatform(), later);
     const bad = entry(db, [
-      { account: '1010', debit: 5000 },
+      { account: '5000', debit: 5000 },
       { account: '4000', credit: 4000 },
     ]);
     const run = checkOnOpen(db);
