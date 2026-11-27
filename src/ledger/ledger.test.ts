@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ACCOUNTS, LedgerError, postings } from '../core';
-import { ACCOUNTS_AT_STEP_6 } from '../db/steps';
+import { ACCOUNTS_AT_STEP_7 } from '../db/steps';
 import type { Db } from '../db';
 import { freshDb } from '../testing';
 import { customerOwes, lastRecordedAt, postEntry, readJournal, totalOwed } from '.';
@@ -23,7 +23,7 @@ const entry = (customerId: string, total: number, at = '2026-11-27T10:00:00.000Z
 
 describe('the ledger in the records', () => {
   it('keeps the accounts the core knows, with the same codes', () => {
-    expect(ACCOUNTS_AT_STEP_6).toEqual(ACCOUNTS);
+    expect(ACCOUNTS_AT_STEP_7).toEqual(ACCOUNTS);
     expect(db.all('SELECT code FROM account ORDER BY code').map((r) => r.code)).toEqual(Object.keys(ACCOUNTS).sort());
   });
 

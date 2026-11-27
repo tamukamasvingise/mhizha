@@ -12,9 +12,9 @@ const LOCKED_DOCUMENT_COLUMNS = [
   'frozen', 'deleted_at', 'install_id', 'created_at',
 ] as const;
 
-// The chart of accounts as step 6 writes it. Released steps never change, so
+// The chart of accounts as step 7 writes it. Released steps never change, so
 // this is a copy, not src/core's live list (a test keeps the two in step).
-export const ACCOUNTS_AT_STEP_6: Record<string, { name: string; normal: 'debit' | 'credit'; perCustomer: boolean; hidden: boolean }> = {
+export const ACCOUNTS_AT_STEP_7: Record<string, { name: string; normal: 'debit' | 'credit'; perCustomer: boolean; hidden: boolean }> = {
   '1010': { name: 'Cash', normal: 'debit', perCustomer: false, hidden: false },
   '1020': { name: 'Bank', normal: 'debit', perCustomer: false, hidden: false },
   '1030': { name: 'EcoCash', normal: 'debit', perCustomer: false, hidden: false },
@@ -276,6 +276,23 @@ BEGIN SELECT RAISE(ABORT, 'Document numbers are locked once one is Issued'); END
   },
   {
     to: 6,
+    name: 'update check',
+    run(ctx) {
+      // One row: whether the daily check is on, the day it last reached the
+      // site, the newest version it found and the version the User dismissed.
+      ctx.exec(`
+CREATE TABLE update_check (
+  ${recordColumns()},
+  automatic INTEGER NOT NULL DEFAULT 1 CHECK (automatic IN (0, 1)),
+  last_checked TEXT,
+  latest_version TEXT,
+  dismissed_version TEXT
+) STRICT;
+`);
+    },
+  },
+  {
+    to: 7,
     name: 'documents, lines, accounts and the journal',
     run(ctx) {
       // Documents (spec sections 6 and 12). A Draft has no number and may be
@@ -389,7 +406,7 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never deleted'); END;`);
 BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
       }
       const now = ctx.now();
-      for (const [code, a] of Object.entries(ACCOUNTS_AT_STEP_6)) {
+      for (const [code, a] of Object.entries(ACCOUNTS_AT_STEP_7)) {
         ctx.run(
           `INSERT INTO account (id, install_id, created_at, changed_at, code, name, normal, per_customer, hidden)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,

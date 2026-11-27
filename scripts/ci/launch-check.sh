@@ -2,10 +2,10 @@
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
-# and marks it Done, issues an Invoice step by step, opens the problem report
-# and the failed-check banner, shows the problem screen, runs the database
-# checks on the real expo-sqlite, and screenshots every screen for the UI review.
-# Usage: launch-check.sh <apk> <results folder>
+# and marks it Done, issues an Invoice step by step, opens the problem report,
+# Updates and Help, and the failed-check banner, shows the problem screen, runs
+# the database checks on the real expo-sqlite, and screenshots every screen for
+# the UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
 set -uo pipefail
 
@@ -351,6 +351,21 @@ for mode in light dark; do
     pass "$mode: Settings opens the problem report" || fail "$mode: Settings opens the problem report"
   has "$mode-report" 'Record counts' && pass "$mode: the report shows record counts" || fail "$mode: the report shows record counts"
   has "$mode-report" 'Test Customer|0771234567' && fail "$mode: the report holds no Customer details" || pass "$mode: the report holds no Customer details"
+
+  # Updates and Help, at the end of Settings. The site may not have a version
+  # file yet, so any plain answer from Check for updates passes.
+  adb shell input keyevent KEYCODE_BACK
+  to_end && capture "$mode-settings-end"
+  has "$mode-settings-end" 'Check once a day' && pass "$mode: Settings has the daily update check switch" || fail "$mode: Settings has the daily update check switch"
+  tap 'Check for updates, [^"]*' || fail "$mode: tap Check for updates"
+  sleep 15
+  capture "$mode-update-check"
+  has "$mode-update-check" 'is the latest version|Could not reach the Mhizha site|is ready\. Make a Backup' &&
+    pass "$mode: Check for updates answers" || fail "$mode: Check for updates answers"
+  tap 'Help and guides, [^"]*' && capture "$mode-help" || fail "$mode: open Help"
+  has "$mode-help" 'Make a Quotation' && pass "$mode: Help shows the tutorials" || fail "$mode: Help shows the tutorials"
+  to_end && to_end && capture "$mode-help-end"
+  has "$mode-help-end" 'issues are public' && pass "$mode: Help warns that GitHub issues are public" || fail "$mode: Help warns that GitHub issues are public"
 
   # The red banner when a check on open fails, through the test build's link.
   open_link 'mhizha-test://self-test/check-failed'
