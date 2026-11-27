@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
-# the shell in place, in light and dark, and screenshots every screen for the
+# the shell in place, in light and dark, shows the problem screen, runs the
+# database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
 set -uo pipefail
@@ -84,6 +85,12 @@ launch() {
   adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 }
 
+# open_link <url>: start the app afresh on one of the test build's links.
+open_link() {
+  adb shell am force-stop "$PKG"
+  adb shell am start -W -a android.intent.action.VIEW -d "$1" "$PKG" >/dev/null 2>&1
+}
+
 echo "# Launch check" > "$SUMMARY"
 note ""
 note "Emulator: Android $(adb shell getprop ro.build.version.release | tr -d '\r'), API $(adb shell getprop ro.build.version.sdk | tr -d '\r'), $(adb shell wm size | tr -d '\r' | sed 's/Physical size: //'), $(adb shell grep MemTotal /proc/meminfo | tr -d '\r' | tr -s ' ')"
@@ -120,8 +127,33 @@ for mode in light dark; do
   adb shell input keyevent KEYCODE_BACK
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
+
+  # The problem screen, through the test build's link.
+  open_link 'mhizha-test://self-test/error'
+  if wait_for 'Your records are safe'; then pass "$mode: an unexpected error shows the problem screen"; else fail "$mode: an unexpected error shows the problem screen"; fi
+  capture "$mode-problem"
+  has "$mode-problem" 'text="Restart"' && pass "$mode: problem screen offers Restart" || fail "$mode: problem screen offers Restart"
+  tap 'Send a problem report' && capture "$mode-problem-report" || fail "$mode: tap Send a problem report"
+  has "$mode-problem-report" 'Problem reports come in a later test build' &&
+    pass "$mode: Send a problem report answers" || fail "$mode: Send a problem report answers"
 done
 adb shell cmd uimode night no
+
+# The database checks, on the real expo-sqlite (spec section 14).
+note ""
+note "## Database checks on expo-sqlite"
+open_link 'mhizha-test://self-test/db'
+if wait_for 'Database checks:'; then
+  capture db-checks
+  RESULT=$(grep -o 'Database checks: [0-9]* passed, [0-9]* failed' "$OUT/db-checks.xml" | head -1)
+  note "  ($RESULT)"
+  echo "$RESULT" | grep -q ' 0 failed' && pass "database checks pass on expo-sqlite" || fail "database checks pass on expo-sqlite"
+else
+  fail "database checks ran (no result within 90 s)"
+fi
+PID=$(adb shell pidof "$PKG" | tr -d "\r")
+[ -n "$PID" ] && adb logcat -d --pid="$PID" -s ReactNativeJS:V | grep 'MHIZHA_DB_CHECKS' > "$OUT/db-checks.txt" 2>/dev/null
+[ -s "$OUT/db-checks.txt" ] && note "  $(sed 's/.*MHIZHA_DB_CHECKS //' "$OUT/db-checks.txt" | head -c 2000)"
 
 PID=$(adb shell pidof "$PKG" | tr -d '\r')
 [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/app-logcat.txt" 2>/dev/null

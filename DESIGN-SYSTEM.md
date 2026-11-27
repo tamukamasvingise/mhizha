@@ -58,6 +58,7 @@ Colour rules:
 - Root tab screen: top bar, scrolling content padded 16 with 16 between groups, bottom padding clear of the New button, then the tabs.
 - Empty state: centred bold title, then a `label` line saying what will appear and how it gets there ("Tap New to ..."). An action button only when it leads somewhere that is built.
 - Sub screen: top bar with back, no tabs, no New button.
+- Problem screen (unexpected errors, records that could not be opened or updated): focused, no top bar, tabs or New button. The mark and name, a 24/700 title saying what happened, a `label` line saying what to do, then Restart (primary) and Send a problem report.
 - Bottom sheet: `scrim`, `surface`, top radius 16, padding 16, a bold title, then its list, then Close. Slides up; fades instead when the phone asks for reduced motion.
 - List: `surface`, 1px `line` border, radius 8; rows min 56, padding 12, title 16/600, subtitle 14 `label`.
 

@@ -17,6 +17,7 @@ Planned stack: Expo with TypeScript and SQLite on the phone, built with GitHub A
 Expo SDK 58 with TypeScript, built only in GitHub Actions (no Expo cloud builds). Use pnpm, never npm.
 
 - `pnpm install`, then `pnpm test` (Vitest) and `pnpm typecheck`.
+- Records: `src/db` opens SQLite and runs the numbered upgrade steps in `src/db/steps.ts` (add a step, never edit a released one). Its checks in `src/db/checks.ts` run on Node's SQLite in `pnpm test` and on expo-sqlite in the launch check, through the test build's `mhizha-test://self-test/db` link.
 - The look is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md); its values in `src/ui/tokens.ts`.
 - Every push runs `.github/workflows/ci.yml`: tests, a `.test` APK (`io.github.tamukamasvingise.mhizha.test`, arm64-v8a, armeabi-v7a and x86_64), and a launch check on Android 10 (2 GB, 720p) and current emulators. The APK and screenshots are kept 7 days as run artifacts.
 - Test signing key, read from these Actions secrets when they exist: `MHIZHA_TEST_KEYSTORE_BASE64` (the keystore, base64), `MHIZHA_TEST_KEYSTORE_PASSWORD`, `MHIZHA_TEST_KEY_ALIAS`, `MHIZHA_TEST_KEY_PASSWORD` (defaults to the store password). Without them each run signs with a throwaway key, so its APK cannot install over a `.test` build from another run. Never commit a keystore.
