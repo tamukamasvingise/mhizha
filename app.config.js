@@ -10,6 +10,8 @@ module.exports = {
     slug: 'mhizha',
     version: '1.0.0',
     orientation: 'portrait',
+    // Test builds answer mhizha-test://self-test/... links from the emulator job.
+    scheme: 'mhizha-test',
     icon: './assets/icon.png',
     userInterfaceStyle: 'automatic',
     backgroundColor: '#F6F7F7',
@@ -32,7 +34,7 @@ module.exports = {
         'android.permission.BIND_ACCESSIBILITY_SERVICE',
       ],
     },
-    extra: { build },
+    extra: { build, selfTest: true },
     plugins: ['expo-sqlite', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
   },
 };
