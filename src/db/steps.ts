@@ -246,4 +246,21 @@ BEGIN SELECT RAISE(ABORT, 'Document numbers are locked once one is Issued'); END
       );
     },
   },
+  {
+    to: 6,
+    name: 'update check',
+    run(ctx) {
+      // One row: whether the daily check is on, the day it last reached the
+      // site, the newest version it found and the version the User dismissed.
+      ctx.exec(`
+CREATE TABLE update_check (
+  ${recordColumns()},
+  automatic INTEGER NOT NULL DEFAULT 1 CHECK (automatic IN (0, 1)),
+  last_checked TEXT,
+  latest_version TEXT,
+  dismissed_version TEXT
+) STRICT;
+`);
+    },
+  },
 ];
