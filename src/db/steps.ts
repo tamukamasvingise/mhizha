@@ -12,6 +12,9 @@ const LOCKED_DOCUMENT_COLUMNS = [
   'frozen', 'deleted_at', 'install_id', 'created_at',
 ] as const;
 
+// Step 8 adds a Quotation's Deposit asked and lead time; they lock too.
+const LOCKED_DOCUMENT_COLUMNS_8 = [...LOCKED_DOCUMENT_COLUMNS, 'deposit_asked', 'lead_time'] as const;
+
 // The chart of accounts as step 7 writes it. Released steps never change, so
 // this is a copy, not src/core's live list (a test keeps the two in step).
 export const ACCOUNTS_AT_STEP_7: Record<string, { name: string; normal: 'debit' | 'credit'; perCustomer: boolean; hidden: boolean }> = {
@@ -417,6 +420,46 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
   },
   {
     to: 8,
+    name: 'quotations: Deposit asked, lead time and answers',
+    run(ctx) {
+      // A Quotation can carry the Deposit asked (cents) and a lead time; both
+      // lock at issue, so the lock is made again with them in it.
+      ctx.exec(`
+ALTER TABLE document ADD COLUMN deposit_asked INTEGER CHECK (deposit_asked IS NULL OR deposit_asked > 0);
+ALTER TABLE document ADD COLUMN lead_time TEXT NOT NULL DEFAULT '';
+CREATE INDEX document_quotation ON document (quotation_id);
+CREATE INDEX document_revises ON document (revises_id);
+DROP TRIGGER document_issued_locked;
+CREATE TRIGGER document_issued_locked BEFORE UPDATE ON document
+WHEN OLD.number IS NOT NULL AND (${LOCKED_DOCUMENT_COLUMNS_8.map((c) => `NEW.${c} IS NOT OLD.${c}`).join(' OR ')}
+  OR (OLD.pdf_file_id IS NOT NULL AND NEW.pdf_file_id IS NOT OLD.pdf_file_id))
+BEGIN SELECT RAISE(ABORT, 'An Issued Document is locked'); END;
+`);
+      // What the User records about an Issued Quotation, as facts: Accepted or
+      // Declined on a date, acceptance undone, or Cancelled with a reason. The
+      // latest fact wins; none is ever changed or deleted.
+      ctx.exec(`
+CREATE TABLE quotation_event (
+  ${recordColumns()},
+  document_id TEXT NOT NULL REFERENCES document (id),
+  kind TEXT NOT NULL CHECK (kind IN ('accepted', 'declined', 'undone', 'cancelled')),
+  event_date TEXT NOT NULL CHECK (event_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  reason TEXT NOT NULL DEFAULT '',
+  CHECK (kind <> 'cancelled' OR length(trim(reason)) > 0)
+) STRICT;
+CREATE INDEX quotation_event_document ON quotation_event (document_id);
+CREATE TRIGGER quotation_event_issued_only BEFORE INSERT ON quotation_event
+WHEN (SELECT type = 'QUO' AND number IS NOT NULL FROM document WHERE id = NEW.document_id) IS NOT 1
+BEGIN SELECT RAISE(ABORT, 'Only an Issued Quotation can be answered'); END;
+CREATE TRIGGER quotation_event_never_deleted BEFORE DELETE ON quotation_event
+BEGIN SELECT RAISE(ABORT, 'quotation_event records are never deleted'); END;
+CREATE TRIGGER quotation_event_never_changed BEFORE UPDATE ON quotation_event
+BEGIN SELECT RAISE(ABORT, 'quotation_event records are never changed'); END;
+`);
+    },
+  },
+  {
+    to: 9,
     name: 'Payment methods, Payments, allocations and Receipt lines',
     run(ctx) {
       // Payments (spec sections 6 and 9). A Payment is saved with its Receipt

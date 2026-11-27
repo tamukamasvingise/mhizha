@@ -18,7 +18,7 @@ export function useDocuments(): Documents {
   return useMemo(() => documents(db, Date.now), [db]);
 }
 
-/** A status in words. Red only for Overdue, and then with "! ". */
+/** A status in words. Red only for Overdue, Declined and Cancelled, and then with "! ". */
 export const STATUS_WORDS: Record<ListItem['status'], string> = {
   draft: 'Draft',
   unpaid: 'Unpaid',
@@ -27,7 +27,16 @@ export const STATUS_WORDS: Record<ListItem['status'], string> = {
   overdue: '! Overdue',
   closed: 'Closed',
   received: 'Received',
+  issued: 'Issued',
+  accepted: 'Accepted',
+  declined: '! Declined',
+  expired: 'Expired',
+  superseded: 'Superseded',
+  cancelled: '! Cancelled',
 };
+
+/** Whether a status is shown in red. */
+export const isBad = (status: ListItem['status']) => STATUS_WORDS[status].startsWith('! ');
 
 /** Opens a Document: a Draft at its last step, with the earlier steps behind it; an Issued one on its own screen. */
 export function openDocument(nav: Nav, item: Pick<ListItem, 'id' | 'draft'>) {
@@ -41,7 +50,7 @@ export function AmountAndStatus({ cents, status }: { cents: number; status: List
   return (
     <View style={styles.right}>
       <Text style={[styles.amount, { color: c.fg }]}>{formatUsd(cents)}</Text>
-      <Text style={[styles.status, { color: status === 'overdue' ? c.bad : c.label, fontWeight: status === 'overdue' ? '700' : '400' }]}>
+      <Text style={[styles.status, { color: isBad(status) ? c.bad : c.label, fontWeight: isBad(status) ? '700' : '400' }]}>
         {STATUS_WORDS[status]}
       </Text>
     </View>

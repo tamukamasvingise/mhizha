@@ -51,6 +51,6 @@ export {
 } from "./ledger";
 export { postings } from "./postings";
 export { type CustomerBalances, customerBalances, checkLedger } from "./checks";
-export { type InvoiceStatus, invoiceStatus } from "./status";
+export { type InvoiceStatus, invoiceStatus, type QuotationStatus, quotationStatus } from "./status";
 export { issuableTotals } from "./issue";
 export { type Owing, type PaymentSplit, fillOldestFirst, dateReceivedProblem } from "./payment";

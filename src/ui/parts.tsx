@@ -108,7 +108,8 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
 }
 
 /** A plain button: grey border on the surface, or `primary` for the one main action. */
-export function Button({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
+/** A full-width button. `primary` is the one main action; `danger` (red text and border) is only for Cancel. */
+export function Button({ label, onPress, primary, danger }: { label: string; onPress: () => void; primary?: boolean; danger?: boolean }) {
   const c = useColours();
   return (
     <Tappable
@@ -118,10 +119,10 @@ export function Button({ label, onPress, primary }: { label: string; onPress: ()
         styles.button,
         primary
           ? { backgroundColor: c.primary, borderColor: c.primary }
-          : { backgroundColor: pressed ? c.tint : c.surface, borderColor: c.input },
+          : { backgroundColor: pressed ? c.tint : c.surface, borderColor: danger ? c.bad : c.input },
       ]}
     >
-      <Text style={[styles.buttonText, { color: primary ? c.primaryFg : c.fg }]}>{label}</Text>
+      <Text style={[styles.buttonText, { color: primary ? c.primaryFg : danger ? c.bad : c.fg }]}>{label}</Text>
     </Tappable>
   );
 }

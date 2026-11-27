@@ -337,6 +337,43 @@ dbChecks.push({
 });
 
 dbChecks.push({
+  name: 'a Quotation issues and posts nothing; a Revision keeps its number; an answer is a fact; an Invoice from it takes its Discount share',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    startNew(db, '2026-11-27');
+    saveBusinessDetails(db, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-11-27');
+    const p = people(db, () => '2026-11-27');
+    const c = p.addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const job = p.addJob(c, { title: 'Work', siteId: p.sites(c)[0]!.id });
+    const d = documents(db, () => Date.UTC(2026, 10, 27, 12, 0, 0));
+    const q = d.newQuotation(c);
+    d.setJob(q, job);
+    d.setLines(q, [
+      { priceListItemId: null, description: 'Labour', unit: 'day', quantity: 4000, unitPrice: 4500 },
+      { priceListItemId: null, description: 'Cable', unit: 'm', quantity: 100000, unitPrice: 200 },
+    ]);
+    d.setDiscount(q, { kind: 'amount', cents: 1000 });
+    d.setTerms(q, { validUntil: null, depositAsked: 15000, leadTime: '2 weeks' });
+    same(d.issue(q), 'QUO-0001', 'the number');
+    same([customerOwes(db, c), db.get('SELECT count(*) AS n FROM journal_entry')?.n], [0, 0], 'a Quotation posts nothing');
+    throws(() => db.run("UPDATE document SET lead_time = 'x' WHERE id = ?", [q]), 'a change to an Issued Quotation');
+    const rev = d.revise(q);
+    same(d.issue(rev), 'QUO-0001 Rev 2', 'the Revision keeps the number');
+    same(d.quotation(q).status, 'superseded', 'the older version');
+    d.accept(rev, '2026-11-27');
+    throws(() => db.run('DELETE FROM quotation_event'), 'a deleted answer');
+    const inv = d.invoiceFrom(rev);
+    d.setLines(inv, [{ priceListItemId: null, description: 'Labour', unit: 'day', quantity: 4000, unitPrice: 4500 }]);
+    same(d.draft(inv).totals.discount, 474, 'the Invoice takes its share of the Discount');
+    same(d.issue(inv), 'INV-0001', 'the Invoice number');
+    same([customerOwes(db, c), d.quotation(rev).remaining], [17526, 19474], 'what is owed and what remains (Total 370.00 less 175.26)');
+    db.close();
+  },
+});
+
+dbChecks.push({
   name: 'a Payment saves with its Receipt, split and ledger entry in one save, or not at all',
   run(platform) {
     const { db } = open(platform, appSteps);

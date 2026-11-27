@@ -152,6 +152,10 @@ export function Shell() {
           setNewOpen(false);
           nav.open({ screen: 'payment' });
         }}
+        onQuotation={() => {
+          setNewOpen(false);
+          nav.open({ screen: 'invoice-step', step: 'who', type: 'QUO' });
+        }}
       />
     </View>
   );
@@ -210,12 +214,14 @@ function NewSheet({
   onCustomer,
   onInvoice,
   onPayment,
+  onQuotation,
 }: {
   visible: boolean;
   onClose: () => void;
   onCustomer: () => void;
   onInvoice: () => void;
   onPayment: () => void;
+  onQuotation: () => void;
 }) {
   const c = useColours();
   return (
@@ -226,6 +232,8 @@ function NewSheet({
             <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
           ) : choice === 'Payment' ? (
             <Row key={choice} first={i === 0} title="Payment" subtitle="Money a Customer paid you, with its Receipt" onPress={onPayment} />
+          ) : choice === 'Quotation' ? (
+            <Row key={choice} first={i === 0} title="Quotation" subtitle="Offer a price for a Job" onPress={onQuotation} />
           ) : choice === 'Invoice' ? (
             <Row key={choice} first={i === 0} title="Invoice" subtitle="Bill a Customer for a Job" onPress={onInvoice} />
           ) : (

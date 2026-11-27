@@ -5,7 +5,7 @@ import { customerOwes } from '../../ledger';
 import { appliedTo } from '../../payments';
 import { ReceiptScreen } from '../../payments/screens/ReceiptScreen';
 import { addressLine } from '../../people';
-import { invoicePdf, shareInvoicePdf } from '../../pdf/files';
+import { documentPdf, shareDocumentPdf } from '../../pdf/files';
 import type { Nav } from '../../people/screens/common';
 import { useDb } from '../../shell/Records';
 import { longDate, longDateTime } from '../../setup/dates';
@@ -13,15 +13,20 @@ import { List, Row, Section } from '../../ui/forms';
 import { Button, SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, size, space, type } from '../../ui/tokens';
+import type { Issued } from '..';
 import { STATUS_WORDS, useDocuments } from './common';
+import { QuotationScreen } from './QuotationScreen';
 
 // One Issued Invoice: its number and status, what it printed (from its frozen
 // copy), its lines and totals, what has been paid, what the Customer owes now,
-// and Record Payment while money is owing. A Receipt has its own screen.
+// and Record Payment while money is owing. A Quotation and a Receipt have
+// their own screens.
 
 export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
   const d = useDocuments();
-  return d.issued(id).type === 'REC' ? <ReceiptScreen id={id} nav={nav} /> : <InvoiceScreen id={id} nav={nav} />;
+  const type = d.issued(id).type;
+  if (type === 'QUO') return <QuotationScreen id={id} nav={nav} />;
+  return type === 'REC' ? <ReceiptScreen id={id} nav={nav} /> : <InvoiceScreen id={id} nav={nav} />;
 }
 
 function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
@@ -29,6 +34,7 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
   const db = useDb();
   const d = useDocuments();
   const inv = d.issued(id);
+  const from = inv.quotationId ? d.issued(inv.quotationId) : null;
   const f = inv.frozen;
   const owes = customerOwes(db, inv.customerId);
   const paid = appliedTo(db, id);
@@ -70,40 +76,26 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
           {facts.map(([k, v], i) => (
             <Row key={k} first={i === 0} title={v} subtitle={k} label={`${k}: ${v}`} />
           ))}
+          {from ? (
+            <Row
+              title={from.number}
+              subtitle="From the Quotation"
+              label={`From the Quotation ${from.number}. Opens it.`}
+              onPress={() => nav.open({ screen: 'document', id: from.id })}
+            />
+          ) : null}
         </List>
 
-        <Section title="Lines">
-          <List>
-            {inv.lines.map((l, i) => (
-              <Row
-                key={l.id}
-                first={i === 0}
-                title={l.description}
-                subtitle={`${formatQuantity(l.quantity)}${l.unit ? ` ${l.unit}` : ''} × ${formatUsd(l.unitPrice)}`}
-                right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
-              />
-            ))}
-          </List>
-        </Section>
-
-        <View style={styles.totals}>
-          <Line k="Subtotal" v={formatUsd(inv.subtotal)} />
-          {inv.discount > 0 && inv.discountKind ? <Line k={discountLabel(inv.discountKind)} v={`−${formatUsd(inv.discount)}`} /> : null}
-          <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
-            <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Total</Text>
-            <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(inv.total)}</Text>
+        <LinesAndTotals doc={inv} />
+        {paid > 0 ? (
+          <View style={styles.totals}>
+            <Line k="Paid" v={`−${formatUsd(paid)}`} />
+            <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
+              <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Left to pay</Text>
+              <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(left)}</Text>
+            </View>
           </View>
-          <Text style={[parts.small, { color: c.label }]}>{inv.sumInWords}</Text>
-          {paid > 0 ? (
-            <>
-              <Line k="Paid" v={`−${formatUsd(paid)}`} />
-              <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
-                <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Left to pay</Text>
-                <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(left)}</Text>
-              </View>
-            </>
-          ) : null}
-        </View>
+        ) : null}
 
         <Section title={f.customer.name}>
           <Text style={[parts.body, { color: c.fg }]}>
@@ -112,6 +104,38 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
         </Section>
       </ScrollView>
     </View>
+  );
+}
+
+/** An Issued Document's lines, then Subtotal, Discount, Total and the sum in words. */
+export function LinesAndTotals({ doc }: { doc: Pick<Issued, 'lines' | 'subtotal' | 'discount' | 'discountKind' | 'total' | 'sumInWords'> }) {
+  const c = useColours();
+  return (
+    <>
+      <Section title="Lines">
+        <List>
+          {doc.lines.map((l, i) => (
+            <Row
+              key={l.id}
+              first={i === 0}
+              title={l.description}
+              subtitle={`${formatQuantity(l.quantity)}${l.unit ? ` ${l.unit}` : ''} × ${formatUsd(l.unitPrice)}`}
+              right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
+            />
+          ))}
+        </List>
+      </Section>
+
+      <View style={styles.totals}>
+        <Line k="Subtotal" v={formatUsd(doc.subtotal)} />
+        {doc.discount > 0 && doc.discountKind ? <Line k={discountLabel(doc.discountKind)} v={`−${formatUsd(doc.discount)}`} /> : null}
+        <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
+          <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Total</Text>
+          <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(doc.total)}</Text>
+        </View>
+        <Text style={[parts.small, { color: c.label }]}>{doc.sumInWords}</Text>
+      </View>
+    </>
   );
 }
 
@@ -129,7 +153,7 @@ export function PdfPart({ id, number }: { id: string; number: string }) {
     setState(d.issued(id).pdfFileId ? 'ready' : 'making');
     setProblem(null);
     let live = true;
-    invoicePdf(db, d, id).then(
+    documentPdf(db, d, id).then(
       () => live && setState('ready'),
       (e: unknown) => {
         db.logError('invoice pdf', e);
@@ -149,7 +173,7 @@ export function PdfPart({ id, number }: { id: string; number: string }) {
 
   const share = () => {
     setProblem(null);
-    shareInvoicePdf(db, d, id).catch((e: unknown) => {
+    shareDocumentPdf(db, d, id).catch((e: unknown) => {
       db.logError('share pdf', e);
       const text = 'The PDF could not be shared. Try again; if it keeps happening, send a problem report from Settings.';
       setProblem(text);

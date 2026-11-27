@@ -3,7 +3,8 @@
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
 # and marks it Done, issues an Invoice step by step, records a part-payment
-# with its Receipt, opens Payment methods, opens the problem report,
+# with its Receipt, opens Payment methods, issues a Quotation and turns it
+# into an Invoice, opens the problem report,
 # Updates and Help, and the failed-check banner, shows the problem screen, runs
 # the database checks on the real expo-sqlite, and screenshots every screen for
 # the UI review. Usage: launch-check.sh <apk> <results folder>
@@ -353,7 +354,8 @@ for mode in light dark; do
   wait_for 'Unpaid · US\$40\.50' && pass "$mode: the Invoice is issued as INV-0001, Unpaid" || fail "$mode: the Invoice is issued as INV-0001, Unpaid"
   if wait_for 'text="Share PDF"'; then pass "$mode: the PDF is made at issue"; else
     fail "$mode: the PDF is made at issue"
-    PID=$(adb shell pidof "$PKG" | tr -d '')
+    PID=$(adb shell pidof "$PKG" | tr -d '
+')
     [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/$mode-pdf-logcat.txt" 2>/dev/null
     note "  $(grep -h 'MHIZHA_PDF_ERROR' "$OUT/$mode-pdf-logcat.txt" 2>/dev/null | head -3)"
   fi
@@ -397,6 +399,46 @@ for mode in light dark; do
   tap Documents && capture "$mode-documents-list" || fail "$mode: open Documents"
   has "$mode-documents-list" 'INV-0001' && pass "$mode: the Documents tab lists the Invoice" || fail "$mode: the Documents tab lists the Invoice"
   has "$mode-documents-list" 'REC-0001' && pass "$mode: the Documents tab lists the Receipt" || fail "$mode: the Documents tab lists the Receipt"
+
+  # A Quotation from New, issued, marked Accepted and turned into an Invoice
+  # with the same lines. The Quotation then shows what was invoiced.
+  tap 'New Quotation, Invoice, Payment or Customer' && tap 'Quotation, Offer a price for a Job' || fail "$mode: New offers a Quotation"
+  wait_for 'Who is it for?' || fail "$mode: New Quotation asks who it is for"
+  tap 'Test Customer' || fail "$mode: pick the Quotation's Customer"
+  wait_for 'Which Job?' && tap 'Kitchen rewiring, Main site, Open' || fail "$mode: pick the Quotation's Job"
+  wait_for 'What are you quoting for?' && pass "$mode: New Quotation asks what you are quoting for" || fail "$mode: New Quotation asks what you are quoting for"
+  tap 'Type a line' || fail "$mode: open Type a line on the Quotation"
+  tap_field Description && adb shell input text 'Wiring' || fail "$mode: type the Quotation line"
+  hide_keyboard
+  tap_field 'Unit price (US\$)' && adb shell input text '100' || fail "$mode: type the Quotation price"
+  hide_keyboard
+  tap 'Add line' || fail "$mode: add the Quotation line"
+  tap Next || fail "$mode: tap Next to check the Quotation"
+  wait_for 'Valid until' && capture "$mode-quotation-check" || fail "$mode: the Quotation's check step asks Valid until"
+  has "$mode-quotation-check" '30 days after issue' && pass "$mode: a Quotation is valid for 30 days unless changed" || fail "$mode: a Quotation is valid for 30 days unless changed"
+  to_end
+  capture "$mode-quotation-check-end"
+  tap 'Issue QUO-0001' || fail "$mode: tap Issue QUO-0001"
+  capture "$mode-quotation-confirm"
+  tap 'Issue QUO-0001' || fail "$mode: confirm Issue QUO-0001"
+  wait_for 'Issued · US\$100\.00' && pass "$mode: the Quotation is issued as QUO-0001" || fail "$mode: the Quotation is issued as QUO-0001"
+  capture "$mode-quotation"
+  tap 'Mark Accepted' && capture "$mode-quotation-accept" || fail "$mode: open Mark Accepted"
+  tap 'Mark Accepted' || fail "$mode: confirm Mark Accepted"
+  wait_for 'Accepted · US\$100\.00' && pass "$mode: the Quotation is marked Accepted" || fail "$mode: the Quotation is marked Accepted"
+  capture "$mode-quotation-accepted"
+  tap 'Make an Invoice' || fail "$mode: tap Make an Invoice"
+  wait_for 'What are you charging for?' && capture "$mode-invoice-from-quotation" || fail "$mode: Make an Invoice opens the Draft's lines"
+  has "$mode-invoice-from-quotation" 'Wiring' && pass "$mode: the Invoice copies the Quotation's lines" || fail "$mode: the Invoice copies the Quotation's lines"
+  tap Next && wait_for 'Check and issue' && to_end || fail "$mode: check the Invoice from the Quotation"
+  tap 'Issue INV-0002' && tap 'Issue INV-0002' || fail "$mode: issue INV-0002"
+  wait_for 'Unpaid · US\$100\.00' && pass "$mode: the Invoice from the Quotation is issued" || fail "$mode: the Invoice from the Quotation is issued"
+  capture "$mode-invoice-2"
+  has "$mode-invoice-2" 'From the Quotation' && pass "$mode: the Invoice names its Quotation" || fail "$mode: the Invoice names its Quotation"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'remaining US\$0\.00' && pass "$mode: the Quotation shows what is invoiced and what remains" || fail "$mode: the Quotation shows what is invoiced and what remains"
+  capture "$mode-quotation-invoiced"
+  back_until 'Customers owe you' 3
 
   # The problem report from Settings.
   # Help sits below the setup pages and About, so scroll to it.

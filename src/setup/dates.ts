@@ -62,3 +62,16 @@ export function longDateTime(iso: string): string {
   const t = new Date(Date.parse(iso) + HARARE_OFFSET_MS).toISOString();
   return `${longDate(t.slice(0, 10))}, ${t.slice(11, 16)}`;
 }
+
+/** The date `n` days later (earlier when `n` is negative). */
+export function addDays(date: PlainDate, n: number): PlainDate {
+  const [y, m, d] = parts(date);
+  return fromUtc(new Date(Date.UTC(y, m - 1, d + n)));
+}
+
+/** Whole days from `a` to `b`. */
+export function daysBetween(a: PlainDate, b: PlainDate): number {
+  const [y1, m1, d1] = parts(a);
+  const [y2, m2, d2] = parts(b);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
+}

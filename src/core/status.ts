@@ -16,3 +16,21 @@ export function invoiceStatus(
   if (today > invoice.dueDate) return "overdue";
   return invoice.applied > 0 ? "part-paid" : "unpaid";
 }
+
+/** An Issued Quotation's status. Always worked out from the facts, never stored. */
+export type QuotationStatus = "issued" | "accepted" | "declined" | "expired" | "superseded" | "cancelled";
+
+/**
+ * Cancelled, then Superseded (a later Revision is Issued), then the User's answer
+ * (Accepted or Declined); with no answer, Expired after the valid-until date, else Issued.
+ * Expired locks nothing. Dates are YYYY-MM-DD.
+ */
+export function quotationStatus(
+  q: { answer: "accepted" | "declined" | null; cancelled: boolean; superseded: boolean; validUntil: string },
+  today: string,
+): QuotationStatus {
+  if (q.cancelled) return "cancelled";
+  if (q.superseded) return "superseded";
+  if (q.answer) return q.answer;
+  return today > q.validUntil ? "expired" : "issued";
+}
