@@ -49,6 +49,27 @@ tap() {
   adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
 }
 
+# set_night light|dark: switch the phone's dark theme. Android 10's emulator
+# needs the secure setting as well as `cmd uimode`.
+set_night() {
+  local yes=no val=1
+  [ "$1" = dark ] && yes=yes val=2
+  adb shell settings put secure ui_night_mode "$val"
+  adb shell cmd uimode night "$yes" >/dev/null
+  note "  ($1: $(adb shell cmd uimode night | tr -d ''))"
+}
+
+# page_is <name> light|dark: the page behind the empty state has that theme's colour.
+page_is() {
+  local rgb r
+  rgb=$(python3 -I "$(dirname "$0")/pixel.py" "$OUT/$1.png" 360 640 2>/dev/null)
+  r=${rgb%% *}
+  if [ -z "$r" ]; then fail "$2: page colour readable"; return; fi
+  if [ "$2" = dark ] && [ "$r" -lt 64 ]; then pass "$2: page is dark ($rgb)";
+  elif [ "$2" = light ] && [ "$r" -gt 192 ]; then pass "$2: page is light ($rgb)";
+  else fail "$2: page colour follows the phone (got $rgb)"; fi
+}
+
 launch() {
   adb shell am force-stop "$PKG"
   adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
@@ -64,10 +85,11 @@ adb uninstall "$PKG" >/dev/null 2>&1 || true
 if INSTALL=$(adb install "$APK" 2>&1); then pass "installs"; else fail "installs: $INSTALL"; fi
 
 for mode in light dark; do
-  if [ "$mode" = dark ]; then adb shell cmd uimode night yes; else adb shell cmd uimode night no; fi
+  set_night "$mode"
   launch
   if wait_for 'Welcome to Mhizha'; then pass "$mode: opens on Home"; else fail "$mode: opens on Home (no 'Welcome to Mhizha' within 90 s)"; fi
   capture "$mode-home"
+  page_is "$mode-home" "$mode"
   has "$mode-home" 'content-desc="Home"[^>]*selected="true"|selected="true"[^>]*content-desc="Home"' &&
     pass "$mode: Home tab is the current tab" || fail "$mode: Home tab is the current tab"
   for t in Customers Documents Money; do

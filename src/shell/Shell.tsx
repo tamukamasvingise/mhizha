@@ -29,7 +29,8 @@ export function Shell() {
 
   if (place.screen === 'settings') {
     return (
-      <View style={[local.root, { backgroundColor: c.page, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
+        <View style={{ height: insets.top, backgroundColor: c.surface }} />
         <Settings onBack={() => setPlace(back(place) as Place)} />
       </View>
     );
@@ -38,7 +39,8 @@ export function Shell() {
   const tab = tabs.find((t) => t.id === place.tab) ?? tabs[0]!;
 
   return (
-    <View style={[local.root, { backgroundColor: c.page, paddingTop: insets.top }]}>
+    <View style={[local.root, { backgroundColor: c.page }]}>
+      <View style={{ height: insets.top, backgroundColor: c.surface }} />
       <TopBar actions={<IconButton icon="gear" label="Settings" onPress={() => setPlace(openSettings(place))} />}>
         {tab.id === 'home' ? (
           <View style={local.mark} accessible accessibilityRole="header" accessibilityLabel="Mhizha">
