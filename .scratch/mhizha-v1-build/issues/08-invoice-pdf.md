@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] One A4 layout made with expo-print; the app does its own pagination, with "continued" headers and "Page n of N"
-- [ ] Letterhead, Customer beside Site / Job, lines table, totals with the sum in words, blank VAT row, payment details, signature line, footer
-- [ ] Empty optional fields are left off; Business colour, font and watermark applied
-- [ ] Made once at issue, kept as a file with a checksum, never overwritten; Drafts rebuilt on each preview and can't be shared
-- [ ] Shared through the Share menu
-- [ ] PDF content tested through the page it is made from (totals, number, Discount, VAT)
+- [x] One A4 layout made with expo-print; the app does its own pagination, with "continued" headers and "Page n of N"
+- [x] Letterhead, Customer beside Site / Job, lines table, totals with the sum in words, blank VAT row, payment details, signature line, footer
+- [x] Empty optional fields are left off; Business colour, font and watermark applied
+- [x] Made once at issue, kept as a file with a checksum, never overwritten; Drafts rebuilt on each preview and can't be shared
+- [x] Shared through the Share menu
+- [x] PDF content tested through the page it is made from (totals, number, Discount, VAT)
