@@ -6,5 +6,5 @@
 
 **Status:** ready-for-agent
 
-- [ ] Add, edit and delete Price list items (delete leaves a marker)
-- [ ] Unit price in whole cents; no stock
+- [x] Add, edit and delete Price list items (delete leaves a marker)
+- [x] Unit price in whole cents; no stock
