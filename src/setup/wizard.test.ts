@@ -3,7 +3,7 @@ import { emptyBusiness } from './store';
 import { stepProblems, wizardSteps } from './wizard';
 
 describe('the setup wizard', () => {
-  it('asks for business details, then Document numbers, Start date, Accounting period and App lock', () => {
+  it('asks for business details, then Document numbers, Start date, Accounting period, Opening balances, sales before the Start date and App lock', () => {
     expect(wizardSteps(true).map((s) => s.id)).toEqual([
       'business',
       'contact',
@@ -13,6 +13,8 @@ describe('the setup wizard', () => {
       'numbers',
       'start',
       'period',
+      'opening',
+      'presales',
       'lock',
     ]);
   });

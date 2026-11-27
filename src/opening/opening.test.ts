@@ -8,7 +8,7 @@ import { payments, type Payments } from '../payments';
 import { InputError, noAddress, people, type People } from '../people';
 import { emptyBusiness, saveBusinessDetails, setStartDate, SetupError, startNew } from '../setup/store';
 import { freshDb } from '../testing';
-import { openingBalances, openingLine, receiptName, salesBeforeStart, setSalesBeforeStart, type Openings } from '.';
+import { monthName, openingBalances, openingLine, readMonthTotals, receiptName, salesBeforeStart, setSalesBeforeStart, type Openings } from '.';
 
 // The Start date is 1 September 2026; today is 27 November 2026.
 const day = (d: string) => Date.parse(`${d}T12:00:00Z`);
@@ -243,5 +243,19 @@ describe('sales before the Start date', () => {
   it('refuse a month outside the 12, or a negative amount', () => {
     expect(() => setSalesBeforeStart(db, { '2026-09': 100 })).toThrow(InputError);
     expect(() => setSalesBeforeStart(db, { '2026-08': -1 })).toThrow(InputError);
+  });
+});
+
+describe('reading the monthly sales typed in', () => {
+  it('takes dollars, leaves empty months blank, and says which month is wrong', () => {
+    expect(readMonthTotals({ '2026-07': '2,200', '2026-08': ' ', '2026-06': '0' })).toEqual({
+      totals: { '2026-07': 220_000, '2026-08': null, '2026-06': 0 },
+      problems: {},
+    });
+    expect(readMonthTotals({ '2026-07': 'lots' }).problems).toEqual({ '2026-07': 'Enter an amount in US dollars, like 45 or 12.50.' });
+  });
+
+  it('names each month short', () => {
+    expect(monthName('2025-09')).toBe('Sep 2025');
   });
 });

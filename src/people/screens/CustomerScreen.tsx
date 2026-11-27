@@ -4,6 +4,8 @@ import { formatUsd } from '../../core';
 import { longDate, shortDate, today } from '../../dates';
 import { DocumentList, useDocuments } from '../../documents/screens/common';
 import { customerOwes } from '../../ledger';
+import type { OpeningItem } from '../../opening';
+import { AddOpeningSheet, OpeningItemSheet, OpeningList, useOpenings } from '../../opening/screens/OpeningParts';
 import { useDb } from '../../shell/Records';
 import { DateField, List, Row, Section, SmallButton, useToast } from '../../ui/forms';
 import { TextField } from '../../ui/fields';
@@ -16,7 +18,7 @@ import { openLink, styles, useProblems, usePeople, type Nav } from './common';
 import { jobStatusWord } from './JobScreen';
 
 // One Customer: Call and WhatsApp first, then the follow-up date, Jobs, notes,
-// Sites, Documents and the contact details.
+// Sites, Documents, Opening balances and the contact details.
 
 export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
@@ -27,6 +29,9 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [showArchivedJobs, setShowArchivedJobs] = useState(false);
   const [noteOpen, setNoteOpen] = useState<Note | 'new' | null>(null);
+  const [addingOpening, setAddingOpening] = useState(false);
+  const [openingOpen, setOpeningOpen] = useState<OpeningItem | null>(null);
+  const openings = useOpenings().items(id);
 
   const x = p.customer(id);
   const followUp = p.followUp(id);
@@ -212,6 +217,15 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           )}
         </Section>
 
+        {openings.length > 0 ? (
+          <Section
+            title="Opening balances"
+            action={x.archived ? null : <SmallButton icon="plus" label="Add" a11yLabel="Add opening balance" onPress={() => setAddingOpening(true)} />}
+          >
+            <OpeningList items={openings} onOpen={setOpeningOpen} />
+          </Section>
+        ) : null}
+
         <Section title="Contact details">
           <List>
             {details(x).map(([k, v], i) => (
@@ -222,6 +236,7 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
 
         <View style={styles.group}>
           <Button label="Change details" onPress={() => nav.open({ screen: 'customer-form', id })} />
+          {openings.length === 0 && !x.archived ? <Button label="Add opening balance" onPress={() => setAddingOpening(true)} /> : null}
           {x.archived ? (
             <Button
               label="Bring back from the archive"
@@ -249,6 +264,29 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           setNoteOpen(null);
           refresh();
           toast.show(m);
+        }}
+      />
+      <AddOpeningSheet
+        visible={addingOpening}
+        customerId={id}
+        onClose={() => setAddingOpening(false)}
+        onSaved={(m) => {
+          setAddingOpening(false);
+          refresh();
+          toast.show(m);
+        }}
+      />
+      <OpeningItemSheet
+        item={openingOpen}
+        onClose={() => setOpeningOpen(null)}
+        onChanged={(m) => {
+          setOpeningOpen(null);
+          refresh();
+          toast.show(m);
+        }}
+        onRecordPayment={() => {
+          setOpeningOpen(null);
+          nav.open({ screen: 'payment', customerId: id });
         }}
       />
       {toast.view}

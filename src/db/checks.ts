@@ -7,6 +7,7 @@ import type { SqlPlatform } from './sql';
 import { noAddress, people, type CustomerDetails } from '../people';
 import { documents } from '../documents';
 import { customerOwes } from '../ledger';
+import { openingBalances } from '../opening';
 import { payments } from '../payments';
 import { emptyBusiness, saveBusinessDetails, startNew } from '../setup/store';
 
@@ -402,6 +403,35 @@ dbChecks.push({
     const [receipt] = pay.record(input);
     same([pay.receipt(receipt!).number, customerOwes(db, c), d.issued(inv).status], ['REC-0001', 6000, 'part-paid'], 'saved');
     throws(() => db.run('DELETE FROM payment'), 'a deleted Payment');
+    db.close();
+  },
+});
+
+dbChecks.push({
+  name: 'an Opening balance item posts at the Start date, is paid like an Invoice, and can only be Cancelled',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    startNew(db, '2026-09-01');
+    saveBusinessDetails(db, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-09-01');
+    const p = people(db, () => '2026-11-27');
+    const c = p.addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const clock = () => Date.UTC(2026, 10, 27, 12, 0, 0);
+    const ob = openingBalances(db, clock);
+    const item = ob.add({ customerId: c, kind: 'owed', oldNumber: '1234', oldDate: '2026-03-03', amount: 45000, note: '', jobId: null });
+    same([customerOwes(db, c), db.get('SELECT accounting_date FROM journal_entry')?.accounting_date], [45000, '2026-09-01'], 'owed at the Start date');
+    const [receipt] = payments(db, clock).record({
+      customerId: c, amount: 5000, dateReceived: '2026-11-27', method: 'cash', otherDescription: '',
+      parts: [{ invoiceId: item, amount: 5000 }], separate: false,
+    });
+    same(payments(db, clock).receipt(receipt!).lines.map((l) => l.appliedTo), ['Opening balance (invoice 1234)'], 'the Receipt line');
+    throws(() => db.run('UPDATE opening_balance_item SET amount = 1'), 'a changed amount');
+    throws(() => db.run('DELETE FROM opening_balance_item'), 'a deleted item');
+    const other = ob.add({ customerId: c, kind: 'credit', oldNumber: '', oldDate: null, amount: 2000, note: 'Roof deposit', jobId: null });
+    ob.cancel(other, 'Entered twice');
+    same(ob.item(other).status, 'cancelled', 'Cancelled');
+    throws(() => db.run("UPDATE opening_balance_item SET cancel_reason = 'x' WHERE id = ?", [other]), 'a changed Cancelled item');
     db.close();
   },
 });

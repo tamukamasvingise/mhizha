@@ -11,7 +11,7 @@
 //
 // Sales before the Start date are kept here too: one total per month, used
 // only by the VAT threshold warning. They post nothing.
-import { formatUsd, isAccountingDate, postings, type Cents } from '../core';
+import { formatUsd, isAccountingDate, parseUsd, postings, type Cents } from '../core';
 import type { Db, Row } from '../db';
 import { documents } from '../documents';
 import { lastRecordedAt, postEntry, reverseEntry } from '../ledger';
@@ -320,4 +320,29 @@ export function setSalesBeforeStart(db: Db, totals: Readonly<Record<string, Cent
       } else if ((r.amount == null ? null : Number(r.amount)) !== amount) db.update('sales_before_start', String(r.id), { amount });
     }
   });
+}
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Sep 2025" for 2025-09. */
+export function monthName(month: string): string {
+  return `${SHORT_MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+}
+
+/** The monthly totals as typed: dollars, or empty for a blank month. Problems by month. */
+export function readMonthTotals(texts: Readonly<Record<string, string>>): {
+  totals: Record<string, Cents | null>;
+  problems: Record<string, string>;
+} {
+  const totals: Record<string, Cents | null> = {};
+  const problems: Record<string, string> = {};
+  for (const [month, text] of Object.entries(texts)) {
+    if (text.trim() === '') totals[month] = null;
+    else {
+      const parsed = parseUsd(text);
+      if (parsed.ok) totals[month] = parsed.cents;
+      else problems[month] = parsed.message;
+    }
+  }
+  return { totals, problems };
 }
