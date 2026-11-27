@@ -216,12 +216,9 @@ for mode in light dark; do
     tap 'Mark Done' && capture "$mode-job-marked" || fail "$mode: mark Done"
     has "$mode-job-marked" 'Work finished' && pass "$mode: the Job is Done" || fail "$mode: the Job is Done"
     tap 'Open the Job again' || fail "$mode: open the Job again"
-  else
-    adb shell input keyevent KEYCODE_BACK
   fi
-  adb shell input keyevent KEYCODE_BACK
-  adb shell input keyevent KEYCODE_BACK
-  adb shell input keyevent KEYCODE_BACK
+  # Back closes the sheet (dark), the Job, the Customer, then the tab goes Home.
+  back_until 'Welcome to Mhizha' 5
   capture "$mode-customers-back"
   has "$mode-customers-back" 'Welcome to Mhizha' && pass "$mode: back closes the Job, the Customer, then goes Home" || fail "$mode: back closes the Job, the Customer, then goes Home"
 
