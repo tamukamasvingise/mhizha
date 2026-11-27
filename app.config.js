@@ -35,6 +35,6 @@ module.exports = {
       ],
     },
     extra: { build, selfTest: true },
-    plugins: ['expo-sqlite', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
+    plugins: ['expo-sqlite', 'expo-sharing', ['expo-build-properties', { android: { minSdkVersion: 29 } }]],
   },
 };
