@@ -256,40 +256,34 @@ for mode in light dark; do
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
 
-  # Customers, Sites and Jobs. The first pass adds a Customer and a Job; the
-  # second sees them again in the other colour mode.
+  # Customers, Sites and Jobs. Each mode starts from a new install (above), so
+  # each adds its own Customer and Job.
   tap Customers
-  if [ "$mode" = light ]; then
-    capture "$mode-customers-empty"
-    has "$mode-customers-empty" 'No Customers yet' && pass "$mode: Customers tab says how to add one" || fail "$mode: Customers tab says how to add one"
-    tap 'Add a Customer' && capture "$mode-customer-form" || fail "$mode: open New Customer"
-    has "$mode-customer-form" 'Fill in from phone contacts' && pass "$mode: New Customer offers the phone contacts" || fail "$mode: New Customer offers the phone contacts"
-    to_end
-    tap 'Save Customer' && capture "$mode-customer-form-errors" || fail "$mode: tap Save Customer"
-    has "$mode-customer-form-errors" "Enter the Customer's name" &&
-      pass "$mode: a Customer with no name is refused, saying why" || fail "$mode: a Customer with no name is refused, saying why"
-    adb shell input swipe 360 250 360 1100 200; adb shell input swipe 360 250 360 1100 200
-    tap_field Name && adb shell input text 'Test%sCustomer' || fail "$mode: type a name"
-    tap_field 'Phone (optional)' && adb shell input text '0771234567' || fail "$mode: type a phone"
-    hide_keyboard
-    to_end
-    tap 'Save Customer' && sleep 1 || fail "$mode: save the Customer"
-    adb shell input keyevent KEYCODE_BACK
-  fi
+  capture "$mode-customers-empty"
+  has "$mode-customers-empty" 'No Customers yet' && pass "$mode: Customers tab says how to add one" || fail "$mode: Customers tab says how to add one"
+  tap 'Add a Customer' && capture "$mode-customer-form" || fail "$mode: open New Customer"
+  has "$mode-customer-form" 'Fill in from phone contacts' && pass "$mode: New Customer offers the phone contacts" || fail "$mode: New Customer offers the phone contacts"
+  to_end
+  tap 'Save Customer' && capture "$mode-customer-form-errors" || fail "$mode: tap Save Customer"
+  has "$mode-customer-form-errors" "Enter the Customer's name" &&
+    pass "$mode: a Customer with no name is refused, saying why" || fail "$mode: a Customer with no name is refused, saying why"
+  adb shell input swipe 360 250 360 1100 200; adb shell input swipe 360 250 360 1100 200
+  tap_field Name && adb shell input text 'Test%sCustomer' || fail "$mode: type a name"
+  tap_field 'Phone (optional)' && adb shell input text '0771234567' || fail "$mode: type a phone"
+  hide_keyboard
+  to_end
+  tap 'Save Customer' && sleep 1 || fail "$mode: save the Customer"
+  adb shell input keyevent KEYCODE_BACK
   tap Customers
   capture "$mode-customers"
   has "$mode-customers" 'Test Customer' && pass "$mode: the Customer is listed" || fail "$mode: the Customer is listed"
   tap 'Test Customer, Main site' && capture "$mode-customer" || fail "$mode: open the Customer"
   has "$mode-customer" 'content-desc="Call Test Customer on 0771234567"' && has "$mode-customer" 'content-desc="WhatsApp Test Customer on 0771234567"' &&
     pass "$mode: the Customer screen has Call and WhatsApp" || fail "$mode: the Customer screen has Call and WhatsApp"
-  if [ "$mode" = light ]; then
-    tap 'Add Job' && capture "$mode-job-form" || fail "$mode: open New Job"
-    adb shell input text 'Kitchen%srewiring'
-    hide_keyboard
-    tap 'Add Job' || fail "$mode: add the Job"
-  else
-    tap 'Kitchen rewiring, Main site · Open' || fail "$mode: open the Job"
-  fi
+  tap 'Add Job' && capture "$mode-job-form" || fail "$mode: open New Job"
+  adb shell input text 'Kitchen%srewiring'
+  hide_keyboard
+  tap 'Add Job' || fail "$mode: add the Job"
   capture "$mode-job"
   has "$mode-job" 'Mark Job Done' && pass "$mode: the Job is Open" || fail "$mode: the Job is Open"
   tap 'Mark Job Done' && capture "$mode-job-done" || fail "$mode: open Mark Done"
