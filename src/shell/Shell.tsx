@@ -13,12 +13,15 @@ import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
 import { SettingsPageScreen, SetupSettings } from '../setup/SettingsPages';
 import { ProblemReportBody } from './ProblemReport';
+import { HelpScreen } from '../help/HelpScreen';
+import { UpdateBanner, UpdateSettings } from '../updates/UpdateParts';
 import { useCheckFailed, useDb } from './Records';
 import {
   back,
   current,
   newChoices,
   open,
+  openHelp,
   openPriceList,
   openReport,
   openSettings,
@@ -74,6 +77,8 @@ export function Shell() {
         <View style={{ height: insets.top, backgroundColor: c.surface }} />
         {place.screen === 'prices' ? (
           <PriceListScreen onBack={goBack} />
+        ) : place.screen === 'help' ? (
+          <HelpScreen onBack={goBack} onReport={() => setPlace(openReport(place))} />
         ) : place.screen === 'report' ? (
           <Report onBack={goBack} />
         ) : place.page ? (
@@ -84,6 +89,7 @@ export function Shell() {
             onPriceList={() => setPlace(openPriceList(place))}
             onOpen={(page) => setPlace(openSettingsPage(place, page))}
             onReport={() => setPlace(openReport(place))}
+            onHelp={() => setPlace(openHelp(place))}
           />
         )}
       </View>
@@ -108,6 +114,7 @@ export function Shell() {
       <View style={local.content}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
           <CheckBanner onPress={() => setPlace(openReport(place))} />
+          {tab.id === 'home' ? <UpdateBanner /> : null}
           {tab.id === 'customers' ? <CustomersTab nav={nav} /> : <EmptyState title={tab.empty.title} body={tab.empty.body} />}
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
@@ -201,11 +208,13 @@ function Settings({
   onPriceList,
   onOpen,
   onReport,
+  onHelp,
 }: {
   onBack: () => void;
   onPriceList: () => void;
   onOpen: (page: SettingsPage) => void;
   onReport: () => void;
+  onHelp: () => void;
 }) {
   const c = useColours();
   const db = useDb();
@@ -247,15 +256,17 @@ function Settings({
             </View>
           </View>
         </View>
+        <UpdateSettings />
         <View style={local.section}>
           <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
             Help
           </Text>
           <View style={[local.list, { borderColor: c.line, backgroundColor: c.surface }]}>
+            <Row first title="Help and guides" subtitle="How to quote, invoice, take payments, back up and restore" onPress={onHelp} />
             <Tappable
               accessibilityRole="button"
               onPress={onReport}
-              style={({ pressed }) => [local.item, pressed && { backgroundColor: c.tint }]}
+              style={({ pressed }) => [local.item, { borderTopWidth: size.hairline, borderTopColor: c.line }, pressed && { backgroundColor: c.tint }]}
             >
               <Text style={[local.itemTitle, { color: c.fg }]}>Send a problem report</Text>
               <Text style={[parts.small, { color: c.label }]}>
