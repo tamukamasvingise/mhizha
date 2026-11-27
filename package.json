@@ -12,7 +12,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pdf-fonts": "node scripts/pdf-fonts.mjs"
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "9.2.1",
@@ -23,6 +24,7 @@
     "expo-crypto": "~58.0.9",
     "expo-file-system": "~58.0.15",
     "expo-local-authentication": "~58.0.3",
+    "expo-print": "~58.0.9",
     "expo-sharing": "~58.0.24",
     "expo-sqlite": "~58.0.18",
     "expo-status-bar": "~58.0.5",
@@ -30,9 +32,14 @@
     "react": "19.3.0",
     "react-native": "0.88.1",
     "react-native-safe-area-context": "~5.11.1",
-    "react-native-svg": "15.16.0"
+    "react-native-svg": "15.16.0",
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/manrope": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.1",
     "@types/node": "~24.19.4",
     "@types/react": "~19.3.0",
     "fast-check": "^4.11.0",
