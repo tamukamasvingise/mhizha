@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, openSettings, selectTab, start, tabs } from './navigation';
+import { back, openSettings, openSettingsPage, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -24,5 +24,14 @@ describe('the shell', () => {
     const fromDocuments = back({ tab: 'documents', screen: 'tab' });
     expect(fromDocuments).toEqual(start);
     expect(back(start)).toBe('exit');
+  });
+});
+
+describe('Settings pages', () => {
+  it('open from Settings and go back to Settings', () => {
+    const settings = openSettings(start);
+    const page = openSettingsPage(settings, 'numbers');
+    expect(page).toEqual({ tab: 'home', screen: 'settings', page: 'numbers' });
+    expect(back(page)).toEqual({ tab: 'home', screen: 'settings' });
   });
 });

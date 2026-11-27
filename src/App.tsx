@@ -9,6 +9,7 @@ import { ProblemBoundary, UnexpectedProblem } from './shell/Problem';
 import { Records } from './shell/Records';
 import { SelfTest } from './shell/SelfTest';
 import { Shell } from './shell/Shell';
+import { Start } from './setup/Start';
 
 // Test builds answer these links from the emulator job.
 const selfTestLinks = Constants.expoConfig?.extra?.selfTest === true;
@@ -56,7 +57,11 @@ export default function App() {
   else
     screen = (
       <Records opened={records}>
-        {link === SHOW_ERROR ? <Thrower /> : <Shell />}
+        {link === SHOW_ERROR ? <Thrower /> : (
+          <Start>
+            <Shell />
+          </Start>
+        )}
       </Records>
     );
 

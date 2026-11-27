@@ -6,7 +6,8 @@ import { Icon, Mark } from '../ui/Icon';
 import { Button, EmptyState, IconButton, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
-import { back, newChoices, openSettings, selectTab, start, tabs, type Place, type TabId } from './navigation';
+import { SettingsPageScreen, SetupSettings } from '../setup/SettingsPages';
+import { back, newChoices, openSettings, openSettingsPage, selectTab, start, tabs, type Place, type SettingsPage, type TabId } from './navigation';
 
 // The app shell: top bar with the Mhizha mark and Settings, the current tab,
 // the New button and the four bottom tabs.
@@ -31,7 +32,11 @@ export function Shell() {
     return (
       <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
         <View style={{ height: insets.top, backgroundColor: c.surface }} />
-        <Settings onBack={() => setPlace(back(place) as Place)} />
+        {place.page ? (
+          <SettingsPageScreen key={place.page} page={place.page} onBack={() => setPlace(back(place) as Place)} />
+        ) : (
+          <Settings onBack={() => setPlace(back(place) as Place)} onOpen={(page) => setPlace(openSettingsPage(place, page))} />
+        )}
       </View>
     );
   }
@@ -153,7 +158,7 @@ function NewSheet({ visible, onClose, bottom }: { visible: boolean; onClose: () 
   );
 }
 
-function Settings({ onBack }: { onBack: () => void }) {
+function Settings({ onBack, onOpen }: { onBack: () => void; onOpen: (page: SettingsPage) => void }) {
   const c = useColours();
   const version = Constants.expoConfig?.version ?? '';
   const build = String(Constants.expoConfig?.extra?.build ?? '');
@@ -166,6 +171,7 @@ function Settings({ onBack }: { onBack: () => void }) {
         </View>
       </View>
       <ScrollView contentContainerStyle={local.main}>
+        <SetupSettings onOpen={onOpen} />
         <View style={local.section}>
           <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
             About
@@ -179,9 +185,6 @@ function Settings({ onBack }: { onBack: () => void }) {
             </View>
           </View>
         </View>
-        <Text style={[parts.body, { color: c.label }]}>
-          Your business details, Document numbers and backups are set here once setup is built.
-        </Text>
       </ScrollView>
     </>
   );

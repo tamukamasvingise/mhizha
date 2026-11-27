@@ -87,6 +87,12 @@ export const size = {
   fab: 52,
   ring: 3,
   hairline: 1,
+  /** The logo beside the Business name in setup and Settings. */
+  logo: 64,
+  /** The pad a signature is drawn on. */
+  signatureH: 160,
+  /** One segment of the setup step bar. */
+  stepBar: 4,
 } as const;
 
 /** The New button's shadow (Android elevation). */
