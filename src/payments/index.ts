@@ -95,8 +95,8 @@ export type Receipt = {
   number: string;
   /** A money Receipt acknowledges a Payment; a "Deposit applied" one, no new money. */
   kind: 'money' | 'deposit-applied';
-  /** For a "Deposit applied" Receipt: the Receipts the Deposit was paid on, oldest first. */
-  appliedFrom: { number: string; dateReceived: string }[];
+  /** For a "Deposit applied" Receipt: the Receipts the Deposit was paid on, oldest first; number null for Credit from an Opening balance. */
+  appliedFrom: { number: string | null; dateReceived: string }[];
   customerId: string;
   customerName: string;
   issuedAt: string;
@@ -115,10 +115,17 @@ export type Receipt = {
 
 const isDeposit = (part: PaymentPart): part is { quotationId: string; amount: Cents } => 'quotationId' in part;
 
+/** "Deposit applied", or "Credit applied from opening balance" when all of it was Credit held on the Start date. */
+export function appliedTitle(r: Pick<Receipt, 'appliedFrom'>): string {
+  return r.appliedFrom.length > 0 && r.appliedFrom.every((x) => x.number === null) ? 'Credit applied from opening balance' : 'Deposit applied';
+}
+
 /** "No new money was received. This applies the Deposit paid on REC-0018 (12 Nov 2026) to the Invoice below." */
 export function appliedNotice(r: Pick<Receipt, 'appliedFrom'>): string {
-  const from = listed(r.appliedFrom.map((x) => `${x.number} (${shortDate(x.dateReceived)})`));
-  return `No new money was received. This applies the Deposit paid on ${from} to the Invoice below.`;
+  const paid = r.appliedFrom.filter((x) => x.number !== null).map((x) => `${x.number} (${shortDate(x.dateReceived)})`);
+  const opening = r.appliedFrom.filter((x) => x.number === null).map((x) => `Credit held from the opening balance (${shortDate(x.dateReceived)})`);
+  const parts = [...(paid.length ? [`the Deposit paid on ${listed(paid)}`] : []), ...opening];
+  return `No new money was received. This applies ${listed(parts)} to the Invoice below.`;
 }
 
 export function payments(db: Db, clock: () => number) {
@@ -488,7 +495,7 @@ export function payments(db: Db, clock: () => number) {
         amount: x.amount,
         beingPaymentFor: listed(x.lines.map((l) => l.appliedTo)),
         lines: x.lines,
-        applied: x.kind === 'deposit-applied' ? { title: 'Deposit applied', notice: appliedNotice(x) } : null,
+        applied: x.kind === 'deposit-applied' ? { title: appliedTitle(x), notice: appliedNotice(x) } : null,
       };
     },
   };

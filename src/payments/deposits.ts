@@ -3,7 +3,8 @@
 // Quotation, moved to Credit, or refunded. Plain TypeScript over the records.
 //
 // Each Deposit received is one allocation from a Payment to a Quotation (a
-// "lot"). Using it is an allocation from that lot (from_kind 'deposit'):
+// "lot"); Credit held on the Start date made a Quotation's Deposit is a lot
+// too (from_kind 'opening-credit', no Receipt). Using it is an allocation from that lot (from_kind 'deposit'):
 // to an Invoice when applied, to the Customer's Credit when moved. What is
 // left of a lot is its amount less its live uses, so every use names the
 // Receipt the money came in on. Deposits stay with the Quotation's number
@@ -18,8 +19,9 @@ export type DepositLot = {
   /** The allocation that brought the Deposit in. */
   id: string;
   quotationId: string;
-  receiptId: string;
-  receiptNumber: string;
+  /** The money Receipt it came in on; null for Credit from an Opening balance. */
+  receiptNumber: string | null;
+  /** The day it came in: the Date received, or the Start date. */
   dateReceived: string;
   amount: Cents;
   left: Cents;
@@ -46,19 +48,20 @@ export function depositLots(db: Db, quotationId: string): DepositLot[] {
   if (family.length === 0) return [];
   return db
     .all(
-      `SELECT a.id, a.to_id, a.amount, p.date_received, d.id AS receipt_id, d.printed_number,
+      `SELECT a.id, a.to_id, a.amount, e.accounting_date, d.printed_number,
          (SELECT coalesce(sum(u.amount), 0) FROM allocation u WHERE u.from_kind = 'deposit' AND u.from_id = a.id AND ${LIVE('u')}) AS used
-       FROM allocation a JOIN payment p ON p.id = a.from_id JOIN document d ON d.id = p.receipt_id
-       WHERE a.from_kind = 'payment' AND a.to_kind = 'quotation' AND a.to_id IN (${family.map(() => '?').join(', ')}) AND ${LIVE('a')}
-       ORDER BY p.date_received, a.rowid`,
+       FROM allocation a JOIN journal_entry e ON e.id = a.journal_entry_id
+         LEFT JOIN payment p ON a.from_kind = 'payment' AND p.id = a.from_id LEFT JOIN document d ON d.id = p.receipt_id
+       WHERE a.from_kind IN ('payment', 'opening-credit') AND a.to_kind = 'quotation'
+         AND a.to_id IN (${family.map(() => '?').join(', ')}) AND ${LIVE('a')}
+       ORDER BY e.accounting_date, a.rowid`,
       family,
     )
     .map((r) => ({
       id: String(r.id),
       quotationId: String(r.to_id),
-      receiptId: String(r.receipt_id),
-      receiptNumber: String(r.printed_number),
-      dateReceived: String(r.date_received),
+      receiptNumber: r.printed_number == null ? null : String(r.printed_number),
+      dateReceived: String(r.accounting_date),
       amount: Number(r.amount),
       left: Number(r.amount) - Number(r.used),
     }));
@@ -154,18 +157,23 @@ export function moveDepositToCredit(db: Db, quotationId: string, at: number, tod
   return amount;
 }
 
-/** The Receipts a "Deposit applied" Receipt took its money from, oldest first. */
-export function appliedFrom(db: Db, receiptId: string): { number: string; dateReceived: string }[] {
+/**
+ * Where a "Deposit applied" Receipt took its money from, oldest first: each
+ * money Receipt the Deposit was paid on, or (number null) Credit held from an
+ * Opening balance.
+ */
+export function appliedFrom(db: Db, receiptId: string): { number: string | null; dateReceived: string }[] {
   return db
     .all(
-      `SELECT DISTINCT d.printed_number, p.date_received FROM journal_entry e
+      `SELECT DISTINCT d.printed_number, le.accounting_date, d.number FROM journal_entry e
        JOIN allocation a ON a.journal_entry_id = e.id AND a.from_kind = 'deposit'
-       JOIN allocation lot ON lot.id = a.from_id JOIN payment p ON p.id = lot.from_id JOIN document d ON d.id = p.receipt_id
+       JOIN allocation lot ON lot.id = a.from_id JOIN journal_entry le ON le.id = lot.journal_entry_id
+       LEFT JOIN payment p ON lot.from_kind = 'payment' AND p.id = lot.from_id LEFT JOIN document d ON d.id = p.receipt_id
        WHERE e.source_kind = 'receipt' AND e.source_id = ?
-       ORDER BY p.date_received, d.number`,
+       ORDER BY le.accounting_date, d.number`,
       [receiptId],
     )
-    .map((r) => ({ number: String(r.printed_number), dateReceived: String(r.date_received) }));
+    .map((r) => ({ number: r.printed_number == null ? null : String(r.printed_number), dateReceived: String(r.accounting_date) }));
 }
 
 /** The Deposits applied to an Invoice, by the "Deposit applied" Receipt that applied each. */

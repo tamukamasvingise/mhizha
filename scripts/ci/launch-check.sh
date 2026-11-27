@@ -3,8 +3,8 @@
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
 # and marks it Done, issues an Invoice step by step, records a part-payment
-# with its Receipt, opens Payment methods, issues a Quotation and turns it
-# into an Invoice, opens the problem report,
+# with its Receipt, opens Payment methods, issues a Quotation, takes a Deposit
+# on it and turns it into an Invoice that applies it, opens the problem report,
 # Updates and Help, and the failed-check banner, shows the problem screen, runs
 # the database checks on the real expo-sqlite, and screenshots every screen for
 # the UI review. Usage: launch-check.sh <apk> <results folder>
@@ -427,13 +427,33 @@ for mode in light dark; do
   tap 'Mark Accepted' || fail "$mode: confirm Mark Accepted"
   wait_for 'Accepted · US\$100\.00' && pass "$mode: the Quotation is marked Accepted" || fail "$mode: the Quotation is marked Accepted"
   capture "$mode-quotation-accepted"
+  # A Deposit on the Accepted Quotation, then applied when its Invoice is issued.
+  tap 'Record Deposit' || fail "$mode: tap Record Deposit"
+  wait_for 'Amount received' && capture "$mode-deposit" || fail "$mode: Record Deposit opens the Payment"
+  tap_field 'Amount received (US\$)' && adb shell input text '30' || fail "$mode: type the Deposit"
+  hide_keyboard
+  capture "$mode-deposit-filled"
+  has "$mode-deposit-filled" 'Deposit on QUO-0001, [^"]*US\$30\.00 from this Payment' &&
+    pass "$mode: the amount fills the Deposit" || fail "$mode: the amount fills the Deposit"
+  tap 'Check Payment' && wait_for 'Save and issue Receipt' || fail "$mode: check the Deposit"
+  tap 'Save and issue Receipt' || fail "$mode: save the Deposit"
+  wait_for 'Received · US\$30\.00' && pass "$mode: the Deposit is saved with REC-0002" || fail "$mode: the Deposit is saved with REC-0002"
+  capture "$mode-deposit-receipt"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'Accepted · US\$100\.00' && capture "$mode-quotation-deposit" || fail "$mode: back to the Quotation after the Deposit"
+  has "$mode-quotation-deposit" 'US\$30\.00, applied when you issue an Invoice from it' &&
+    pass "$mode: the Quotation shows the Deposit held" || fail "$mode: the Quotation shows the Deposit held"
   tap 'Make an Invoice' || fail "$mode: tap Make an Invoice"
   wait_for 'What are you charging for?' && capture "$mode-invoice-from-quotation" || fail "$mode: Make an Invoice opens the Draft's lines"
   has "$mode-invoice-from-quotation" 'Wiring' && pass "$mode: the Invoice copies the Quotation's lines" || fail "$mode: the Invoice copies the Quotation's lines"
   tap Next && wait_for 'Check and issue' && to_end || fail "$mode: check the Invoice from the Quotation"
-  tap 'Issue INV-0002' && tap 'Issue INV-0002' || fail "$mode: issue INV-0002"
-  wait_for 'Unpaid · US\$100\.00' && pass "$mode: the Invoice from the Quotation is issued" || fail "$mode: the Invoice from the Quotation is issued"
+  capture "$mode-invoice-2-check"
+  has "$mode-invoice-2-check" 'Deposit to apply' && pass "$mode: issuing offers the Deposit to apply" || fail "$mode: issuing offers the Deposit to apply"
+  tap 'Issue INV-0002' && capture "$mode-invoice-2-confirm" && tap 'Issue INV-0002' || fail "$mode: issue INV-0002"
+  wait_for 'Part-paid · US\$100\.00' && pass "$mode: the Invoice from the Quotation is issued with the Deposit applied" ||
+    fail "$mode: the Invoice from the Quotation is issued with the Deposit applied"
   capture "$mode-invoice-2"
+  has "$mode-invoice-2" 'Deposit applied \(REC-0003\)' && pass "$mode: the Invoice shows the Deposit applied" || fail "$mode: the Invoice shows the Deposit applied"
   has "$mode-invoice-2" 'From the Quotation' && pass "$mode: the Invoice names its Quotation" || fail "$mode: the Invoice names its Quotation"
   adb shell input keyevent KEYCODE_BACK
   wait_for 'remaining US\$0\.00' && pass "$mode: the Quotation shows what is invoiced and what remains" || fail "$mode: the Quotation shows what is invoiced and what remains"

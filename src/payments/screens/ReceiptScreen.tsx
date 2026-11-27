@@ -7,7 +7,7 @@ import { List, Row, Section } from '../../ui/forms';
 import { SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, space, type } from '../../ui/tokens';
-import { appliedNotice } from '..';
+import { appliedNotice, appliedTitle } from '..';
 import { usePayments } from './PaymentScreen';
 
 // One Receipt: who paid, how much, how and when, its PDF, and what it paid
@@ -29,11 +29,11 @@ export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
       <SubTopBar title={r.number} onBack={nav.back} />
       <ScrollView contentContainerStyle={styles.main}>
         <View style={styles.head}>
-          <Text style={[parts.small, { color: c.label }]}>{applied ? 'Receipt · Deposit applied' : 'Receipt'}</Text>
+          <Text style={[parts.small, { color: c.label }]}>{applied ? `Receipt · ${appliedTitle(r)}` : 'Receipt'}</Text>
           <Text accessibilityRole="header" style={[styles.number, { color: c.fg }]}>
             {r.number}
           </Text>
-          <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${applied ? 'Deposit applied' : 'Received'} · ${formatUsd(r.amount)}`}</Text>
+          <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${applied ? 'Applied' : 'Received'} · ${formatUsd(r.amount)}`}</Text>
           <Text style={[parts.body, { color: c.label }]}>{r.customerName}</Text>
         </View>
         {applied ? <Text style={[parts.body, { color: c.fg }]}>{appliedNotice(r)}</Text> : null}

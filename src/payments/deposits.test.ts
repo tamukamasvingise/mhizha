@@ -295,3 +295,29 @@ describe('the checks on open for Deposits', () => {
     expect(rule(6).outcome).toBe('failed');
   });
 });
+
+describe('Credit held on the Start date made a Quotation’s Deposit', () => {
+  it('applies like a Deposit, with a "Credit applied from opening balance" Receipt', () => {
+    const q = acceptedQuotation(100_000);
+    // As the Opening balances ticket records it: Credit held on the Start date, then moved onto the Quotation.
+    postEntry(db, {
+      accountingDate: '2026-01-01', recordedAt: '2026-11-02T12:00:00Z', source: { kind: 'opening-balance', id: 'item-1' },
+      lines: [{ account: '3100', side: 'debit', amount: 20_000 }, { account: '2200', side: 'credit', amount: 20_000, customerId: tendai }],
+    });
+    const entry = postEntry(db, {
+      accountingDate: '2026-01-01', recordedAt: '2026-11-02T12:00:00Z', source: { kind: 'opening-balance', id: 'item-1' },
+      lines: [{ account: '2200', side: 'debit', amount: 20_000, customerId: tendai }, { account: '2100', side: 'credit', amount: 20_000, customerId: tendai }],
+    });
+    db.insert('allocation', { journal_entry_id: entry, from_kind: 'opening-credit', from_id: 'item-1', to_kind: 'quotation', to_id: q, amount: 20_000 });
+    expect(d.quotation(q).depositHeld).toBe(20_000);
+    now = day('2026-11-27');
+    d.issue(draftFrom(q, 50_000));
+    const applied = d.list({ filter: 'receipts' })[0]!;
+    expect(pay.printable(applied.id).applied).toEqual({
+      title: 'Credit applied from opening balance',
+      notice: 'No new money was received. This applies Credit held from the opening balance (1 Jan 2026) to the Invoice below.',
+    });
+    expect(balances()).toEqual({ owes: 30_000, depositsHeld: 0, creditHeld: 0 });
+    expect(runChecks(db).find((r) => r.name.startsWith('Rule 3:'))?.outcome).toBe('passed');
+  });
+});

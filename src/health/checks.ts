@@ -132,7 +132,7 @@ const checks: readonly Check[] = [
            WHERE u.from_kind = 'deposit' AND u.from_id = a.id AND u.reverses_id IS NULL
              AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = u.id)) AS left
          FROM allocation a JOIN document q ON q.id = a.to_id
-         WHERE a.from_kind = 'payment' AND a.to_kind = 'quotation' AND a.reverses_id IS NULL
+         WHERE a.from_kind IN ('payment', 'opening-credit') AND a.to_kind = 'quotation' AND a.reverses_id IS NULL
            AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = a.id)`,
       )) {
         const left = Number(r.left);
