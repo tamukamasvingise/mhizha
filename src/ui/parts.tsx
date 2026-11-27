@@ -1,5 +1,20 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  AccessibilityInfo,
+  KeyboardAvoidingView,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardTypeOptions,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from './Icon';
 import { useColours } from './theme';
 import { lineHeight, radius, size, space, type } from './tokens';
@@ -68,6 +83,19 @@ export function TopBarTitle({ children }: { children: string }) {
   );
 }
 
+/** A sub screen's top bar: back on the left, then the title. */
+export function SubTopBar({ title, onBack }: { title: string; onBack: () => void }) {
+  const c = useColours();
+  return (
+    <View style={[styles.topBar, styles.subBar, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
+      <IconButton icon="back" label="Back" onPress={onBack} />
+      <View style={styles.topBarTitle}>
+        <TopBarTitle>{title}</TopBarTitle>
+      </View>
+    </View>
+  );
+}
+
 /** What an empty screen says: a bold title, then what to do next. */
 export function EmptyState({ title, body }: { title: string; body: string }) {
   const c = useColours();
@@ -100,6 +128,116 @@ export function Button({ label, onPress, primary }: { label: string; onPress: ()
   );
 }
 
+/** A labelled text field. An error shows under it in red with a "! " prefix. */
+export function TextField({
+  label,
+  value,
+  onChange,
+  hint,
+  error,
+  keyboardType,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (text: string) => void;
+  hint?: string;
+  error?: string;
+  keyboardType?: KeyboardTypeOptions;
+  autoFocus?: boolean;
+}) {
+  const c = useColours();
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={styles.field}>
+      <Text style={[styles.fieldLabel, { color: c.fg }]}>{label}</Text>
+      {hint ? <Text style={[styles.small, { color: c.label }]}>{hint}</Text> : null}
+      <TextInput
+        accessibilityLabel={label}
+        accessibilityHint={error ?? hint}
+        value={value}
+        onChangeText={onChange}
+        keyboardType={keyboardType}
+        autoFocus={autoFocus}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        cursorColor={c.fg}
+        selectionColor={c.ring}
+        style={[
+          styles.input,
+          { color: c.fg, backgroundColor: c.surface, borderColor: error ? c.bad : focused ? c.ring : c.input },
+          focused && { borderWidth: size.ring },
+        ]}
+      />
+      {error ? <Text style={[styles.small, { color: c.bad }]}>{`! ${error}`}</Text> : null}
+    </View>
+  );
+}
+
+/** A bottom sheet over a scrim: a bold title, its content, then Close. Fades when the phone asks for reduced motion. */
+export function Sheet({
+  visible,
+  title,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const c = useColours();
+  const insets = useSafeAreaInsets();
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType={reduceMotion ? 'fade' : 'slide'}
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView behavior="padding" style={[styles.scrim, { backgroundColor: c.scrim }]}>
+        <Tappable style={styles.scrimTap} onPress={onClose} importantForAccessibility="no" accessible={false} />
+        <View
+          accessibilityViewIsModal
+          style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: space.s4 + insets.bottom }]}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetBody}>
+            <Text accessibilityRole="header" style={[styles.sheetTitle, { color: c.fg }]}>
+              {title}
+            </Text>
+            {children}
+            <Button label="Close" onPress={onClose} />
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+/** A short message at the bottom of the screen, read out by screen readers, with an optional action such as Undo. */
+export function Toast({ message, action }: { message: string; action?: { label: string; onPress: () => void } }) {
+  const c = useColours();
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
+  return (
+    <View accessibilityLiveRegion="polite" style={[styles.toast, { backgroundColor: c.toast }]}>
+      <Text style={[styles.body, styles.toastText, { color: c.toastFg }]}>{message}</Text>
+      {action ? (
+        <Tappable accessibilityRole="button" onPress={action.onPress} style={styles.toastAction}>
+          <Text style={[styles.buttonText, { color: c.toastFg }]}>{action.label}</Text>
+        </Tappable>
+      ) : null}
+    </View>
+  );
+}
+
 export const styles = StyleSheet.create({
   iconButton: {
     minWidth: size.touch,
@@ -118,6 +256,7 @@ export const styles = StyleSheet.create({
     paddingRight: space.s1,
     borderBottomWidth: size.hairline,
   },
+  subBar: { paddingLeft: space.s1 },
   topBarTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.s2, minWidth: 0 },
   topTitle: { flexShrink: 1, fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600' },
   empty: {
@@ -139,4 +278,47 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600', textAlign: 'center' },
+  field: { gap: space.s1 },
+  fieldLabel: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
+  input: {
+    minHeight: size.touch,
+    borderRadius: radius.r,
+    borderWidth: size.hairline,
+    paddingHorizontal: space.s3,
+    paddingVertical: space.s2,
+    fontSize: type.m,
+  },
+  scrim: { flex: 1, justifyContent: 'flex-end' },
+  scrimTap: { flex: 1 },
+  sheet: {
+    borderTopLeftRadius: radius.rL,
+    borderTopRightRadius: radius.rL,
+    padding: space.s4,
+    maxHeight: '90%',
+  },
+  sheetBody: { gap: space.s4 },
+  sheetTitle: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
+  toast: {
+    position: 'absolute',
+    left: space.s4,
+    right: space.s4,
+    bottom: space.s4,
+    borderRadius: radius.r,
+    paddingLeft: space.s4,
+    paddingRight: space.s1,
+    paddingVertical: space.s1,
+    minHeight: size.touch + space.s2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s2,
+  },
+  toastText: { flex: 1, paddingVertical: space.s2 },
+  toastAction: {
+    minHeight: size.touch,
+    minWidth: size.touch,
+    paddingHorizontal: space.s3,
+    borderRadius: radius.r,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

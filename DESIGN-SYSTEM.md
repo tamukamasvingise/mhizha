@@ -61,6 +61,10 @@ Colour rules:
 - Problem screen (unexpected errors, records that could not be opened or updated): focused, no top bar, tabs or New button. The mark and name, a 24/700 title saying what happened, a `label` line saying what to do, then Restart (primary) and Send a problem report.
 - Bottom sheet: `scrim`, `surface`, top radius 16, padding 16, a bold title, then its list, then Close. Slides up; fades instead when the phone asks for reduced motion.
 - List: `surface`, 1px `line` border, radius 8; rows min 56, padding 12, title 16/600, subtitle 14 `label`.
+- Settings: sections with a 14/600 `label` heading over a list. A row that opens a sub screen ends in a `label` chevron.
+- Text field: a 14/600 label above, an optional 14 `label` hint, then the input: min 44, radius 8, 1px `input` border, 3px `ring` border while typing. An error shows under it in `bad` with "! " and the border turns `bad`.
+- Toast: `toast` on the page's bottom, radius 8, 16 text in `toastFg`, an optional action such as Undo at the right; read out by screen readers; gone after 5 s.
+- Price list (Settings > Documents and money): rows of name (16/600) with the price at the right (16/600, tabular) and "per day" under it; tap a row to change or delete it in a sheet; "Add an item" (primary) under the list.
 
 ## Rule changes
 

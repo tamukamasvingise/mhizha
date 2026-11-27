@@ -5,7 +5,7 @@ import { size } from './tokens';
 // stroke 2, round caps and joins. Icons are decoration: the control that holds
 // one carries the accessible name.
 
-export type IconName = 'home' | 'people' | 'doc' | 'wallet' | 'plus' | 'back' | 'gear' | 'close';
+export type IconName = 'home' | 'people' | 'doc' | 'wallet' | 'plus' | 'back' | 'next' | 'gear' | 'close';
 
 const paths: Record<IconName, React.ReactNode> = {
   home: (
@@ -37,6 +37,7 @@ const paths: Record<IconName, React.ReactNode> = {
   ),
   plus: <Path d="M12 5v14M5 12h14" />,
   back: <Path d="M15 5l-7 7 7 7" />,
+  next: <Path d="M9 5l7 7-7 7" />,
   close: <Path d="M6 6l12 12M18 6 6 18" />,
   gear: (
     <>

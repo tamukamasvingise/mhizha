@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
-# the shell in place, in light and dark, shows the problem screen, runs the
+# the shell in place, in light and dark, opens the Price list, shows the problem screen, runs the
 # database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
@@ -124,6 +124,17 @@ for mode in light dark; do
   adb shell input keyevent KEYCODE_BACK
   tap Settings && capture "$mode-settings" || fail "$mode: open Settings"
   has "$mode-settings" 'text="Settings"' && pass "$mode: Settings opens" || fail "$mode: Settings opens"
+  tap 'Price list, No items yet' && capture "$mode-prices" || fail "$mode: open the Price list"
+  has "$mode-prices" 'No items yet' && pass "$mode: Price list opens, empty" || fail "$mode: Price list opens, empty"
+  tap 'Add an item' && capture "$mode-price-add" || fail "$mode: open Add an item"
+  tap 'Add to Price list' && capture "$mode-price-add-errors" || fail "$mode: tap Add to Price list"
+  has "$mode-price-add-errors" "Enter the item's name" &&
+    pass "$mode: an item with no name is refused, saying why" || fail "$mode: an item with no name is refused, saying why"
+  adb shell input keyevent KEYCODE_BACK
+  adb shell input keyevent KEYCODE_BACK
+  capture "$mode-settings-again"
+  has "$mode-settings-again" 'text="Documents and money"' &&
+    pass "$mode: back from the Price list returns to Settings" || fail "$mode: back from the Price list returns to Settings"
   adb shell input keyevent KEYCODE_BACK
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
