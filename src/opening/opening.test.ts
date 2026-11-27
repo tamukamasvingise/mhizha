@@ -164,6 +164,30 @@ describe('an Opening balance of Credit held', () => {
   });
 });
 
+describe('opening Credit made a Deposit, then applied', () => {
+  it('applies when the Invoice is issued, with a "Credit applied from opening balance" Receipt', () => {
+    const item = credit(20_000);
+    const q = d.newQuotation(tendai);
+    d.setJob(q, bathroom);
+    d.setLines(q, [{ priceListItemId: null, description: 'Roof', unit: '', quantity: 1_000, unitPrice: 90_000 }]);
+    d.issue(q);
+    d.accept(q, '2026-11-27');
+    ob.makeDeposit(item, q);
+    expect(d.quotation(q).depositHeld).toBe(20_000);
+    now = day('2026-11-28');
+    const inv = d.invoiceFrom(q);
+    d.setLines(inv, [{ priceListItemId: null, description: 'Roof, first part', unit: '', quantity: 1_000, unitPrice: 50_000 }]);
+    d.issue(inv);
+    const applied = d.list({ filter: 'receipts' })[0]!;
+    expect(pay.printable(applied.id).applied).toEqual({
+      title: 'Credit applied from opening balance',
+      notice: 'No new money was received. This applies Credit held from the opening balance (1 Sep 2026) to the Invoice below.',
+    });
+    expect(customerBalances(readJournal(db), tendai)).toEqual({ owes: 30_000, depositsHeld: 0, creditHeld: 0 });
+    expect(runChecks(db).filter((r) => r.outcome === 'failed')).toEqual([]);
+  });
+});
+
 describe('cancelling an Opening balance item', () => {
   it('reverses it on the day, keeps it with its reason, and lets it be entered again', () => {
     const item = owed(45_000);

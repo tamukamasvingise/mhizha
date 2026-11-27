@@ -13,20 +13,36 @@ import { Button, Sheet, SubTopBar, Tappable, styles as parts } from '../../ui/pa
 import { StepFoot } from '../../ui/steps';
 import { useColours } from '../../ui/theme';
 import { lineHeight, radius, size, space, type } from '../../ui/tokens';
-import { payments, type OwingInvoice, type PaymentInput } from '..';
+import { payments, type PaymentInput } from '..';
 
 // Recording a Payment (spec section 6): who paid, how much, when and how,
-// then what it pays, oldest first. "Check Payment" shows what will be saved;
-// "Save and issue Receipt" saves it and issues the Receipt in one go.
+// then what it pays: open Invoices oldest first, then Deposits on accepted
+// Quotations. "Check Payment" shows what will be saved; "Save and issue
+// Receipt" saves it and issues the Receipt in one go.
+
+/** One thing a Payment can pay: an open Invoice, or a Deposit on an accepted Quotation. */
+type Payable = {
+  id: string;
+  kind: 'invoice' | 'deposit';
+  /** "INV-0001", or "Deposit on QUO-0001". */
+  title: string;
+  subtitle: string;
+  /** The most this Payment can put on it. */
+  owed: Cents;
+  /** What is filled in for it unless the User changes it. */
+  suggested: Cents;
+  overdue: boolean;
+  jobTitle: string;
+};
 
 export function usePayments() {
   const db = useDb();
   return useMemo(() => payments(db, Date.now), [db]);
 }
 
-/** New Payment: picks the Customer first when none is given. */
-export function PaymentScreen({ customerId, nav }: { customerId?: string; nav: Nav }) {
-  return customerId ? <PaymentForm customerId={customerId} nav={nav} /> : <PickCustomer nav={nav} />;
+/** New Payment: picks the Customer first when none is given. From a Quotation, its Deposit is ticked. */
+export function PaymentScreen({ customerId, quotationId, nav }: { customerId?: string; quotationId?: string; nav: Nav }) {
+  return customerId ? <PaymentForm customerId={customerId} quotationId={quotationId} nav={nav} /> : <PickCustomer nav={nav} />;
 }
 
 function PickCustomer({ nav }: { nav: Nav }) {
@@ -76,31 +92,67 @@ function PickCustomer({ nav }: { nav: Nav }) {
   );
 }
 
-function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
+function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quotationId?: string; nav: Nav }) {
   const c = useColours();
   const p = usePeople();
   const pay = usePayments();
   const today = todayAt(Date.now());
   const customer = p.customer(customerId);
-  const [owing] = useState<OwingInvoice[]>(() => pay.owing(customerId));
+  const [payables] = useState<Payable[]>(() => [
+    ...pay.owing(customerId).map((o): Payable => ({
+      id: o.id,
+      kind: 'invoice',
+      title: o.number,
+      subtitle:
+        o.kind === 'opening'
+          ? [o.jobTitle, o.oldDate ? shortDate(o.oldDate) : '', `${formatUsd(o.owed)} owed`].filter(Boolean).join(' · ')
+          : `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`,
+      owed: o.owed,
+      suggested: o.owed,
+      overdue: o.status === 'overdue',
+      jobTitle: o.jobTitle,
+    })),
+    ...pay.deposits(customerId).map((x): Payable => ({
+      id: x.quotationId,
+      kind: 'deposit',
+      title: `Deposit on ${x.number}`,
+      subtitle: [
+        x.jobTitle,
+        x.asked ? `${formatUsd(x.asked)} asked` : '',
+        x.held > 0 ? `${formatUsd(x.held)} held` : '',
+        `up to ${formatUsd(x.room)}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      owed: x.room,
+      suggested: x.suggested,
+      overdue: false,
+      jobTitle: x.jobTitle,
+    })),
+  ]);
+  const owing = payables.filter((x) => x.kind === 'invoice');
+  const deposits = payables.filter((x) => x.kind === 'deposit');
   const shownMethods = pay.methods().filter((m) => !m.hidden);
   const [amountText, setAmountText] = useState('');
   const [dateReceived, setDateReceived] = useState(today);
   const [method, setMethod] = useState<PaymentMethod>(shownMethods[0]?.code ?? 'cash');
   const [other, setOther] = useState('');
-  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set(owing.map((o) => o.id)));
+  // Open Invoices are ticked; Deposits only when nothing is owed. From a Quotation, only its Deposit.
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(
+    () => new Set(quotationId ? [quotationId] : (owing.length > 0 ? owing : deposits).map((o) => o.id)),
+  );
   const [changed, setChanged] = useState<Readonly<Record<string, Cents>>>({});
   const [separate, setSeparate] = useState(false);
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [checking, setChecking] = useState(false);
-  const [changing, setChanging] = useState<OwingInvoice | null>(null);
+  const [changing, setChanging] = useState<Payable | null>(null);
 
   const parsed = amountText.trim() === '' ? null : parseUsd(amountText);
   const amount = parsed?.ok ? parsed.cents : 0;
   const split = fillOldestFirst(
     amount,
-    owing.filter((o) => ticked.has(o.id)),
-    changed,
+    payables.filter((o) => ticked.has(o.id)),
+    { ...Object.fromEntries(deposits.map((x) => [x.id, x.suggested])), ...changed },
   );
   const onInvoice = new Map(split.parts.map((x) => [x.id, x.amount]));
   const input: PaymentInput = {
@@ -109,7 +161,9 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
     dateReceived,
     method,
     otherDescription: other,
-    parts: split.parts.map((x) => ({ invoiceId: x.id, amount: x.amount })),
+    parts: split.parts.map((x) =>
+      payables.find((y) => y.id === x.id)!.kind === 'deposit' ? { quotationId: x.id, amount: x.amount } : { invoiceId: x.id, amount: x.amount },
+    ),
     separate,
   };
 
@@ -134,7 +188,7 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
     setChecking(true);
   };
 
-  if (checking) return <CheckPayment input={input} owing={owing} onChange={() => setChecking(false)} nav={nav} onProblems={(x) => {
+  if (checking) return <CheckPayment input={input} payables={payables} onChange={() => setChecking(false)} nav={nav} onProblems={(x) => {
     setProblems(x);
     setChecking(false);
   }} />;
@@ -157,9 +211,9 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
               {customer.name}
             </Text>
           </View>
-          {owing.length === 0 ? (
+          {payables.length === 0 ? (
             <Text style={[parts.body, { color: c.label }]}>
-              {`${customer.name} owes nothing now. A Payment is recorded against their Issued Invoices or opening balances; issue an Invoice first.`}
+              {`${customer.name} owes nothing now. A Payment is recorded against their Issued Invoices or opening balances, or as a Deposit on an Accepted Quotation; issue one first.`}
             </Text>
           ) : (
             <>
@@ -192,32 +246,52 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
                 <TextField label="Describe how they paid" hint='For example "Cheque"' value={other} onChange={setOther} error={problems.other} />
               ) : null}
 
-              <Section title="What it pays, oldest first">
-                <List>
-                  {owing.map((o, i) => (
-                    <TickRow
-                      key={o.id}
-                      first={i === 0}
-                      invoice={o}
-                      ticked={ticked.has(o.id)}
-                      amount={onInvoice.get(o.id) ?? 0}
-                      onToggle={() => toggle(o.id)}
-                      onChange={() => setChanging(o)}
-                    />
-                  ))}
-                </List>
-                {problems.parts ? <ProblemText text={problems.parts} /> : null}
-              </Section>
+              {owing.length > 0 ? (
+                <Section title="What it pays, oldest first">
+                  <List>
+                    {owing.map((o, i) => (
+                      <TickRow
+                        key={o.id}
+                        first={i === 0}
+                        item={o}
+                        ticked={ticked.has(o.id)}
+                        amount={onInvoice.get(o.id) ?? 0}
+                        onToggle={() => toggle(o.id)}
+                        onChange={() => setChanging(o)}
+                      />
+                    ))}
+                  </List>
+                </Section>
+              ) : null}
+              {deposits.length > 0 ? (
+                <Section title="Deposits on Accepted Quotations">
+                  <List>
+                    {deposits.map((o, i) => (
+                      <TickRow
+                        key={o.id}
+                        first={i === 0}
+                        item={o}
+                        ticked={ticked.has(o.id)}
+                        amount={onInvoice.get(o.id) ?? 0}
+                        onToggle={() => toggle(o.id)}
+                        onChange={() => setChanging(o)}
+                      />
+                    ))}
+                  </List>
+                  <Text style={[parts.small, { color: c.label }]}>A Deposit is held for the Customer and applied when you issue an Invoice from the Quotation.</Text>
+                </Section>
+              ) : null}
+              {problems.parts ? <ProblemText text={problems.parts} /> : null}
               {split.left > 0 && amount > 0 ? (
                 <View accessible accessibilityLiveRegion="polite" style={[styles.notice, { backgroundColor: c.surface, borderColor: c.line }]}>
-                  <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${formatUsd(split.left)} is more than the ticked Invoices owe`}</Text>
-                  <Text style={[parts.small, { color: c.label }]}>Lower the amount, or tick another Invoice.</Text>
+                  <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${formatUsd(split.left)} is more than the ticked items take`}</Text>
+                  <Text style={[parts.small, { color: c.label }]}>Lower the amount, tick another item, or change an amount.</Text>
                 </View>
               ) : null}
               {split.parts.length > 1 ? (
                 <Toggle
                   label="Separate receipts"
-                  hint="One Receipt for each Invoice instead of one for all"
+                  hint="One Receipt for each Invoice or Deposit instead of one for all"
                   value={separate}
                   onChange={setSeparate}
                 />
@@ -227,11 +301,11 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
             </>
           )}
         </ScrollView>
-        {owing.length > 0 ? <StepFoot next={{ label: 'Check Payment', onPress: toCheck }} /> : null}
+        {payables.length > 0 ? <StepFoot next={{ label: 'Check Payment', onPress: toCheck }} /> : null}
       </KeyboardAvoidingView>
       {changing ? (
         <ChangeAmount
-          invoice={changing}
+          item={changing}
           current={onInvoice.get(changing.id) ?? 0}
           onClose={() => setChanging(null)}
           onSave={(cents) => {
@@ -250,16 +324,16 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
   );
 }
 
-/** One open Invoice: a tick box, what it owes, and what this Payment puts on it. */
+/** One open Invoice or Deposit: a tick box, what it takes, and what this Payment puts on it. */
 function TickRow({
-  invoice: o,
+  item: o,
   ticked,
   amount,
   first,
   onToggle,
   onChange,
 }: {
-  invoice: OwingInvoice;
+  item: Payable;
   ticked: boolean;
   amount: Cents;
   first: boolean;
@@ -267,16 +341,13 @@ function TickRow({
   onChange: () => void;
 }) {
   const c = useColours();
-  const subtitle =
-    o.kind === 'opening'
-      ? [o.jobTitle, o.oldDate ? shortDate(o.oldDate) : '', `${formatUsd(o.owed)} owed`].filter(Boolean).join(' · ')
-      : `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`;
+  const subtitle = o.subtitle;
   return (
     <View style={[styles.tickRow, !first && { borderTopWidth: size.hairline, borderTopColor: c.line }]}>
       <Tappable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: ticked }}
-        accessibilityLabel={`${o.number}, ${subtitle}, ${formatUsd(amount)} from this Payment`}
+        accessibilityLabel={`${o.title}, ${subtitle}, ${formatUsd(amount)} from this Payment`}
         onPress={onToggle}
         style={({ pressed }) => [styles.tickMain, pressed && { backgroundColor: c.tint }]}
       >
@@ -284,16 +355,16 @@ function TickRow({
           {ticked ? <Text style={[styles.boxTick, { color: c.selFg }]}>✓</Text> : null}
         </View>
         <View style={styles.grow}>
-          <Text style={[styles.rowTitle, { color: c.fg }]}>{o.number}</Text>
-          <Text style={[parts.small, { color: o.status === 'overdue' ? c.bad : c.label }]}>
-            {o.status === 'overdue' ? `! Overdue · ${subtitle}` : subtitle}
+          <Text style={[styles.rowTitle, { color: c.fg }]}>{o.title}</Text>
+          <Text style={[parts.small, { color: o.overdue ? c.bad : c.label }]}>
+            {o.overdue ? `! Overdue · ${subtitle}` : subtitle}
           </Text>
         </View>
         <Text style={[styles.amount, { color: c.fg }]}>{formatUsd(amount)}</Text>
       </Tappable>
       {ticked ? (
         <View style={styles.changeButton}>
-          <SmallButton label="Change amount" a11yLabel={`Change the amount on ${o.number}`} onPress={onChange} />
+          <SmallButton label="Change amount" a11yLabel={`Change the amount on ${o.title}`} onPress={onChange} />
         </View>
       ) : null}
     </View>
@@ -301,13 +372,13 @@ function TickRow({
 }
 
 function ChangeAmount({
-  invoice,
+  item,
   current,
   onClose,
   onSave,
   onReset,
 }: {
-  invoice: OwingInvoice;
+  item: Payable;
   current: Cents;
   onClose: () => void;
   onSave: (cents: Cents) => void;
@@ -318,14 +389,14 @@ function ChangeAmount({
   const save = () => {
     const parsed = parseUsd(text);
     if (!parsed.ok) return setError(parsed.message);
-    if (parsed.cents > invoice.owed) return setError(`${invoice.number} owes ${formatUsd(invoice.owed)}. Put no more than that on it.`);
+    if (parsed.cents > item.owed) return setError(limitText(item));
     onSave(parsed.cents);
   };
   return (
-    <Sheet visible title={`Amount on ${invoice.number}`} onClose={onClose}>
+    <Sheet visible title={`Amount on ${item.title}`} onClose={onClose}>
       <TextField
         label="Amount from this Payment (US$)"
-        hint={`${invoice.number} owes ${formatUsd(invoice.owed)}. The rest of the Payment goes on the other ticked Invoices.`}
+        hint={`${limitText(item)} The rest of the Payment goes on the other ticked items.`}
         value={text}
         onChange={(t) => {
           setText(t);
@@ -340,16 +411,23 @@ function ChangeAmount({
   );
 }
 
+/** "INV-0001 owes US$100.00. Put no more than that on it." or the most a Deposit can be. */
+function limitText(item: Payable): string {
+  return item.kind === 'deposit'
+    ? `${item.title.replace('Deposit on', 'A Deposit on')} can be at most ${formatUsd(item.owed)}.`
+    : `${item.title} owes ${formatUsd(item.owed)}. Put no more than that on it.`;
+}
+
 /** What will be saved, before it is: the amount, how and when, what it pays, and the Receipts it issues. */
 function CheckPayment({
   input,
-  owing,
+  payables,
   onChange,
   onProblems,
   nav,
 }: {
   input: PaymentInput;
-  owing: readonly OwingInvoice[];
+  payables: readonly Payable[];
   onChange: () => void;
   onProblems: (problems: Record<string, string>) => void;
   nav: Nav;
@@ -383,13 +461,20 @@ function CheckPayment({
         </View>
         <List>
           {input.parts.map((x, i) => {
-            const o = owing.find((y) => y.id === x.invoiceId)!;
+            const id = 'quotationId' in x ? x.quotationId : x.invoiceId;
+            const o = payables.find((y) => y.id === id)!;
             return (
               <Row
-                key={x.invoiceId}
+                key={id}
                 first={i === 0}
-                title={o.jobTitle ? `${o.number} · ${o.jobTitle}` : o.number}
-                subtitle={o.owed - x.amount > 0 ? `Left to pay: ${formatUsd(o.owed - x.amount)}` : '✓ Paid in full'}
+                title={o.jobTitle ? `${o.title} · ${o.jobTitle}` : o.title}
+                subtitle={
+                  o.kind === 'deposit'
+                    ? 'Held as a Deposit until the Invoice'
+                    : o.owed - x.amount > 0
+                      ? `Left to pay: ${formatUsd(o.owed - x.amount)}`
+                      : '✓ Paid in full'
+                }
                 right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(x.amount)}</Text>}
               />
             );
@@ -402,7 +487,7 @@ function CheckPayment({
           </View>
         ))}
         <Text style={[parts.body, { color: c.label }]}>
-          {`Saving issues ${many ? `${checked.receipts.length} Receipts, ${checked.receipts.join(', ')}, one for each Invoice` : `Receipt ${checked.receipts[0]}`}. A Receipt can't be changed; a mistake is put right by cancelling it.`}
+          {`Saving issues ${many ? `${checked.receipts.length} Receipts, ${checked.receipts.join(', ')}, one for each part` : `Receipt ${checked.receipts[0]}`}. A Receipt can't be changed; a mistake is put right by cancelling it.`}
         </Text>
       </ScrollView>
       <StepFoot onBack={onChange} next={{ label: many ? 'Save and issue Receipts' : 'Save and issue Receipt', onPress: save }} />

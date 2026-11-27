@@ -257,8 +257,10 @@ export function openingBalances(db: Db, clock: () => number) {
           throw new InputError({ quotation: "Pick one of this Customer's Accepted Quotations." });
         const clockIsWrong = clockProblem();
         if (clockIsWrong) throw new InputError({ clock: clockIsWrong });
+        // Dated at the Start date, as the Credit it moves is: the Deposit's
+        // Receipt then says "Credit held from the opening balance (Start date)".
         const entry = postEntry(db, {
-          accountingDate: today(),
+          accountingDate: x.date,
           recordedAt: new Date(clock()).toISOString(),
           source: { kind: SOURCE_KIND, id },
           lines: postings.creditToDeposit({ customerId: x.customerId, amount: x.left }),

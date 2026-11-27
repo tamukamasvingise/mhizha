@@ -36,7 +36,8 @@ const later: Step[] = [
 CREATE TABLE test_record (${recordColumns()}, label TEXT) STRICT;
 DROP TABLE journal_line;
 DROP TABLE journal_entry;
-CREATE TABLE journal_entry (${recordColumns()}, accounting_date TEXT NOT NULL) STRICT;
+CREATE TABLE journal_entry (${recordColumns()}, accounting_date TEXT NOT NULL,
+  source_kind TEXT NOT NULL DEFAULT '', source_id TEXT NOT NULL DEFAULT '') STRICT;
 CREATE TABLE journal_line (${recordColumns()},
   journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
   account_code TEXT NOT NULL,

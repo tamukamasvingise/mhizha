@@ -72,7 +72,7 @@ export type Sub =
   /** A Draft's pages as they would print, marked DRAFT. */
   | { screen: 'preview'; id: string }
   /** Recording a Payment; it asks who paid when `customerId` is not given. */
-  | { screen: 'payment'; customerId?: string };
+  | { screen: 'payment'; customerId?: string; quotationId?: string };
 
 /** The steps of making a Quotation or Invoice, one question each: who, which Job, the lines, then check and issue. */
 export type InvoiceStep = 'who' | 'job' | 'lines' | 'check';

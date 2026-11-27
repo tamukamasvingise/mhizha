@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatUsd } from '../../core';
 import { longDate, shortDate, today } from '../../dates';
 import { DocumentList, useDocuments } from '../../documents/screens/common';
-import { customerOwes } from '../../ledger';
+import { customerHeld, customerOwes } from '../../ledger';
 import type { OpeningItem } from '../../opening';
 import { AddOpeningSheet, OpeningItemSheet, OpeningList, useOpenings } from '../../opening/screens/OpeningParts';
 import { useDb } from '../../shell/Records';
@@ -44,6 +44,13 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const failed = (m: string) => toast.show(m);
   const docs = d.list({ customerId: id });
   const owes = customerOwes(db, id);
+  const held = customerHeld(db, id);
+  const heldText = [
+    held.deposits > 0 ? `Deposits held ${formatUsd(held.deposits)}` : '',
+    held.credit > 0 ? `Credit held ${formatUsd(held.credit)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const newInvoice = () => {
     const draftId = d.newInvoice(id);
     nav.open({ screen: 'invoice-step', step: 'job', id: draftId });
@@ -93,6 +100,7 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           {owes > 0 ? (
             <Text style={[parts.body, local.owes, { color: c.fg }]}>{`Owes you ${formatUsd(owes)}`}</Text>
           ) : null}
+          {heldText ? <Text style={[parts.body, local.owes, { color: c.label }]}>{`${heldText}. Their money, kept for them.`}</Text> : null}
           {phone || whatsapp ? (
             <View style={styles.buttons}>
               {phone ? (

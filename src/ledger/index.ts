@@ -116,6 +116,12 @@ function balance(db: Db, account: AccountCode, customerId?: string): Cents {
 /** What one Customer owes, from the ledger. */
 export const customerOwes = (db: Db, customerId: string): Cents => balance(db, ACCOUNT.customersOwe, customerId);
 
+/** What the Business holds for one Customer, from the ledger: Deposits and Credit, never set off against debt. */
+export const customerHeld = (db: Db, customerId: string): { deposits: Cents; credit: Cents } => ({
+  deposits: -balance(db, ACCOUNT.depositsHeld, customerId),
+  credit: -balance(db, ACCOUNT.creditHeld, customerId),
+});
+
 /** What all Customers owe together: the "Customers owe you" figure. */
 export const totalOwed = (db: Db): Cents => balance(db, ACCOUNT.customersOwe);
 

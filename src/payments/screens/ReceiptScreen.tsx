@@ -7,31 +7,36 @@ import { List, Row, Section } from '../../ui/forms';
 import { SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, space, type } from '../../ui/tokens';
+import { appliedNotice, appliedTitle } from '..';
 import { usePayments } from './PaymentScreen';
 
-// One money Receipt: who paid, how much, how and when, its PDF, and what it
-// paid with the balance left on each Invoice when it was issued.
+// One Receipt: who paid, how much, how and when, its PDF, and what it paid
+// with the balance left on each Invoice when it was issued. A "Deposit
+// applied" Receipt says no new money was received and names the Receipt the
+// Deposit was paid on.
 
 export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const pay = usePayments();
   const r = pay.receipt(id);
   const facts: [string, string][] = [['Issued', longDateTime(r.issuedAt)]];
+  const applied = r.kind === 'deposit-applied';
   if (r.dateReceived !== r.issueDate) facts.push(['Date received', longDate(r.dateReceived)]);
-  facts.push(['How they paid', r.method]);
+  if (!applied) facts.push(['How they paid', r.method]);
 
   return (
     <View style={styles.screen}>
       <SubTopBar title={r.number} onBack={nav.back} />
       <ScrollView contentContainerStyle={styles.main}>
         <View style={styles.head}>
-          <Text style={[parts.small, { color: c.label }]}>Receipt</Text>
+          <Text style={[parts.small, { color: c.label }]}>{applied ? `Receipt · ${appliedTitle(r)}` : 'Receipt'}</Text>
           <Text accessibilityRole="header" style={[styles.number, { color: c.fg }]}>
             {r.number}
           </Text>
-          <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`Received · ${formatUsd(r.amount)}`}</Text>
+          <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${applied ? 'Applied' : 'Received'} · ${formatUsd(r.amount)}`}</Text>
           <Text style={[parts.body, { color: c.label }]}>{r.customerName}</Text>
         </View>
+        {applied ? <Text style={[parts.body, { color: c.fg }]}>{appliedNotice(r)}</Text> : null}
 
         <PdfPart id={id} number={r.number} />
 
@@ -41,7 +46,7 @@ export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
           ))}
         </List>
 
-        <Section title="What it paid">
+        <Section title={applied ? 'What it was applied to' : 'What it paid'}>
           <List>
             {r.lines.map((l, i) => (
               <Row

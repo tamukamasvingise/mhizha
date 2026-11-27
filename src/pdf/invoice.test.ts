@@ -292,3 +292,15 @@ describe('the Quotation page', () => {
     expect(html).toContain('<title>Draft Quotation</title>');
   });
 });
+
+describe('an Invoice with a Deposit applied', () => {
+  it('prints "Deposit applied (REC-…)" after the Total, then Balance due', () => {
+    const [text] = pageTexts(invoiceHtml({ ...invoice, depositsApplied: [{ label: 'Deposit applied (REC-0023)', amount: 50_000 }] }, noAssets).html);
+    expect(text).toContain('VAT Total 715.48 USD Deposit applied (REC-0023) 500.00 USD Balance due 215.48 USD');
+  });
+
+  it('prints no Balance due when no Deposit was applied', () => {
+    const [text] = pageTexts(invoiceHtml(invoice, noAssets).html);
+    expect(text).not.toContain('Balance due');
+  });
+});

@@ -27,6 +27,7 @@ export const STATUS_WORDS: Record<ListItem['status'], string> = {
   overdue: '! Overdue',
   closed: 'Closed',
   received: 'Received',
+  applied: 'Deposit applied',
   issued: 'Issued',
   accepted: 'Accepted',
   declined: '! Declined',

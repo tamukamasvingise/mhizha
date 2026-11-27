@@ -30,6 +30,6 @@ export function SubScreen({ sub, nav }: { sub: Sub; nav: Nav }) {
     case 'preview':
       return <PreviewScreen id={sub.id} nav={nav} />;
     case 'payment':
-      return <PaymentScreen customerId={sub.customerId} nav={nav} />;
+      return <PaymentScreen customerId={sub.customerId} quotationId={sub.quotationId} nav={nav} />;
   }
 }

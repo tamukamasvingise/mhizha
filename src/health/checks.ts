@@ -9,7 +9,7 @@
 // Problems must name records by ID, tables by name and nothing else: no names,
 // phone numbers, amounts or descriptions. They go into the error log and the
 // problem report.
-import { ACCOUNTS, type AccountCode } from '../core';
+import { ACCOUNT, ACCOUNTS, MONEY_ACCOUNTS, type AccountCode } from '../core';
 import type { Db } from '../db';
 
 export type CheckOutcome = 'passed' | 'failed' | 'waiting';
@@ -121,8 +121,39 @@ const checks: readonly Check[] = [
   },
   {
     name: 'Rule 3: Deposits and Credit are held for the Customer, apart from debt',
-    needs: ['allocation'],
-    waitingFor: 'Deposits and Credit',
+    needs: ['allocation', 'payment', 'document', 'journal_line'],
+    // Deposits for now: each Customer's Deposits held in the ledger is the
+    // unused part of the Deposits paid on their Quotations. Credit joins when
+    // its records do (Credit, Refunds and Opening balances).
+    run(db) {
+      const fromRecords = new Map<string, number>();
+      for (const r of db.all(
+        `SELECT q.customer_id AS c, a.amount - (SELECT coalesce(sum(u.amount), 0) FROM allocation u
+           WHERE u.from_kind = 'deposit' AND u.from_id = a.id AND u.reverses_id IS NULL
+             AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = u.id)) AS left
+         FROM allocation a JOIN document q ON q.id = a.to_id
+         WHERE a.from_kind IN ('payment', 'opening-credit') AND a.to_kind = 'quotation' AND a.reverses_id IS NULL
+           AND NOT EXISTS (SELECT 1 FROM allocation x WHERE x.reverses_id = a.id)`,
+      )) {
+        const left = Number(r.left);
+        if (left < 0) {
+          fromRecords.set(String(r.c), Number.NaN);
+          continue;
+        }
+        fromRecords.set(String(r.c), (fromRecords.get(String(r.c)) ?? 0) + left);
+      }
+      const ledger = new Map<string, number>();
+      for (const r of db.all(
+        `SELECT customer_id AS c, coalesce(sum(credit), 0) - coalesce(sum(debit), 0) AS n FROM journal_line
+         WHERE account_code = ? GROUP BY customer_id`,
+        [ACCOUNT.depositsHeld],
+      )) {
+        ledger.set(String(r.c), Number(r.n));
+      }
+      return [...new Set([...fromRecords.keys(), ...ledger.keys()])]
+        .filter((c) => (fromRecords.get(c) ?? 0) !== (ledger.get(c) ?? 0))
+        .map((c) => `Customer ${c}: Deposits held in the ledger do not agree with the Deposits on their Quotations.`);
+    },
   },
   {
     name: 'Rule 4: no entry is zero or negative',
@@ -156,8 +187,22 @@ const checks: readonly Check[] = [
   },
   {
     name: 'Rule 6: applied Receipts, Quotations and Drafts never count as money received',
-    needs: ['payment', 'document'],
-    waitingFor: 'Payments and Receipts',
+    needs: ['payment', 'document', 'journal_entry', 'journal_line'],
+    // Money comes in only on a money Receipt: an entry that adds to a money
+    // account and comes from a Receipt with no Payment, or from a Quotation
+    // or a Draft, counts money that was never received.
+    run: (db) =>
+      db
+        .all(
+          `SELECT DISTINCT e.id FROM journal_entry e JOIN journal_line l ON l.journal_entry_id = e.id
+           JOIN document d ON d.id = e.source_id
+           WHERE l.debit > 0 AND l.account_code IN (${MONEY_ACCOUNTS.map(() => '?').join(', ')})
+             AND (d.type = 'QUO' OR d.number IS NULL
+               OR (d.type = 'REC' AND NOT EXISTS (SELECT 1 FROM payment p WHERE p.receipt_id = d.id)))
+           ORDER BY e.rowid`,
+          [...MONEY_ACCOUNTS],
+        )
+        .map((r) => `Entry ${String(r.id)}: it counts money received for a Document that received none.`),
   },
   {
     name: 'Rule 7: nothing Issued or recorded is erased',

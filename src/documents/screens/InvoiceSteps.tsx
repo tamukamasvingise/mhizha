@@ -570,6 +570,12 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
   const number = d.numberFor(draft.id);
   const fixed = draft.revisesId !== null || draft.quotationId !== null;
   const validUntil = draft.validUntil ?? addDays(today, VALID_DAYS);
+  // An Invoice from a Quotation applies the Deposit held on it, up to its Total; the User may apply less.
+  const from = d.fromQuotation(draft.id);
+  const depositMost = from ? Math.min(from.depositHeld, Math.max(0, draft.totals.total)) : 0;
+  const [depositText, setDepositText] = useState<string | null>(null);
+  const depositParsed = depositText === null ? null : depositText.trim() === '' ? { ok: true as const, cents: 0 } : parseUsd(depositText);
+  const toApply = depositParsed === null ? depositMost : depositParsed.ok ? depositParsed.cents : null;
 
   const terms = (next: { validUntil?: string | null; deposit?: string; leadTime?: string }) => {
     const t = { validUntil: draft.validUntil, deposit, leadTime, ...next };
@@ -591,8 +597,13 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
     onChange();
   };
   const issue = () => {
+    if (toApply === null) {
+      setSheet(null);
+      setProblems({ deposit: depositParsed && !depositParsed.ok ? depositParsed.message : 'Enter the Deposit to apply.' });
+      return;
+    }
     try {
-      d.issue(draft.id);
+      d.issue(draft.id, from && from.depositHeld > 0 ? { deposit: toApply } : {});
       // A Revision or an Invoice from a Quotation opened over the Quotation's screen: show the new Document in its place.
       if (draft.revisesId) nav.leave(draft.id);
       if (draft.revisesId) nav.replace({ screen: 'document', id: draft.id });
@@ -708,6 +719,27 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
               d.setDetails(draft.id, { dueDate: draft.dueDate, orderNo: t });
             }}
           />
+          {from && from.depositHeld > 0 ? (
+            <View style={styles.group}>
+              <TextField
+                label="Deposit to apply (US$)"
+                hint={`${formatUsd(from.depositHeld)} Deposit is held on ${from.number}. Up to the Invoice Total is applied; the rest waits for the next Invoice.`}
+                value={depositText ?? (depositMost / 100).toFixed(2)}
+                onChange={(t) => {
+                  setDepositText(t);
+                  const { deposit: _x, ...rest } = problems;
+                  setProblems(rest);
+                }}
+                error={problems.deposit}
+                keyboardType="decimal-pad"
+              />
+              {depositText !== null && toApply !== depositMost ? (
+                <View style={styles.buttons}>
+                  <SmallButton label={`Apply ${formatUsd(depositMost)}`} onPress={() => setDepositText(null)} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </>
       )}
       {problems.clock ? <ProblemText text={problems.clock} /> : null}
@@ -723,6 +755,13 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
             ? `${formatUsd(draft.totals.total)} for ${customer.name}, dated today, ${longDate(today)}, valid until ${longDate(validUntil)}. Nobody owes anything until you invoice it. It can no longer be changed or deleted; its PDF is made once, ready to share.`
             : `${customer.name} will owe you ${formatUsd(draft.totals.total)}. The Invoice is dated today, ${longDate(today)}, and can no longer be changed or deleted. Its PDF is made once, ready to share.`}
         </Text>
+        {!quotation && toApply ? (
+          <Text style={[parts.body, { color: c.fg }]}>
+            {`${formatUsd(toApply)} of the Deposit is applied, with a "Deposit applied" Receipt, leaving ${formatUsd(draft.totals.total - toApply)} to pay.${
+              from && from.depositHeld > toApply ? ` ${formatUsd(from.depositHeld - toApply)} stays held for the next Invoice.` : ''
+            }`}
+          </Text>
+        ) : null}
         {draft.revisesId ? (
           <Text style={[parts.body, { color: c.fg }]}>{`The older version becomes Superseded. ${number} must be accepted again.`}</Text>
         ) : null}
