@@ -289,7 +289,7 @@ CREATE TABLE document (
   job_id TEXT REFERENCES job (id),
   number INTEGER CHECK (number IS NULL OR number >= 1),
   printed_number TEXT,
-  revision INTEGER,
+  revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
   revises_id TEXT REFERENCES document (id),
   quotation_id TEXT REFERENCES document (id),
   issued_at TEXT,

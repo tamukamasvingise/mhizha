@@ -51,3 +51,4 @@ export {
 export { postings } from "./postings";
 export { type CustomerBalances, customerBalances, checkLedger } from "./checks";
 export { type InvoiceStatus, invoiceStatus } from "./status";
+export { issuableTotals } from "./issue";
