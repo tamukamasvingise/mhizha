@@ -1,4 +1,4 @@
-// Document PDFs (Invoices, Quotations and Receipts) on the phone (spec section 10).
+// Document PDFs (Invoices, Quotations, Receipts and Refunds) on the phone (spec section 10).
 // App only: the pages themselves are made in invoice.ts and receipt.ts. An Issued Document's PDF is made once, kept in the app's
 // own `pdfs` folder with its checksum, and never made again or overwritten;
 // sharing sends that same file. A Draft is only ever previewed.
@@ -10,7 +10,7 @@ import type { Documents } from '../documents';
 import { fileRecord, saveFile, type BusinessDetails } from '../setup/store';
 import { payments } from '../payments';
 import { invoiceHtml, PAGE, type PrintAssets } from './invoice';
-import { receiptHtml } from './receipt';
+import { receiptHtml, refundHtml } from './receipt';
 
 const FOLDER = 'pdfs';
 const MIME: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml' };
@@ -62,7 +62,12 @@ async function printWithRetries(html: string): Promise<string> {
 
 /** The page an Issued Document prints, by its type, from its frozen copy. */
 function pageOf(db: Db, docs: Documents, id: string): { number: string; html: string } {
-  if (docs.issued(id).type === 'REC') {
+  const type = docs.issued(id).type;
+  if (type === 'REF') {
+    const r = payments(db, Date.now).refundPrintable(id);
+    return { number: r.number, html: refundHtml(r, printAssets(db, r.business)).html };
+  }
+  if (type === 'REC') {
     const r = payments(db, Date.now).printable(id);
     return { number: r.number, html: receiptHtml(r, printAssets(db, r.business)).html };
   }

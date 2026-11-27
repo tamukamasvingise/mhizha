@@ -3,9 +3,12 @@
 // here. "Received from", the sum in words, the Payment method tick boxes, a
 // large USD amount box, then a table of what was paid and the balance left.
 // A "Deposit applied" Receipt has a subtitle and a notice that no new money
-// was received, naming the original Receipt; it has no Payment method.
+// was received, naming the original Receipt; it has no Payment method. A
+// Refund is laid out the same way: Paid to, what it refunds, the reason and
+// the method ticked under "Paid by", with no table.
 import { PAYMENT_METHOD_NAMES, PAYMENT_METHODS, type Cents, type PaymentMethod } from '../core';
 import { shortDate } from '../dates';
+import type { RefundPrint } from '../payments/refunds';
 import type { BusinessDetails } from '../setup/store';
 import { css, esc, footer, LAYOUT, letterhead, signature, style, usd, type Block, type PrintAssets } from './invoice';
 import { lineCount } from './measure';
@@ -28,6 +31,8 @@ export type ReceiptPrint = {
   lines: readonly { appliedTo: string; jobTitle: string; total: Cents; amount: Cents; balanceLeft: Cents }[];
   /** For a Receipt with no new money: its subtitle ("Deposit applied") and the notice naming where the money came from. */
   applied?: { title: string; notice: string } | null;
+  /** For a Refund: what it pays back and from where, and why. The page then reads as a Refund, with no table. */
+  refund?: { refundOf: string; reason: string } | null;
 };
 
 const { W, H, SLACK, ROW_LH, ROW_PAD, RULE, CELL_X, TABLE_HEAD, CONTINUED, SHORT_HEAD } = LAYOUT;
@@ -46,18 +51,19 @@ const NOTICE_PAD = 7;
 const NOTICE_LH = 12.5;
 const NOTICE_GAP = 14;
 
-const label = (p: ReceiptPrint) => `RECEIPT ${p.number}`;
+const word = (p: ReceiptPrint) => (p.refund ? 'REFUND' : 'RECEIPT');
+const label = (p: ReceiptPrint) => `${word(p)} ${p.number}`;
 
 function titleBlock(p: ReceiptPrint): Block {
   const meta: [string, string][] = [
-    ['Receipt No.', p.number],
+    [p.refund ? 'Refund No.' : 'Receipt No.', p.number],
     ['Date', shortDate(p.issueDate)],
   ];
-  if (p.dateReceived !== p.issueDate) meta.push(['Date received', shortDate(p.dateReceived)]);
+  if (p.dateReceived !== p.issueDate) meta.push([p.refund ? 'Date paid' : 'Date received', shortDate(p.dateReceived)]);
   const sub = p.applied?.title ?? '';
   const inner = Math.max(34 + (sub ? SUB_H : 0), meta.length * 17);
   const html =
-    `<div class="title" data-h="${inner}"><h1>RECEIPT${sub ? `<small>${esc(sub)}</small>` : ''}</h1>` +
+    `<div class="title" data-h="${inner}"><h1>${word(p)}${sub ? `<small>${esc(sub)}</small>` : ''}</h1>` +
     `<table class="meta">${meta.map(([k, v]) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join('')}</table></div>`;
   return { html, height: 16 + inner + 14 };
 }
@@ -77,10 +83,15 @@ function fields(p: ReceiptPrint): Block {
   const f = p.business.font;
   const rows = (
     [
-      [p.applied ? 'Customer' : 'Received from', p.customer.name],
+      [p.refund ? 'Paid to' : p.applied ? 'Customer' : 'Received from', p.customer.name],
       ['Address / Phone', [p.customer.address, p.customer.phones.join(', ')].filter(Boolean).join(' · ')],
       ['The sum of', p.sumInWords],
-      ['Being payment for', p.applied ? '' : p.beingPaymentFor],
+      ...(p.refund
+        ? [
+            ['Refund of', p.refund.refundOf],
+            ['Reason', p.refund.reason],
+          ]
+        : [['Being payment for', p.applied ? '' : p.beingPaymentFor]]),
     ] as [string, string][]
   ).filter(([, v]) => v.trim() !== '');
   const inner =
@@ -113,7 +124,7 @@ function payRow(p: ReceiptPrint): Block {
     };
   }
   const html =
-    `<div class="payrow" data-h="${inner}"><div><div class="sec">Payment method</div><div class="methods">${methods}</div></div>` +
+    `<div class="payrow" data-h="${inner}"><div><div class="sec">${p.refund ? 'Paid by' : 'Payment method'}</div><div class="methods">${methods}</div></div>` +
     `<div class="amount"><b>USD</b><span>${usd(p.amount)}</span></div></div>`;
   return { html, height: 11 + inner + 14 };
 }
@@ -191,7 +202,9 @@ export function receiptHtml(p: ReceiptPrint, a: PrintAssets): { html: string; pa
       ? letterhead(p, a).html + titleBlock(p).html + notice(p).html + fields(p).html + payRow(p).html
       : shortHeader(p).html;
     if (rows.length > 0) body += tableTop(p) + rows.map((r) => lineRow(p, r).html).join('') + '</tbody></table>';
-    body += last ? signature(a, p.applied ? 'Issued by' : 'Received by').html : '<div class="cont">Continued on the next page</div>';
+    body += last
+      ? signature(a, p.refund ? 'Paid by' : p.applied ? 'Issued by' : 'Received by').html
+      : '<div class="cont">Continued on the next page</div>';
     return (
       `<section class="page${last ? '' : ' more'}">${watermark}<div class="body">${body}</div>` +
       `${footer(p, i + 1, total, label(p)).html}</section>`
@@ -201,4 +214,26 @@ export function receiptHtml(p: ReceiptPrint, a: PrintAssets): { html: string; pa
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(p.number)}</title>` +
     `<style>${css(p, a)}${RECEIPT_CSS}</style></head><body>${sections.join('')}</body></html>`;
   return { html, pages: total };
+}
+
+/** The Refund as one HTML page for expo-print: laid out as a Receipt, headed REFUND, with no table. */
+export function refundHtml(p: RefundPrint, a: PrintAssets): { html: string; pages: number } {
+  return receiptHtml(
+    {
+      number: p.number,
+      issueDate: p.issueDate,
+      dateReceived: p.date,
+      business: p.business,
+      customer: p.customer,
+      sumInWords: p.sumInWords,
+      method: p.method,
+      otherDescription: p.otherDescription,
+      amount: p.amount,
+      beingPaymentFor: '',
+      lines: [],
+      applied: null,
+      refund: { refundOf: p.refundOf, reason: p.reason },
+    },
+    a,
+  );
 }
