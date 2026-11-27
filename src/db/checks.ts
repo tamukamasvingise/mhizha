@@ -5,6 +5,9 @@ import { openDatabase, type Db, type OpenOptions } from './database';
 import { recordColumns, steps as appSteps, type Step } from './steps';
 import type { SqlPlatform } from './sql';
 import { noAddress, people, type CustomerDetails } from '../people';
+import { documents } from '../documents';
+import { customerOwes } from '../ledger';
+import { emptyBusiness, saveBusinessDetails, startNew } from '../setup/store';
 
 export type DbCheck = { name: string; run: (platform: SqlPlatform) => void };
 
@@ -304,6 +307,30 @@ dbChecks.push({
     throws(() => db.run('DELETE FROM customer'), 'a deleted Customer');
     throws(() => db.run('DELETE FROM job'), 'a deleted Job');
     same(p.customers().length, 2, 'Customers kept');
+    db.close();
+  },
+});
+
+dbChecks.push({
+  name: 'an Invoice issues with the next number, locks, and posts Customers owe and Sales in the same save',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    startNew(db, '2026-11-27');
+    saveBusinessDetails(db, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-11-27');
+    const p = people(db, () => '2026-11-27');
+    const c = p.addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const job = p.addJob(c, { title: 'Work', siteId: p.sites(c)[0]!.id });
+    const d = documents(db, () => Date.UTC(2026, 10, 27, 12, 0, 0));
+    const id = d.newInvoice(c);
+    d.setJob(id, job);
+    d.setLines(id, [{ priceListItemId: null, description: 'Labour', unit: 'day', quantity: 2000, unitPrice: 4500 }]);
+    d.setDiscount(id, { kind: 'percent', tenths: 100 });
+    same(d.issue(id), 'INV-0001', 'the number');
+    same([d.issued(id).total, customerOwes(db, c)], [8100, 8100], 'the Total and what the Customer owes');
+    throws(() => db.run('UPDATE document SET total = 1 WHERE id = ?', [id]), 'a change to an Issued Invoice');
+    throws(() => db.run('DELETE FROM journal_line'), 'a deleted entry');
     db.close();
   },
 });

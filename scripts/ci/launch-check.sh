@@ -2,10 +2,10 @@
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
-# and marks it Done, opens the problem report and the failed-check banner,
-# shows the problem screen, runs the
-# database checks on the real expo-sqlite, and screenshots every screen for the
-# UI review. Usage: launch-check.sh <apk> <results folder>
+# and marks it Done, issues an Invoice step by step, opens the problem report
+# and the failed-check banner, shows the problem screen, runs the database
+# checks on the real expo-sqlite, and screenshots every screen for the UI review.
+# Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
 set -uo pipefail
 
@@ -299,6 +299,50 @@ for mode in light dark; do
   back_until 'Welcome to Mhizha' 5
   capture "$mode-customers-back"
   has "$mode-customers-back" 'Welcome to Mhizha' && pass "$mode: back closes the Job, the Customer, then goes Home" || fail "$mode: back closes the Job, the Customer, then goes Home"
+
+  # An Invoice with no Quotation, step by step from New: who, which Job, the
+  # lines with a 10% Discount, then check and issue. Home then shows what
+  # Customers owe and the Documents tab lists it.
+  tap 'New Quotation, Invoice, Payment or Customer' && tap 'Invoice, Bill a Customer for a Job' || fail "$mode: New offers an Invoice"
+  wait_for 'Who is it for?' && pass "$mode: New Invoice asks who it is for" || fail "$mode: New Invoice asks who it is for"
+  capture "$mode-invoice-who"
+  tap 'Test Customer' || fail "$mode: pick the Customer"
+  wait_for 'Which Job?' && pass "$mode: then which Job" || fail "$mode: then which Job"
+  capture "$mode-invoice-job"
+  tap 'Kitchen rewiring, Main site, Open' || fail "$mode: pick the Job"
+  wait_for 'What are you charging for?' && pass "$mode: then the lines" || fail "$mode: then the lines"
+  capture "$mode-invoice-lines-empty"
+  tap 'Type a line' || fail "$mode: open Type a line"
+  tap_field Description && adb shell input text 'Labour' || fail "$mode: type a description"
+  hide_keyboard
+  tap_field 'Unit price (US\$)' && adb shell input text '45' || fail "$mode: type a price"
+  hide_keyboard
+  capture "$mode-invoice-line"
+  tap 'Add line' || fail "$mode: add the line"
+  to_end
+  tap '%' || fail "$mode: pick a % Discount"
+  to_end
+  tap_field 'Discount in %' && adb shell input text '10' || fail "$mode: type the Discount"
+  hide_keyboard
+  to_end
+  capture "$mode-invoice-lines"
+  has "$mode-invoice-lines" '10% = US\$4\.50' && pass "$mode: the Discount shows as it is typed" || fail "$mode: the Discount shows as it is typed"
+  tap Next || fail "$mode: tap Next to Check and issue"
+  wait_for 'Check and issue' && capture "$mode-invoice-check" || fail "$mode: Check and issue opens"
+  to_end
+  capture "$mode-invoice-check-end"
+  { has "$mode-invoice-check" 'Total US\$40\.50' || has "$mode-invoice-check-end" 'Total US\$40\.50'; } &&
+    pass "$mode: the Total is after the Discount" || fail "$mode: the Total is after the Discount"
+  tap 'Issue INV-0001' || fail "$mode: tap Issue"
+  capture "$mode-invoice-confirm"
+  tap 'Issue INV-0001' || fail "$mode: confirm Issue"
+  wait_for 'Unpaid · US\$40\.50' && pass "$mode: the Invoice is issued as INV-0001, Unpaid" || fail "$mode: the Invoice is issued as INV-0001, Unpaid"
+  capture "$mode-invoice"
+  back_until 'Customers owe you' 3
+  capture "$mode-home-owed"
+  has "$mode-home-owed" 'Customers owe you US\$40\.50' && pass "$mode: Home shows what Customers owe" || fail "$mode: Home shows what Customers owe"
+  tap Documents && capture "$mode-documents-list" || fail "$mode: open Documents"
+  has "$mode-documents-list" 'INV-0001' && pass "$mode: the Documents tab lists the Invoice" || fail "$mode: the Documents tab lists the Invoice"
 
   # The problem report from Settings.
   # Help sits below the setup pages and About, so scroll to it.
