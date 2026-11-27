@@ -111,6 +111,7 @@ function PdfPart({ id, number }: { id: string; number: string }) {
       () => live && setState('ready'),
       (e: unknown) => {
         db.logError('invoice pdf', e);
+        console.warn('MHIZHA_PDF_ERROR ' + (e instanceof Error ? e.message : String(e)));
         if (!live) return;
         setState('failed');
         const text = `The PDF of ${number} could not be made. Tap Try again.`;

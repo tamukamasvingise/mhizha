@@ -39,6 +39,25 @@ export async function printHtml(html: string): Promise<string> {
   return uri;
 }
 
+/**
+ * Prints, trying again twice: the phone's WebView now and then fails a print
+ * (Android 10's WebView mishandles the file it writes to), and the next try works.
+ */
+async function printWithRetries(html: string): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const uri = await printHtml(html);
+      const file = new File(uri);
+      if (file.exists && file.size > 0) return uri;
+      throw new Error('The printed PDF is empty.');
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      console.warn(`MHIZHA_PDF_ERROR try ${attempt}: ${e instanceof Error ? e.message : String(e)}`);
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+}
+
 const making = new Map<string, Promise<string>>();
 
 /**
@@ -59,7 +78,7 @@ export function invoicePdf(db: Db, docs: Documents, id: string): Promise<string>
 async function makeInvoicePdf(db: Db, docs: Documents, id: string): Promise<string> {
   const printed = docs.printable(id);
   const { html } = invoiceHtml(printed, printAssets(db, printed.business));
-  const made = new File(await printHtml(html));
+  const made = new File(await printWithRetries(html));
   // Each Invoice gets its own folder, so the shared file keeps a plain name ("INV-0001.pdf").
   const dir = new Directory(Paths.document, FOLDER, id);
   if (!dir.exists) dir.create({ intermediates: true });

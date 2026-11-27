@@ -281,6 +281,7 @@ for mode in light dark; do
   has "$mode-customer" 'content-desc="Call Test Customer on 0771234567"' && has "$mode-customer" 'content-desc="WhatsApp Test Customer on 0771234567"' &&
     pass "$mode: the Customer screen has Call and WhatsApp" || fail "$mode: the Customer screen has Call and WhatsApp"
   tap 'Add Job' && capture "$mode-job-form" || fail "$mode: open New Job"
+  tap_field 'What is the work?' || true
   adb shell input text 'Kitchen%srewiring'
   hide_keyboard
   tap 'Add Job' || fail "$mode: add the Job"
@@ -345,7 +346,12 @@ for mode in light dark; do
   capture "$mode-invoice-confirm"
   tap 'Issue INV-0001' || fail "$mode: confirm Issue"
   wait_for 'Unpaid · US\$40\.50' && pass "$mode: the Invoice is issued as INV-0001, Unpaid" || fail "$mode: the Invoice is issued as INV-0001, Unpaid"
-  wait_for 'text="Share PDF"' && pass "$mode: the PDF is made at issue" || fail "$mode: the PDF is made at issue"
+  if wait_for 'text="Share PDF"'; then pass "$mode: the PDF is made at issue"; else
+    fail "$mode: the PDF is made at issue"
+    PID=$(adb shell pidof "$PKG" | tr -d '')
+    [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/$mode-pdf-logcat.txt" 2>/dev/null
+    note "  $(grep -h 'MHIZHA_PDF_ERROR' "$OUT/$mode-pdf-logcat.txt" 2>/dev/null | head -3)"
+  fi
   capture "$mode-invoice"
   tap 'Share PDF' && sleep 3 && capture "$mode-invoice-share" || fail "$mode: tap Share PDF"
   has "$mode-invoice-share" 'android:id/(chooser|resolver)|com.android.intentresolver|Share INV-0001' &&
@@ -435,7 +441,10 @@ PID=$(adb shell pidof "$PKG" | tr -d "\r")
 PID=$(adb shell pidof "$PKG" | tr -d '\r')
 [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/app-logcat.txt" 2>/dev/null
 adb logcat -d -b crash > "$OUT/crash-logcat.txt" 2>/dev/null
-if grep -q "$PKG" "$OUT/crash-logcat.txt"; then fail "no crash"; else pass "no crash"; fi
+# Android 10's WebView reports file-descriptor warnings as tombstones with
+# signal 35 and carries on; only a Java crash or another signal is a crash.
+if grep -B1 -A8 -E "Process: $PKG|>>> $PKG <<<" "$OUT/crash-logcat.txt" | grep -E 'FATAL EXCEPTION|signal [0-9]+' | grep -qv 'signal 35 '; then
+  fail "no crash"; else pass "no crash"; fi
 
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
 exit $FAILED
