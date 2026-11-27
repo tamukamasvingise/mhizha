@@ -3,7 +3,8 @@ import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 
 import { useDb } from '../shell/Records';
 import type { SettingsPage } from '../shell/navigation';
 import { Toggle } from '../ui/fields';
-import { Button, IconButton, Tappable, TopBarTitle, styles as parts } from '../ui/parts';
+import { Icon } from '../ui/Icon';
+import { Button, SubTopBar, Tappable, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { lineHeight, radius, size, space, type } from '../ui/tokens';
 import { longDate } from './dates';
@@ -62,12 +63,13 @@ function Row({ title, sub, onPress, first, lead }: { title: string; sub: string;
         <Text style={[local.itemTitle, { color: c.fg }]}>{title}</Text>
         <Text style={[parts.small, { color: c.label }]}>{sub}</Text>
       </View>
+      <Icon name="next" colour={c.label} px={size.iconS} />
     </Tappable>
   );
 }
 
 /** The setup rows in Settings. Re-read each time Settings is shown. */
-export function SetupSettings({ onOpen }: { onOpen: (page: SettingsPage) => void }) {
+export function SetupSettings({ onOpen, priceList }: { onOpen: (page: SettingsPage) => void; priceList?: ReactNode }) {
   const c = useColours();
   const db = useDb();
   const b = businessDetails(db);
@@ -92,6 +94,7 @@ export function SetupSettings({ onOpen }: { onOpen: (page: SettingsPage) => void
       </Section>
       <Section title="Documents and money">
         <Row first title="Document numbers" sub={`Next: ${numbers}`} onPress={() => onOpen('numbers')} />
+        {priceList ? <View style={{ borderTopWidth: size.hairline, borderTopColor: c.line }}>{priceList}</View> : null}
         <Row title="Accounting period" sub={periodLabel(periodSetting(db, today()))} onPress={() => onOpen('period')} />
         <Row title="Start date" sub={longDate(startDate(db))} onPress={() => onOpen('start')} />
       </Section>
@@ -204,12 +207,7 @@ export function SettingsPageScreen({ page, onBack }: { page: SettingsPage; onBac
   const problems = Object.keys(form.errors).filter((k) => k !== 'form').length;
   return (
     <>
-      <View style={[parts.topBar, local.subBar, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
-        <IconButton icon="back" label="Back" onPress={onBack} />
-        <View style={parts.topBarTitle}>
-          <TopBarTitle>{TITLES[page]}</TopBarTitle>
-        </View>
-      </View>
+      <SubTopBar title={TITLES[page]} onBack={onBack} />
       <KeyboardAvoidingView behavior="padding" style={local.root}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
           <Lead>{PAGE_LEADS[page]}</Lead>
@@ -228,7 +226,6 @@ export function SettingsPageScreen({ page, onBack }: { page: SettingsPage; onBac
 const local = StyleSheet.create({
   root: { flex: 1 },
   main: { padding: space.s4, gap: space.s4 },
-  subBar: { paddingLeft: space.s1 },
   section: { gap: space.s2 },
   sectionTitle: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
   list: { borderWidth: size.hairline, borderRadius: radius.r, overflow: 'hidden' },

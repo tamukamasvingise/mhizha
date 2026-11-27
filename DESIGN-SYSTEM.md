@@ -63,9 +63,13 @@ Colour rules:
 - List: `surface`, 1px `line` border, radius 8; rows min 56, padding 12, title 16/600, subtitle 14 `label`.
 - First screen and the App lock screen: focused, like the problem screen. The mark and name, a 24/700 title, a `label` line, then the actions (Start new primary, Restore from a backup; or Unlock).
 - Setup wizard: top bar "Set up Mhizha", no tabs. A step bar (one 4dp `brand` segment per step, `line` for steps ahead), "Step n of N" in `label`, the step's one question 24/700, a `label` line, the fields; Back and Next (primary; Finish on the last step) in a `surface` foot with a top hairline. Back also goes to the step before.
-- Forms (`src/ui/fields.tsx`): label 16/600 above the field, hint 14 `label`, field min 44 with an `input` border; an error thickens the border to 2 in `bad` and adds "! " and the words under it. Choices are pills (ticked and `sel` when chosen); switches sit at the right of a min-56 row.
+- Forms (`src/ui/fields.tsx`): text fields follow the Text field rule below (an error also thickens the border to 2). Choices are pills, 16/600 label above (ticked and `sel` when chosen); switches sit at the right of a min-56 row.
 - Settings pages (Your business, Document numbers, Start date, Accounting period): sub screen with back, a `label` line, the same fields as in setup, then Save and a "✓ Saved" line read out to screen readers.
 - Brand colour swatches show the Business's own colours (its data, not tokens), each a 36dp circle with an `input` border inside a 48dp target, the chosen one ringed in `fg`. A signature is shown on white, as on paper.
+- Settings: sections with a 14/600 `label` heading over a list. A row that opens a sub screen ends in a `label` chevron.
+- Text field: a 14/600 label above, an optional 14 `label` hint, then the input: min 44, radius 8, 1px `input` border, 3px `ring` border while typing. An error shows under it in `bad` with "! " and the border turns `bad`.
+- Toast: `toast` on the page's bottom, radius 8, 16 text in `toastFg`, an optional action such as Undo at the right; read out by screen readers; gone after 5 s.
+- Price list (Settings > Documents and money): rows of name (16/600) with the price at the right (16/600, tabular) and "per day" under it; tap a row to change or delete it in a sheet; "Add an item" (primary) under the list.
 
 ## Rule changes
 

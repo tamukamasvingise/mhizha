@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, Switch, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { Tappable, styles as parts } from './parts';
 import { useColours } from './theme';
@@ -17,15 +17,24 @@ type FieldProps = Omit<TextInputProps, 'style' | 'value' | 'onChangeText'> & {
   error?: string;
 };
 
-/** A labelled text field. An error gives it a thicker red border and the message under it. */
-export function Field({ label, hint, error, value, onChangeText, ...rest }: FieldProps) {
+/** A labelled text field: a ring border while typing; an error turns the border red and shows the message under it. */
+export function Field({ label, hint, error, value, onChangeText, onFocus, onBlur, ...rest }: FieldProps) {
   const c = useColours();
+  const [focused, setFocused] = useState(false);
   return (
     <View style={local.field}>
-      <Text style={[local.label, { color: c.fg }]}>{label}</Text>
+      <Text style={[local.fieldLabel, { color: c.fg }]}>{label}</Text>
       {hint ? <Text style={[parts.small, { color: c.label }]}>{hint}</Text> : null}
       <TextInput
         {...rest}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         value={value}
         onChangeText={onChangeText}
         accessibilityLabel={label}
@@ -39,8 +48,8 @@ export function Field({ label, hint, error, value, onChangeText, ...rest }: Fiel
           {
             color: c.fg,
             backgroundColor: c.surface,
-            borderColor: error ? c.bad : c.input,
-            borderWidth: error ? size.ring - 1 : size.hairline,
+            borderColor: error ? c.bad : focused ? c.ring : c.input,
+            borderWidth: focused ? size.ring : error ? size.ring - 1 : size.hairline,
           },
         ]}
       />
@@ -154,6 +163,7 @@ export function FieldGroup({ title, children }: { title?: string; children: Reac
 const local = StyleSheet.create({
   field: { gap: space.s1 },
   label: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600' },
+  fieldLabel: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
   input: {
     minHeight: size.touch,
     borderRadius: radius.r,

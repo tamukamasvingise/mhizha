@@ -271,3 +271,16 @@ dbChecks.push(
     },
   },
 );
+
+dbChecks.push({
+  name: 'Price list items keep whole cents and refuse negative or part-cent prices and empty names',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    const id = db.insert('price_list_item', { name: 'Labour', unit: 'day', unit_price: 4500 });
+    same(db.get('SELECT unit_price, deleted_at FROM price_list_item WHERE id = ?', [id]), { unit_price: 4500, deleted_at: null }, 'saved');
+    throws(() => db.insert('price_list_item', { name: 'x', unit: '', unit_price: -1 }), 'a negative price');
+    throws(() => db.insert('price_list_item', { name: 'x', unit: '', unit_price: 1.5 }), 'a part-cent price');
+    throws(() => db.insert('price_list_item', { name: ' ', unit: '', unit_price: 1 }), 'an empty name');
+    db.close();
+  },
+});
