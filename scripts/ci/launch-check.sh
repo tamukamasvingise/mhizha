@@ -333,11 +333,25 @@ for mode in light dark; do
   capture "$mode-invoice-check-end"
   { has "$mode-invoice-check" 'Total US\$40\.50' || has "$mode-invoice-check-end" 'Total US\$40\.50'; } &&
     pass "$mode: the Total is after the Discount" || fail "$mode: the Total is after the Discount"
+  # The Draft preview: its pages marked DRAFT, with nothing to share.
+  tap 'Preview the Invoice' || fail "$mode: tap Preview the Invoice"
+  wait_for 'marked DRAFT' && pass "$mode: the Draft previews marked DRAFT" || fail "$mode: the Draft previews marked DRAFT"
+  sleep 3
+  capture "$mode-invoice-preview"
+  has "$mode-invoice-preview" 'Share' && fail "$mode: the Draft preview offers no Share" || pass "$mode: the Draft preview offers no Share"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'Check and issue' && to_end || fail "$mode: back from the preview to Check and issue"
   tap 'Issue INV-0001' || fail "$mode: tap Issue"
   capture "$mode-invoice-confirm"
   tap 'Issue INV-0001' || fail "$mode: confirm Issue"
   wait_for 'Unpaid · US\$40\.50' && pass "$mode: the Invoice is issued as INV-0001, Unpaid" || fail "$mode: the Invoice is issued as INV-0001, Unpaid"
+  wait_for 'text="Share PDF"' && pass "$mode: the PDF is made at issue" || fail "$mode: the PDF is made at issue"
   capture "$mode-invoice"
+  tap 'Share PDF' && sleep 3 && capture "$mode-invoice-share" || fail "$mode: tap Share PDF"
+  has "$mode-invoice-share" 'android:id/(chooser|resolver)|com.android.intentresolver|Share INV-0001' &&
+    pass "$mode: Share PDF opens the Share menu" || fail "$mode: Share PDF opens the Share menu"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'Unpaid · US\$40\.50' || fail "$mode: back from the Share menu"
   back_until 'Customers owe you' 3
   capture "$mode-home-owed"
   has "$mode-home-owed" 'Customers owe you US\$40\.50' && pass "$mode: Home shows what Customers owe" || fail "$mode: Home shows what Customers owe"
@@ -401,6 +415,22 @@ fi
 PID=$(adb shell pidof "$PKG" | tr -d "\r")
 [ -n "$PID" ] && adb logcat -d --pid="$PID" -s ReactNativeJS:V | grep 'MHIZHA_DB_CHECKS' > "$OUT/db-checks.txt" 2>/dev/null
 [ -s "$OUT/db-checks.txt" ] && note "  $(sed 's/.*MHIZHA_DB_CHECKS //' "$OUT/db-checks.txt" | head -c 2000)"
+
+# The PDF checks, on the real expo-print and the phone's WebView (spec section 10).
+note ""
+note "## PDF checks on expo-print"
+open_link 'mhizha-test://self-test/pdf'
+if wait_for 'PDF checks:'; then
+  capture pdf-checks
+  RESULT=$(grep -o 'PDF checks: [0-9]* passed, [0-9]* failed' "$OUT/pdf-checks.xml" | head -1)
+  note "  ($RESULT)"
+  echo "$RESULT" | grep -q ' 0 failed' && pass "PDF checks pass on expo-print" || fail "PDF checks pass on expo-print"
+else
+  fail "PDF checks ran (no result in time)"
+fi
+PID=$(adb shell pidof "$PKG" | tr -d "\r")
+[ -n "$PID" ] && adb logcat -d --pid="$PID" -s ReactNativeJS:V | grep 'MHIZHA_PDF_CHECKS' > "$OUT/pdf-checks.txt" 2>/dev/null
+[ -s "$OUT/pdf-checks.txt" ] && note "  $(sed 's/.*MHIZHA_PDF_CHECKS //' "$OUT/pdf-checks.txt" | head -c 2000)"
 
 PID=$(adb shell pidof "$PKG" | tr -d '\r')
 [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/app-logcat.txt" 2>/dev/null

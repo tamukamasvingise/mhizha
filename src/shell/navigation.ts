@@ -68,7 +68,9 @@ export type Sub =
   /** One step of making an Invoice. `id` is the Draft, once there is one. */
   | { screen: 'invoice-step'; step: InvoiceStep; id?: string }
   /** An Issued Document, or a Draft opened from a list. */
-  | { screen: 'document'; id: string };
+  | { screen: 'document'; id: string }
+  /** A Draft's pages as they would print, marked DRAFT. */
+  | { screen: 'preview'; id: string };
 
 /** The steps of making an Invoice, one question each: who, which Job, the lines, then check and issue. */
 export type InvoiceStep = 'who' | 'job' | 'lines' | 'check';
@@ -124,9 +126,11 @@ export function replace(from: Place, sub: Sub): Place {
   return withSubs(from, [...(from.subs ?? []).slice(0, -1), sub]);
 }
 
-/** Closes every step of a Draft (once it is issued or deleted), then opens `then` if given. */
+/** Closes every step and the preview of a Draft (once it is issued or deleted), then opens `then` if given. */
 export function leaveDraft(from: Place, id: string, then?: Sub): Place {
-  const kept = (from.subs ?? []).filter((s) => !(s.screen === 'invoice-step' && (s.id === id || s.id === undefined)));
+  const kept = (from.subs ?? []).filter(
+    (s) => !(s.screen === 'invoice-step' && (s.id === id || s.id === undefined)) && !(s.screen === 'preview' && s.id === id),
+  );
   return withSubs(from, then ? [...kept, then] : kept);
 }
 

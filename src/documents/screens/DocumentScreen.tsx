@@ -1,12 +1,14 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AccessibilityInfo, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { discountLabel, formatQuantity, formatUsd } from '../../core';
 import { customerOwes } from '../../ledger';
 import { addressLine } from '../../people';
+import { invoicePdf, shareInvoicePdf } from '../../pdf/files';
 import type { Nav } from '../../people/screens/common';
 import { useDb } from '../../shell/Records';
 import { longDate, longDateTime } from '../../setup/dates';
 import { List, Row, Section } from '../../ui/forms';
-import { SubTopBar, styles as parts } from '../../ui/parts';
+import { Button, SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, size, space, type } from '../../ui/tokens';
 import { STATUS_WORDS, useDocuments } from './common';
@@ -49,6 +51,8 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
           <Text style={[parts.body, { color: c.label }]}>{`${f.customer.name} · ${f.job.title}`}</Text>
         </View>
 
+        <PdfPart id={id} number={inv.number} />
+
         <List>
           {facts.map(([k, v], i) => (
             <Row key={k} first={i === 0} title={v} subtitle={k} label={`${k}: ${v}`} />
@@ -89,6 +93,65 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
   );
 }
 
+type PdfState = 'making' | 'ready' | 'failed';
+
+/** The PDF, made once at issue: Share once it is ready; what went wrong if it could not be made or sent. */
+function PdfPart({ id, number }: { id: string; number: string }) {
+  const c = useColours();
+  const db = useDb();
+  const d = useDocuments();
+  const [state, setState] = useState<PdfState>(() => (d.issued(id).pdfFileId ? 'ready' : 'making'));
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const make = useCallback(() => {
+    setState(d.issued(id).pdfFileId ? 'ready' : 'making');
+    setProblem(null);
+    let live = true;
+    invoicePdf(db, d, id).then(
+      () => live && setState('ready'),
+      (e: unknown) => {
+        db.logError('invoice pdf', e);
+        if (!live) return;
+        setState('failed');
+        const text = `The PDF of ${number} could not be made. Tap Try again.`;
+        setProblem(text);
+        AccessibilityInfo.announceForAccessibility(text);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [d, db, id, number]);
+  useEffect(make, [make]);
+
+  const share = () => {
+    setProblem(null);
+    shareInvoicePdf(db, d, id).catch((e: unknown) => {
+      db.logError('share pdf', e);
+      const text = 'The PDF could not be shared. Try again; if it keeps happening, send a problem report from Settings.';
+      setProblem(text);
+      AccessibilityInfo.announceForAccessibility(text);
+    });
+  };
+
+  return (
+    <View style={styles.pdf}>
+      {state === 'ready' ? <Button primary label="Share PDF" onPress={share} /> : null}
+      {state === 'making' ? (
+        <Text accessibilityLiveRegion="polite" style={[parts.body, { color: c.label }]}>
+          Making the PDF…
+        </Text>
+      ) : null}
+      {problem ? (
+        <Text accessibilityLiveRegion="polite" style={[parts.small, styles.strong, { color: c.bad }]}>
+          {`! ${problem}`}
+        </Text>
+      ) : null}
+      {state === 'failed' ? <Button label="Try again" onPress={make} /> : null}
+    </View>
+  );
+}
+
 function Line({ k, v }: { k: string; v: string }) {
   const c = useColours();
   return (
@@ -103,6 +166,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   main: { padding: space.s4, paddingBottom: space.s8, gap: space.s4 },
   head: { gap: space.s1 },
+  pdf: { gap: space.s2 },
   number: { fontSize: type.l, lineHeight: lineHeight(type.l), fontWeight: '700' },
   strong: { fontWeight: '600' },
   amount: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600', fontVariant: ['tabular-nums'], textAlign: 'right' },

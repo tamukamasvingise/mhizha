@@ -105,4 +105,10 @@ describe('making an Invoice step by step', () => {
     expect(leaveDraft(place, 'd1').subs).toEqual([customer]);
     expect(leaveDraft(place, 'd1', { screen: 'document', id: 'd1' }).subs).toEqual([customer, { screen: 'document', id: 'd1' }]);
   });
+
+  it('leaving the Draft also closes its preview', () => {
+    let place = open(selectTab(start, 'documents'), step('check', 'd1'));
+    place = open(place, { screen: 'preview', id: 'd1' });
+    expect(leaveDraft(place, 'd1').subs ?? []).toEqual([]);
+  });
 });

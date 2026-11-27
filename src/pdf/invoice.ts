@@ -355,3 +355,20 @@ export function invoiceHtml(p: InvoicePrint, a: PrintAssets): { html: string; pa
     `<style>${css(p, a)}</style></head><body>${sections.join('')}</body></html>`;
   return { html, pages: total };
 }
+
+/**
+ * The same pages for showing on the phone's screen (the Draft preview): each
+ * page scaled to fit `width` pixels less `gap` each side, with `gap` between
+ * pages, on the screen's own background.
+ */
+export function screenHtml(html: string, width: number, gap: number, background: string): string {
+  const pagePx = (PAGE.width * 4) / 3;
+  const zoom = Math.max(0.1, (width - 2 * gap) / pagePx);
+  return html
+    .replace('<meta charset="utf-8">', '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">')
+    .replace(
+      '</style>',
+      `html,body{background:${background}}body{padding:${gap / zoom}px 0}` +
+        `.page{zoom:${zoom.toFixed(4)};margin:0 auto ${gap / zoom}px}</style>`,
+    );
+}

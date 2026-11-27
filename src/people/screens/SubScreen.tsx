@@ -1,5 +1,6 @@
 import { DocumentScreen } from '../../documents/screens/DocumentScreen';
 import { InvoiceStepScreen } from '../../documents/screens/InvoiceSteps';
+import { PreviewScreen } from '../../documents/screens/PreviewScreen';
 import type { Sub } from '../../shell/navigation';
 import type { Nav } from './common';
 import { CustomerForm } from './CustomerForm';
@@ -25,5 +26,7 @@ export function SubScreen({ sub, nav }: { sub: Sub; nav: Nav }) {
       return <InvoiceStepScreen step={sub.step} id={sub.id} nav={nav} />;
     case 'document':
       return <DocumentScreen id={sub.id} nav={nav} />;
+    case 'preview':
+      return <PreviewScreen id={sub.id} nav={nav} />;
   }
 }

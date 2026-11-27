@@ -530,11 +530,12 @@ function CheckStep({ draft, nav, onChange }: { draft: Draft; nav: Nav; onChange:
       {problems.business ? <ProblemText text={problems.business} /> : null}
 
       <Button primary label={`Issue ${number}`} onPress={() => setSheet('issue')} />
+      <Button label="Preview the Invoice" onPress={() => nav.open({ screen: 'preview', id: draft.id })} />
       <Button label="Delete Draft" onPress={() => setSheet('delete')} />
 
       <Sheet visible={sheet === 'issue'} title={`Issue ${number}?`} onClose={() => setSheet(null)}>
         <Text style={[parts.body, { color: c.fg }]}>
-          {`${customer.name} will owe you ${formatUsd(draft.totals.total)}. The Invoice is dated today, ${longDate(today)}, and can no longer be changed or deleted.`}
+          {`${customer.name} will owe you ${formatUsd(draft.totals.total)}. The Invoice is dated today, ${longDate(today)}, and can no longer be changed or deleted. Its PDF is made once, ready to share.`}
         </Text>
         <Button primary label={`Issue ${number}`} onPress={issue} />
       </Sheet>

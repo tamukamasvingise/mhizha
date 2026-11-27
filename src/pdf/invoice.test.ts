@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBusiness } from '../setup/store';
-import { invoiceHtml, type InvoicePrint } from './invoice';
+import { invoiceHtml, screenHtml, type InvoicePrint } from './invoice';
 
 // The Invoice PDF is checked through the page it is made from: the HTML that
 // expo-print turns into the PDF, one block per A4 page.
@@ -228,5 +228,15 @@ describe('the Business look', () => {
     expect(plain).not.toContain('class="wm"');
     const marked = invoiceHtml({ ...invoice, business: { ...business, watermark: true } }, { logo, signature: null, fonts: false }).html;
     expect(marked).toContain(`<img class="wm" src="${logo}"`);
+  });
+});
+
+describe('the Draft preview on screen', () => {
+  it('fits each page to the screen width, on the screen background', () => {
+    const shown = screenHtml(invoiceHtml({ ...invoice, number: null }, noAssets).html, 360, 16, '#F6F7F7');
+    expect(shown).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    // A4 is 793 CSS pixels wide; 360 less 16 each side is 328.
+    expect(shown).toMatch(/\.page\{zoom:0\.413\d;/);
+    expect(shown).toContain('html,body{background:#F6F7F7}');
   });
 });

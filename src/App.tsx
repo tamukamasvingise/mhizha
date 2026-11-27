@@ -7,13 +7,14 @@ import type { OpenResult } from './db';
 import { openAppDatabase } from './db/appDatabase';
 import { ProblemBoundary, UnexpectedProblem } from './shell/Problem';
 import { Records } from './shell/Records';
-import { SelfTest } from './shell/SelfTest';
+import { PdfSelfTest, SelfTest } from './shell/SelfTest';
 import { Shell } from './shell/Shell';
 import { Start } from './setup/Start';
 
 // Test builds answer these links from the emulator job.
 const selfTestLinks = Constants.expoConfig?.extra?.selfTest === true;
 const DB_CHECKS = 'mhizha-test://self-test/db';
+const PDF_CHECKS = 'mhizha-test://self-test/pdf';
 const SHOW_ERROR = 'mhizha-test://self-test/error';
 const CHECK_FAILED = 'mhizha-test://self-test/check-failed';
 
@@ -55,6 +56,7 @@ export default function App() {
   let screen: ReactNode;
   if (failed) screen = <UnexpectedProblem db={records.db} />;
   else if (link === DB_CHECKS) screen = <SelfTest />;
+  else if (link === PDF_CHECKS) screen = <PdfSelfTest />;
   else
     screen = (
       <Records opened={records} failCheckForTest={link === CHECK_FAILED}>
