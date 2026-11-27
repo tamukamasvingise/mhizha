@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { callLink, whatsappLink } from './contact';
+import { callLink, whatsappFor, whatsappLink } from './contact';
 
 describe('calling and WhatsApp', () => {
   it('calls the number as typed, without spaces or brackets', () => {
@@ -17,5 +17,11 @@ describe('calling and WhatsApp', () => {
   it('has no link for an empty number', () => {
     expect(callLink(' ')).toBeNull();
     expect(whatsappLink('')).toBeNull();
+  });
+
+  it("uses the Customer's WhatsApp number, or the first phone when none is given", () => {
+    expect(whatsappFor({ whatsapp: '071 987 6543', phones: ['077 123 4567'] })).toBe('071 987 6543');
+    expect(whatsappFor({ whatsapp: ' ', phones: ['077 123 4567', '0242 700 000'] })).toBe('077 123 4567');
+    expect(whatsappFor({ whatsapp: '', phones: [] })).toBe('');
   });
 });

@@ -3,10 +3,26 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, BackHandler, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Mark } from '../ui/Icon';
+import { Row } from '../ui/forms';
 import { Button, EmptyState, IconButton, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
-import { back, newChoices, openSettings, selectTab, start, tabs, type Place, type TabId } from './navigation';
+import { SubScreen } from '../people/screens/SubScreen';
+import { CustomersTab } from '../people/screens/CustomersTab';
+import {
+  back,
+  current,
+  newChoices,
+  open,
+  openSettings,
+  replace,
+  selectTab,
+  start,
+  tabs,
+  type Place,
+  type Sub,
+  type TabId,
+} from './navigation';
 
 // The app shell: top bar with the Mhizha mark and Settings, the current tab,
 // the New button and the four bottom tabs.
@@ -26,6 +42,21 @@ export function Shell() {
     });
     return () => sub.remove();
   }, [place]);
+
+  const nav = {
+    open: (sub: Sub) => setPlace((p) => open(p, sub)),
+    replace: (sub: Sub) => setPlace((p) => replace(p, sub)),
+    back: () => setPlace((p) => back(p) as Place),
+  };
+  const sub = current(place);
+  if (sub) {
+    return (
+      <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
+        <View style={{ height: insets.top, backgroundColor: c.surface }} />
+        <SubScreen key={JSON.stringify(place.subs)} sub={sub} nav={nav} />
+      </View>
+    );
+  }
 
   if (place.screen === 'settings') {
     return (
@@ -53,12 +84,20 @@ export function Shell() {
       </TopBar>
       <View style={local.content}>
         <ScrollView contentContainerStyle={local.main}>
-          <EmptyState title={tab.empty.title} body={tab.empty.body} />
+          {tab.id === 'customers' ? <CustomersTab nav={nav} /> : <EmptyState title={tab.empty.title} body={tab.empty.body} />}
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
       </View>
       <TabBar current={place.tab} onSelect={(id) => setPlace(selectTab(place, id))} bottom={insets.bottom} />
-      <NewSheet visible={newOpen} onClose={() => setNewOpen(false)} bottom={insets.bottom} />
+      <NewSheet
+        visible={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCustomer={() => {
+          setNewOpen(false);
+          nav.open({ screen: 'customer-form' });
+        }}
+        bottom={insets.bottom}
+      />
     </View>
   );
 }
@@ -110,7 +149,17 @@ function NewButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function NewSheet({ visible, onClose, bottom }: { visible: boolean; onClose: () => void; bottom: number }) {
+function NewSheet({
+  visible,
+  onClose,
+  onCustomer,
+  bottom,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCustomer: () => void;
+  bottom: number;
+}) {
   const c = useColours();
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -135,16 +184,20 @@ function NewSheet({ visible, onClose, bottom }: { visible: boolean; onClose: () 
             Make something new
           </Text>
           <View style={[local.list, { borderColor: c.line }]}>
-            {newChoices.map((choice, i) => (
-              <View
-                key={choice}
-                accessible
-                style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
-              >
-                <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
-                <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
-              </View>
-            ))}
+            {newChoices.map((choice, i) =>
+              choice === 'Customer' ? (
+                <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
+              ) : (
+                <View
+                  key={choice}
+                  accessible
+                  style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
+                >
+                  <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
+                  <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
+                </View>
+              ),
+            )}
           </View>
           <Button label="Close" onPress={onClose} />
         </View>

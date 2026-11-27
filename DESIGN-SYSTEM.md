@@ -61,6 +61,13 @@ Colour rules:
 - Problem screen (unexpected errors, records that could not be opened or updated): focused, no top bar, tabs or New button. The mark and name, a 24/700 title saying what happened, a `label` line saying what to do, then Restart (primary) and Send a problem report.
 - Bottom sheet: `scrim`, `surface`, top radius 16, padding 16, a bold title, then its list, then Close. Slides up; fades instead when the phone asks for reduced motion.
 - List: `surface`, 1px `line` border, radius 8; rows min 56, padding 12, title 16/600, subtitle 14 `label`.
+- Section: a 14/600 `label` heading with an optional small button at its right, then its list or a `label` line saying what goes there.
+- Small button: min 44, radius 8, 1px `input` border, `surface`, optional 18 icon, 16/600 text. For actions beside a heading (Add Job) and Call / WhatsApp.
+- Choice: pills min 44, radius 999; the chosen one `sel` with a `brand` border, `selFg` bold text and a "✓ " prefix; read out as radio buttons.
+- Date field: looks like a text field, shows the long date ("27 November 2026") or "Not set" in `label`, with a calendar icon; opens the phone's calendar.
+- Customers tab: a search field (name or phone), then the Customers by name with their first Site and "Follow up due". "Show archived" appears once one is archived.
+- Customer screen (sub screen): kind, the name at 24/700, Call and WhatsApp; then Follow up on, Jobs, Notes, Sites, Documents, Contact details, and Change details / Archive at the end.
+- Job screen (sub screen): Customer and Site, the title at 24/700, its status in words ("✓ Done. Work finished 20 November 2026."), Mark Job Done (primary) and Mark Job Dropped, or Open the Job again. Done asks for the date work finished in a sheet: today by default, no later day.
 
 ## Rule changes
 

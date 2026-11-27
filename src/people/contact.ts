@@ -26,3 +26,8 @@ export function whatsappLink(raw: string): string | null {
   if (raw.trim() === '') return null;
   return `https://wa.me/${internationalDigits(raw)}`;
 }
+
+/** The number to WhatsApp a Customer on: their WhatsApp number, or else their first phone. */
+export function whatsappFor(c: { whatsapp: string; phones: readonly string[] }): string {
+  return c.whatsapp.trim() || c.phones[0]?.trim() || '';
+}

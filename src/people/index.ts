@@ -10,6 +10,11 @@ import type { Db, Row, SqlValue } from '../db';
 export type Address = { lines: string; suburb: string; city: string; province: string; country: string };
 export const noAddress: Address = { lines: '', suburb: '', city: '', province: '', country: '' };
 
+/** An address on one line, as a subtitle shows it; empty when nothing was given. */
+export function addressLine(a: Address): string {
+  return [a.lines, a.suburb, a.city, a.province, a.country].map((x) => x.trim()).filter(Boolean).join(', ');
+}
+
 export type CustomerKind = 'person' | 'organisation';
 
 export type CustomerDetails = {

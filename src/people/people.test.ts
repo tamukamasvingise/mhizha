@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openDatabase, type Db } from '../db';
 import { nodePlatform } from '../db/node';
-import { InputError, noAddress, people, type NewCustomer, type People } from '.';
+import { addressLine, InputError, noAddress, people, type NewCustomer, type People } from '.';
 
 let n = 0;
 const bytes = (k: number) => {
@@ -48,6 +48,14 @@ describe('Customers', () => {
     const sites = p.sites(id);
     expect(sites).toHaveLength(1);
     expect(sites[0]).toMatchObject({ name: 'Main site', address: harare, contactName: '', archived: false });
+  });
+});
+
+describe('addresses', () => {
+  it('shows on one line, leaving out the parts not given', () => {
+    expect(addressLine(harare)).toBe('4 Acacia Close, Borrowdale, Harare, Harare, Zimbabwe');
+    expect(addressLine({ ...noAddress, city: 'Ruwa' })).toBe('Ruwa');
+    expect(addressLine(noAddress)).toBe('');
   });
 });
 
