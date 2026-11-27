@@ -65,4 +65,18 @@ CREATE TABLE error_log (
       );
     },
   },
+  {
+    to: 2,
+    name: 'price list',
+    run(ctx) {
+      ctx.exec(`
+CREATE TABLE price_list_item (
+  ${recordColumns({ deletable: true })},
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  unit TEXT NOT NULL DEFAULT '',
+  unit_price INTEGER NOT NULL CHECK (unit_price >= 0)
+) STRICT;
+`);
+    },
+  },
 ];

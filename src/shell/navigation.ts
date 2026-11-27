@@ -54,7 +54,8 @@ export const tabs: readonly Tab[] = [
 /** What the New button offers, in this order. */
 export const newChoices = ['Quotation', 'Invoice', 'Payment', 'Customer'] as const;
 
-export type Place = { tab: TabId; screen: 'tab' | 'settings' };
+/** `prices` is the Price list, a sub screen of Settings. */
+export type Place = { tab: TabId; screen: 'tab' | 'settings' | 'prices' };
 
 export const start: Place = { tab: 'home', screen: 'tab' };
 
@@ -66,8 +67,13 @@ export function openSettings(from: Place): Place {
   return { tab: from.tab, screen: 'settings' };
 }
 
-/** The phone's back button: Settings closes, other tabs go Home, Home exits. */
+export function openPriceList(from: Place): Place {
+  return { tab: from.tab, screen: 'prices' };
+}
+
+/** The phone's back button: the Price list goes to Settings, Settings closes, other tabs go Home, Home exits. */
 export function back(from: Place): Place | 'exit' {
+  if (from.screen === 'prices') return { tab: from.tab, screen: 'settings' };
   if (from.screen === 'settings') return { tab: from.tab, screen: 'tab' };
   if (from.tab !== 'home') return start;
   return 'exit';
