@@ -38,6 +38,17 @@ wait_for() {
   return 1
 }
 
+# back_until <text> <n>: press Back one at a time until the screen shows the text (at most n presses).
+back_until() {
+  for _ in $(seq 1 "$2"); do
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    adb shell cat /sdcard/ui.xml 2>/dev/null | grep -q "$1" && return 0
+  done
+  return 1
+}
+
 # Tap the centre of the first node whose content-desc or text is exactly $1.
 tap() {
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
@@ -130,8 +141,8 @@ for mode in light dark; do
   tap 'Add to Price list' && capture "$mode-price-add-errors" || fail "$mode: tap Add to Price list"
   has "$mode-price-add-errors" "Enter the item's name" &&
     pass "$mode: an item with no name is refused, saying why" || fail "$mode: an item with no name is refused, saying why"
-  adb shell input keyevent KEYCODE_BACK
-  adb shell input keyevent KEYCODE_BACK
+  # Back closes the keyboard (if it is up), then the sheet, then the Price list.
+  back_until 'Documents and money' 4
   capture "$mode-settings-again"
   has "$mode-settings-again" 'text="Documents and money"' &&
     pass "$mode: back from the Price list returns to Settings" || fail "$mode: back from the Price list returns to Settings"
