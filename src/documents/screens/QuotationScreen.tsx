@@ -64,6 +64,7 @@ export function QuotationScreen({ id, nav }: { id: string; nav: Nav }) {
     ['Valid until', longDate(q.validUntil)],
   ];
   if (q.depositAsked) facts.push(['Deposit asked', formatUsd(q.depositAsked)]);
+  if (q.depositHeld > 0) facts.push(['Deposit held', `${formatUsd(q.depositHeld)}, applied when you issue an Invoice from it`]);
   if (q.leadTime) facts.push(['Lead time', q.leadTime]);
 
   const open = q.status === 'issued' || q.status === 'expired' || q.status === 'declined';
@@ -105,6 +106,9 @@ export function QuotationScreen({ id, nav }: { id: string; nav: Nav }) {
             </>
           ) : null}
           {q.status === 'accepted' ? <Button primary label="Make an Invoice" onPress={makeInvoice} /> : null}
+          {q.status === 'accepted' && q.remaining - q.depositHeld > 0 ? (
+            <Button label="Record Deposit" onPress={() => nav.open({ screen: 'payment', customerId: q.customerId, quotationId: id })} />
+          ) : null}
           {open || (q.status === 'accepted' && !invoiced) ? (
             <Button label={q.draftRevisionId ? 'Go on with the Draft Revision' : 'Make a Revision'} onPress={revise} />
           ) : null}
@@ -175,9 +179,24 @@ export function QuotationScreen({ id, nav }: { id: string; nav: Nav }) {
       <DeclineSheet visible={sheet === 'decline'} q={q} onClose={() => setSheet(null)} onDone={(date) => attempt(() => d.decline(id, date), `${q.number} marked Declined.`)} />
       <Sheet visible={sheet === 'undo'} title="Take back Accepted?" onClose={() => setSheet(null)}>
         <Text style={[parts.body, { color: c.fg }]}>{`${q.number} goes back to waiting for an answer. Nothing is invoiced from it yet.`}</Text>
+        <DepositMoves q={q} />
         <Button primary label="Take back Accepted" onPress={() => attempt(() => d.undoAccept(id), `${q.number} is waiting for an answer again.`)} />
       </Sheet>
       <CancelSheet visible={sheet === 'cancel'} q={q} onClose={() => setSheet(null)} onDone={(reason) => attempt(() => d.cancelQuotation(id, reason), `${q.number} cancelled.`)} />
+    </View>
+  );
+}
+
+/** Before taking back Accepted, declining or cancelling: the Deposit held on it moves to the Customer's Credit. */
+function DepositMoves({ q }: { q: Quotation }) {
+  const c = useColours();
+  if (q.depositHeld === 0) return null;
+  return (
+    <View accessible style={[styles.notice, { backgroundColor: c.surface, borderColor: c.line }]}>
+      <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`The ${formatUsd(q.depositHeld)} Deposit moves to Credit`}</Text>
+      <Text style={[parts.small, { color: c.label }]}>
+        It stays the Customer's money, held for them. You can apply it to another Invoice or refund it.
+      </Text>
     </View>
   );
 }
@@ -242,6 +261,7 @@ function DeclineSheet({ visible, q, onClose, onDone }: { visible: boolean; q: Qu
   return (
     <Sheet visible={visible} title={`Mark ${q.number} Declined`} onClose={onClose}>
       <Text style={[parts.body, { color: c.fg }]}>It stays in your records, and can still be marked Accepted if the Customer changes their mind.</Text>
+      <DepositMoves q={q} />
       <DateField label="Date declined" value={date} min={q.issueDate} max={today} onChange={setDate} />
       <Button primary label="Mark Declined" onPress={() => onDone(date)} />
     </Sheet>
@@ -257,6 +277,7 @@ function CancelSheet({ visible, q, onClose, onDone }: { visible: boolean; q: Quo
       <Text style={[parts.body, { color: c.fg }]}>
         For a Quotation issued by mistake. It stays in your records marked Cancelled, and its number is never used again.
       </Text>
+      <DepositMoves q={q} />
       <TextField label="Why is it cancelled?" hint='For example "Sent to the wrong Customer"' value={reason} onChange={setReason} error={error} />
       <Button
         danger

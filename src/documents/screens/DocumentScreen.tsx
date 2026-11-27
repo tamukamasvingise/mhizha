@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { discountLabel, formatQuantity, formatUsd } from '../../core';
 import { customerOwes } from '../../ledger';
-import { appliedTo } from '../../payments';
+import { appliedTo, depositsAppliedTo } from '../../payments';
 import { ReceiptScreen } from '../../payments/screens/ReceiptScreen';
 import { addressLine } from '../../people';
 import { documentPdf, shareDocumentPdf } from '../../pdf/files';
@@ -39,6 +39,8 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
   const owes = customerOwes(db, inv.customerId);
   const paid = appliedTo(db, id);
   const left = inv.total - paid;
+  const deposits = depositsAppliedTo(db, id);
+  const paidMoney = paid - deposits.reduce((n, x) => n + x.amount, 0);
   const facts: [string, string][] = [
     ['Issued', longDateTime(inv.issuedAt)],
     ['Due', longDate(inv.dueDate)],
@@ -89,7 +91,10 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
         <LinesAndTotals doc={inv} />
         {paid > 0 ? (
           <View style={styles.totals}>
-            <Line k="Paid" v={`−${formatUsd(paid)}`} />
+            {deposits.map((x) => (
+              <Line key={x.receiptNumber} k={`Deposit applied (${x.receiptNumber})`} v={`−${formatUsd(x.amount)}`} />
+            ))}
+            {paidMoney > 0 ? <Line k="Paid" v={`−${formatUsd(paidMoney)}`} /> : null}
             <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
               <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Left to pay</Text>
               <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(left)}</Text>
