@@ -95,11 +95,12 @@ describe("Discount shared across several Invoices from one Quotation", () => {
   const q = { discount: 1000, quotationSubtotal: 30000 };
 
   it("each takes Discount x Invoice Subtotal / Quotation Subtotal, and the last the leftover cents", () => {
-    const first = discountShare({ ...q, invoiceSubtotal: 10000, alreadyTaken: 0, last: false });
-    const second = discountShare({ ...q, invoiceSubtotal: 10000, alreadyTaken: first, last: false });
+    const first = discountShare({ ...q, invoiceSubtotal: 10000, subtotalBefore: 0, alreadyTaken: 0, last: false });
+    const second = discountShare({ ...q, invoiceSubtotal: 10000, subtotalBefore: 10000, alreadyTaken: first, last: false });
     const third = discountShare({
       ...q,
       invoiceSubtotal: 10000,
+      subtotalBefore: 20000,
       alreadyTaken: first + second,
       last: true,
     });
@@ -107,13 +108,36 @@ describe("Discount shared across several Invoices from one Quotation", () => {
   });
 
   it("never adds up to more than the Discount, even when invoicing goes over", () => {
-    const first = discountShare({ ...q, invoiceSubtotal: 20000, alreadyTaken: 0, last: false });
-    const second = discountShare({ ...q, invoiceSubtotal: 20000, alreadyTaken: first, last: false });
+    const first = discountShare({ ...q, invoiceSubtotal: 20000, subtotalBefore: 0, alreadyTaken: 0, last: false });
+    const second = discountShare({ ...q, invoiceSubtotal: 20000, subtotalBefore: 20000, alreadyTaken: first, last: false });
     expect(first).toBe(667);
     expect(second).toBe(333);
   });
 
+  it("leaves enough for a last Invoice whose Subtotal is smaller than the leftover cents", () => {
+    // found by fast-check: four large Invoices rounding down, then a last Invoice of 1 cent
+    const subs = [241931, 745546, 489640, 484261, 1];
+    const quotationSubtotal = subs.reduce((a, b) => a + b, 0);
+    const discount = Math.floor((quotationSubtotal * 604) / 1000);
+    let taken = 0;
+    let before = 0;
+    subs.forEach((invoiceSubtotal, i) => {
+      const share = discountShare({
+        discount,
+        quotationSubtotal,
+        invoiceSubtotal,
+        subtotalBefore: before,
+        alreadyTaken: taken,
+        last: i === subs.length - 1,
+      });
+      expect(share).toBeLessThanOrEqual(invoiceSubtotal);
+      taken += share;
+      before += invoiceSubtotal;
+    });
+    expect(taken).toBe(discount);
+  });
+
   it("is never above the Invoice's own Subtotal", () => {
-    expect(discountShare({ ...q, invoiceSubtotal: 200, alreadyTaken: 0, last: true })).toBe(200);
+    expect(discountShare({ ...q, invoiceSubtotal: 200, subtotalBefore: 0, alreadyTaken: 0, last: true })).toBe(200);
   });
 });
