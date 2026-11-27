@@ -24,7 +24,7 @@ import type { Db, Row } from '../db';
 import { lastRecordedAt, postEntry } from '../ledger';
 import { InputError, people, type Address, type CustomerKind } from '../people';
 import type { PriceItem } from '../prices/priceList';
-import { longDate, TIME_ZONE, todayAt } from '../setup/dates';
+import { longDateTime, TIME_ZONE, todayAt } from '../setup/dates';
 import { businessDetails, documentCounters, formatNumber, type BusinessDetails, type DocumentType } from '../setup/store';
 
 export type LineInput = {
@@ -123,12 +123,6 @@ function totalsOf(lines: readonly LineInput[], discount: Discount | null): Draft
     const plain = documentTotals({ lines });
     return { ...plain, error: e.message };
   }
-}
-
-/** "27 November 2026, 14:00" in the Business's time zone. */
-function harareTime(iso: string): string {
-  const t = new Date(Date.parse(iso) + 2 * 60 * 60 * 1000).toISOString();
-  return `${longDate(t.slice(0, 10))}, ${t.slice(11, 16)}`;
 }
 
 export function documents(db: Db, clock: () => number) {
@@ -304,7 +298,7 @@ export function documents(db: Db, clock: () => number) {
         const problems: Record<string, string> = {};
         const last = lastRecordedAt(db);
         if (last !== null && issuedAt < last)
-          problems.clock = `The phone's clock is earlier than your last record (${harareTime(last)}). Set the phone's date and time right, then issue.`;
+          problems.clock = `The phone's clock is earlier than your last record (${longDateTime(last)}). Set the phone's date and time right, then issue.`;
         if (draft.jobId === null) problems.job = 'Pick the Job this Invoice is for.';
         else {
           const jp = jobProblem(draft.customerId, draft.jobId);

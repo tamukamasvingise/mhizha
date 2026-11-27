@@ -2,9 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { BackHandler, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDb } from '../shell/Records';
-import { Button, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
+import { Button, TopBar, TopBarTitle } from '../ui/parts';
+import { StepFoot, StepHead } from '../ui/steps';
 import { useColours } from '../ui/theme';
-import { lineHeight, radius, size, space, type } from '../ui/tokens';
+import { space } from '../ui/tokens';
 import {
   ContactForm,
   FormError,
@@ -117,21 +118,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
       </TopBar>
       <KeyboardAvoidingView behavior="padding" style={local.root}>
         <ScrollView key={step.id} keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
-          <View
-            style={local.steps}
-            accessible
-            accessibilityLabel={`Step ${n + 1} of ${steps.length}`}
-          >
-            {steps.map((s, i) => (
-              <View key={s.id} style={[local.segment, { backgroundColor: i <= n ? c.brand : c.line }]} />
-            ))}
-          </View>
-          <Text style={[parts.small, { color: c.label }]} importantForAccessibility="no">
-            {`Step ${n + 1} of ${steps.length}`}
-          </Text>
-          <Text accessibilityRole="header" style={[local.question, { color: c.fg }]}>
-            {step.question}
-          </Text>
+          <StepHead n={n + 1} of={steps.length} question={step.question} />
           <Lead>{LEADS[step.id]}</Lead>
           <StepBody key={step.id} id={step.id} form={form} />
           {step.id === 'lock' ? (
@@ -142,20 +129,10 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
           ) : null}
           <FormError text={form.errors.form} />
         </ScrollView>
-        {step.id !== 'lock' || n > 0 ? (
-          <View style={[local.foot, { backgroundColor: c.surface, borderTopColor: c.line }]}>
-            {n > 0 ? (
-              <View style={local.grow}>
-                <Button label="Back" onPress={() => setN(n - 1)} />
-              </View>
-            ) : null}
-            {step.id !== 'lock' ? (
-              <View style={local.grow}>
-                <Button primary label={last ? 'Finish' : 'Next'} onPress={next} />
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+        <StepFoot
+          onBack={n > 0 ? () => setN(n - 1) : undefined}
+          next={step.id !== 'lock' ? { label: last ? 'Finish' : 'Next', onPress: next } : undefined}
+        />
       </KeyboardAvoidingView>
     </View>
   );
@@ -164,10 +141,5 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 const local = StyleSheet.create({
   root: { flex: 1 },
   main: { padding: space.s4, gap: space.s4 },
-  steps: { flexDirection: 'row', gap: space.s1 },
-  segment: { flex: 1, height: size.stepBar, borderRadius: radius.r },
-  question: { fontSize: type.l, lineHeight: lineHeight(type.l), fontWeight: '700' },
   lockActions: { gap: space.s2 },
-  foot: { flexDirection: 'row', gap: space.s2, padding: space.s4, borderTopWidth: size.hairline },
-  grow: { flex: 1 },
 });

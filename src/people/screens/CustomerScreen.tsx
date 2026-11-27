@@ -1,6 +1,10 @@
 import { useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { formatUsd } from '../../core';
 import { longDate, shortDate, today } from '../../dates';
+import { DocumentList, useDocuments } from '../../documents/screens/common';
+import { customerOwes } from '../../ledger';
+import { useDb } from '../../shell/Records';
 import { DateField, List, Row, Section, SmallButton, useToast } from '../../ui/forms';
 import { TextField } from '../../ui/fields';
 import { Button, Sheet, SubTopBar, styles as parts } from '../../ui/parts';
@@ -17,6 +21,8 @@ import { jobStatusWord } from './JobScreen';
 export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const p = usePeople();
+  const db = useDb();
+  const d = useDocuments();
   const toast = useToast();
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [showArchivedJobs, setShowArchivedJobs] = useState(false);
@@ -31,6 +37,12 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const phone = x.phones[0] ?? '';
   const whatsapp = whatsappFor(x);
   const failed = (m: string) => toast.show(m);
+  const docs = d.list({ customerId: id });
+  const owes = customerOwes(db, id);
+  const newInvoice = () => {
+    const draftId = d.newInvoice(id);
+    nav.open({ screen: 'invoice-step', step: 'job', id: draftId });
+  };
 
   const setFollowUp = (date: string) => {
     p.setFollowUp(id, date);
@@ -73,6 +85,9 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           <Text accessibilityRole="header" style={[local.name, { color: c.fg }]}>
             {x.name}
           </Text>
+          {owes > 0 ? (
+            <Text style={[parts.body, local.owes, { color: c.fg }]}>{`Owes you ${formatUsd(owes)}`}</Text>
+          ) : null}
           {phone || whatsapp ? (
             <View style={styles.buttons}>
               {phone ? (
@@ -185,8 +200,15 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           </List>
         </Section>
 
-        <Section title="Documents">
-          <Text style={[parts.body, { color: c.label }]}>No Documents yet. Quotations, Invoices and Receipts for this Customer show here.</Text>
+        <Section
+          title="Documents"
+          action={x.archived ? null : <SmallButton icon="plus" label="New Invoice" onPress={newInvoice} />}
+        >
+          {docs.length > 0 ? (
+            <DocumentList items={docs} nav={nav} showCustomer={false} />
+          ) : (
+            <Text style={[parts.body, { color: c.label }]}>No Documents yet. Quotations, Invoices and Receipts for this Customer show here.</Text>
+          )}
         </Section>
 
         <Section title="Contact details">
@@ -282,4 +304,5 @@ function NoteSheet({
 const local = StyleSheet.create({
   head: { gap: space.s2 },
   name: { fontSize: type.l, lineHeight: lineHeight(type.l), fontWeight: '700' },
+  owes: { fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

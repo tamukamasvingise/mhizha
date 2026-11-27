@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, dateFromParts, longDate, todayAt } from './dates';
+import { addMonths, dateFromParts, longDate, longDateTime, todayAt } from './dates';
 import { nextPeriodStart, periodContaining, periodLabel, type PeriodSetting } from './period';
 
 describe('plain dates', () => {
@@ -61,5 +61,12 @@ describe('Accounting period', () => {
   it('is described in plain words', () => {
     expect(periodLabel(monthly)).toBe('Every month, year starts in January');
     expect(periodLabel(quarterlyFromMarch)).toBe('Every 3 months, year starts in March');
+  });
+});
+
+describe('a recorded time as the User reads it', () => {
+  it('shows the date and time in Harare, two hours ahead of UTC', () => {
+    expect(longDateTime('2026-11-27T12:00:00.000Z')).toBe('27 November 2026, 14:00');
+    expect(longDateTime('2026-11-27T23:30:00.000Z')).toBe('28 November 2026, 01:30');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, current, open, openPriceList, openReport, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
+import { back, current, leaveDraft, open, openPriceList, openReport, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -77,5 +77,25 @@ describe('the problem report screen', () => {
   it('opens from the check banner on a tab and goes back to that tab', () => {
     const tab = selectTab(start, 'customers');
     expect(back(openReport(tab))).toEqual(tab);
+  });
+});
+
+describe('making an Invoice step by step', () => {
+  const customer = { screen: 'customer', id: 'c1' } as const;
+  const step = (s: 'who' | 'job' | 'lines' | 'check', id?: string) =>
+    id ? ({ screen: 'invoice-step', step: s, id } as const) : ({ screen: 'invoice-step', step: s } as const);
+
+  it('each step opens on top, so back goes to the step before', () => {
+    let place = open(selectTab(start, 'customers'), customer);
+    place = open(place, step('job', 'd1'));
+    place = open(place, step('lines', 'd1'));
+    expect(current(back(place) as typeof place)).toEqual(step('job', 'd1'));
+  });
+
+  it('leaving the Draft closes every step of it and can open what it became', () => {
+    let place = open(selectTab(start, 'customers'), customer);
+    for (const s of ['who', 'job', 'lines', 'check'] as const) place = open(place, step(s, 'd1'));
+    expect(leaveDraft(place, 'd1').subs).toEqual([customer]);
+    expect(leaveDraft(place, 'd1', { screen: 'document', id: 'd1' }).subs).toEqual([customer, { screen: 'document', id: 'd1' }]);
   });
 });

@@ -9,8 +9,11 @@ import { InputError, people, type Address, type People } from '..';
 
 // What the Customer, Site and Job screens share.
 
-/** How a sub screen moves: open another on top, swap itself for another, or go back. */
-export type Nav = { open(sub: Sub): void; replace(sub: Sub): void; back(): void };
+/**
+ * How a sub screen moves: open another on top, swap itself for another, go back,
+ * or leave a Draft (closing all its steps) and open what it became.
+ */
+export type Nav = { open(sub: Sub): void; replace(sub: Sub): void; back(): void; leave(draftId: string, then?: Sub): void };
 
 /** Customers, Sites and Jobs over the open records, with today on the phone. */
 export function usePeople(): People {

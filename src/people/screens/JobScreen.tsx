@@ -1,7 +1,8 @@
 import { useReducer, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { longDate, shortDate, today } from '../../dates';
-import { DateField, Section, useToast } from '../../ui/forms';
+import { DocumentList, useDocuments } from '../../documents/screens/common';
+import { DateField, Section, SmallButton, useToast } from '../../ui/forms';
 import { Button, Sheet, SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, space, type } from '../../ui/tokens';
@@ -20,11 +21,18 @@ export function jobStatusWord(j: Job): string {
 export function JobScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const p = usePeople();
+  const d = useDocuments();
   const toast = useToast();
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const [sheet, setSheet] = useState<'done' | 'drop' | null>(null);
   const j = p.job(id);
   const customer = p.customer(j.customerId);
+  const docs = d.list({ jobId: id });
+  const newInvoice = () => {
+    const draftId = d.newInvoice(j.customerId);
+    d.setJob(draftId, id);
+    nav.open({ screen: 'invoice-step', step: 'lines', id: draftId });
+  };
 
   const reopen = () => {
     p.reopen(id);
@@ -64,8 +72,15 @@ export function JobScreen({ id, nav }: { id: string; nav: Nav }) {
           <Button label="Open the Job again" onPress={reopen} />
         )}
 
-        <Section title="Documents for this Job">
-          <Text style={[parts.body, { color: c.label }]}>None yet. Quotations and Invoices for this Job show here.</Text>
+        <Section
+          title="Documents for this Job"
+          action={j.archived ? null : <SmallButton icon="plus" label="New Invoice" onPress={newInvoice} />}
+        >
+          {docs.length > 0 ? (
+            <DocumentList items={docs} nav={nav} showCustomer={false} />
+          ) : (
+            <Text style={[parts.body, { color: c.label }]}>None yet. Quotations and Invoices for this Job show here.</Text>
+          )}
         </Section>
 
         <View style={styles.group}>

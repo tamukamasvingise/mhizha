@@ -19,7 +19,7 @@ export const tabs: readonly Tab[] = [
     icon: 'home',
     empty: {
       title: 'Welcome to Mhizha',
-      body: 'Tap New to add your first Customer, then make a Quotation for them.',
+      body: 'Tap New to add your first Customer, then make an Invoice for them.',
     },
   },
   {
@@ -64,7 +64,15 @@ export type Sub =
   | { screen: 'customer-form'; id?: string }
   | { screen: 'site-form'; customerId: string; id?: string }
   | { screen: 'job-form'; customerId: string; id?: string }
-  | { screen: 'job'; id: string };
+  | { screen: 'job'; id: string }
+  /** One step of making an Invoice. `id` is the Draft, once there is one. */
+  | { screen: 'invoice-step'; step: InvoiceStep; id?: string }
+  /** An Issued Document, or a Draft opened from a list. */
+  | { screen: 'document'; id: string };
+
+/** The steps of making an Invoice, one question each: who, which Job, the lines, then check and issue. */
+export type InvoiceStep = 'who' | 'job' | 'lines' | 'check';
+export const invoiceSteps: readonly InvoiceStep[] = ['who', 'job', 'lines', 'check'];
 
 /** Where the User is: a tab, Settings (with `page`, one of its setup pages), the Price list or the problem report, and any sub screens opened over it, last on top. */
 /** `prices` is the Price list, a sub screen of Settings. `report` is the problem report; `from` says whether it was opened from a tab or Settings. */
@@ -110,6 +118,12 @@ export function open(from: Place, sub: Sub): Place {
 /** Swaps the top sub screen for another, as when a saved form shows what it made. */
 export function replace(from: Place, sub: Sub): Place {
   return withSubs(from, [...(from.subs ?? []).slice(0, -1), sub]);
+}
+
+/** Closes every step of a Draft (once it is issued or deleted), then opens `then` if given. */
+export function leaveDraft(from: Place, id: string, then?: Sub): Place {
+  const kept = (from.subs ?? []).filter((s) => !(s.screen === 'invoice-step' && (s.id === id || s.id === undefined)));
+  return withSubs(from, then ? [...kept, then] : kept);
 }
 
 /** The sub screen on top, or null when a tab or Settings shows. */

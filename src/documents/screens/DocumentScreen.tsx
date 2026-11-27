@@ -1,0 +1,114 @@
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { discountLabel, formatQuantity, formatUsd } from '../../core';
+import { customerOwes } from '../../ledger';
+import { addressLine } from '../../people';
+import type { Nav } from '../../people/screens/common';
+import { useDb } from '../../shell/Records';
+import { longDate, longDateTime } from '../../setup/dates';
+import { List, Row, Section } from '../../ui/forms';
+import { SubTopBar, styles as parts } from '../../ui/parts';
+import { useColours } from '../../ui/theme';
+import { lineHeight, size, space, type } from '../../ui/tokens';
+import { STATUS_WORDS, useDocuments } from './common';
+
+// One Issued Invoice: its number and status, what it printed (from its frozen
+// copy), its lines and totals, and what the Customer owes now.
+
+export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
+  const c = useColours();
+  const db = useDb();
+  const d = useDocuments();
+  const inv = d.issued(id);
+  const f = inv.frozen;
+  const owes = customerOwes(db, inv.customerId);
+  const facts: [string, string][] = [
+    ['Issued', longDateTime(inv.issuedAt)],
+    ['Due', longDate(inv.dueDate)],
+  ];
+  if (inv.orderNo) facts.push(['Order No.', inv.orderNo]);
+  facts.push(['Site', [f.site.name, addressLine(f.site.address)].filter(Boolean).join(' · ')]);
+
+  return (
+    <View style={styles.screen}>
+      <SubTopBar title={inv.number} onBack={nav.back} />
+      <ScrollView contentContainerStyle={styles.main}>
+        <View style={styles.head}>
+          <Text style={[parts.small, { color: c.label }]}>Invoice</Text>
+          <Text accessibilityRole="header" style={[styles.number, { color: c.fg }]}>
+            {inv.number}
+          </Text>
+          <Text
+            style={[
+              parts.body,
+              styles.strong,
+              { color: inv.status === 'overdue' ? c.bad : c.fg },
+            ]}
+          >
+            {`${STATUS_WORDS[inv.status]} · ${formatUsd(inv.total)}`}
+          </Text>
+          <Text style={[parts.body, { color: c.label }]}>{`${f.customer.name} · ${f.job.title}`}</Text>
+        </View>
+
+        <List>
+          {facts.map(([k, v], i) => (
+            <Row key={k} first={i === 0} title={v} subtitle={k} label={`${k}: ${v}`} />
+          ))}
+        </List>
+
+        <Section title="Lines">
+          <List>
+            {inv.lines.map((l, i) => (
+              <Row
+                key={l.id}
+                first={i === 0}
+                title={l.description}
+                subtitle={`${formatQuantity(l.quantity)}${l.unit ? ` ${l.unit}` : ''} × ${formatUsd(l.unitPrice)}`}
+                right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
+              />
+            ))}
+          </List>
+        </Section>
+
+        <View style={styles.totals}>
+          <Line k="Subtotal" v={formatUsd(inv.subtotal)} />
+          {inv.discount > 0 && inv.discountKind ? <Line k={discountLabel(inv.discountKind)} v={`−${formatUsd(inv.discount)}`} /> : null}
+          <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
+            <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Total</Text>
+            <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(inv.total)}</Text>
+          </View>
+          <Text style={[parts.small, { color: c.label }]}>{inv.sumInWords}</Text>
+        </View>
+
+        <Section title={f.customer.name}>
+          <Text style={[parts.body, { color: c.fg }]}>
+            {owes > 0 ? `Owes you ${formatUsd(owes)} in all.` : 'Owes you nothing now.'}
+          </Text>
+        </Section>
+      </ScrollView>
+    </View>
+  );
+}
+
+function Line({ k, v }: { k: string; v: string }) {
+  const c = useColours();
+  return (
+    <View style={styles.totalRow}>
+      <Text style={[parts.body, styles.grow, { color: c.label }]}>{k}</Text>
+      <Text style={[styles.amount, { color: c.fg }]}>{v}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  main: { padding: space.s4, paddingBottom: space.s8, gap: space.s4 },
+  head: { gap: space.s1 },
+  number: { fontSize: type.l, lineHeight: lineHeight(type.l), fontWeight: '700' },
+  strong: { fontWeight: '600' },
+  amount: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600', fontVariant: ['tabular-nums'], textAlign: 'right' },
+  totals: { gap: space.s1 },
+  totalRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.s3 },
+  totalLine: { borderTopWidth: size.hairline, paddingTop: space.s2, marginTop: space.s1 },
+  totalText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
+  grow: { flex: 1 },
+});

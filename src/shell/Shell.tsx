@@ -4,6 +4,7 @@ import { BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Mark } from '../ui/Icon';
 import { CustomersTab } from '../people/screens/CustomersTab';
+import { DocumentsTab, HomeTab } from '../documents/screens/Tabs';
 import { SubScreen } from '../people/screens/SubScreen';
 import { priceItems } from '../prices/priceList';
 import { PriceListScreen } from '../prices/PriceListScreen';
@@ -17,6 +18,7 @@ import { useCheckFailed, useDb } from './Records';
 import {
   back,
   current,
+  leaveDraft,
   newChoices,
   open,
   openPriceList,
@@ -56,6 +58,7 @@ export function Shell() {
     open: (sub: Sub) => setPlace((p) => open(p, sub)),
     replace: (sub: Sub) => setPlace((p) => replace(p, sub)),
     back: () => setPlace((p) => back(p) as Place),
+    leave: (draftId: string, then?: Sub) => setPlace((p) => leaveDraft(p, draftId, then)),
   };
   const sub = current(place);
   if (sub) {
@@ -108,7 +111,15 @@ export function Shell() {
       <View style={local.content}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
           <CheckBanner onPress={() => setPlace(openReport(place))} />
-          {tab.id === 'customers' ? <CustomersTab nav={nav} /> : <EmptyState title={tab.empty.title} body={tab.empty.body} />}
+          {tab.id === 'customers' ? (
+            <CustomersTab nav={nav} />
+          ) : tab.id === 'home' ? (
+            <HomeTab />
+          ) : tab.id === 'documents' ? (
+            <DocumentsTab nav={nav} />
+          ) : (
+            <EmptyState title={tab.empty.title} body={tab.empty.body} />
+          )}
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
       </View>
@@ -119,6 +130,10 @@ export function Shell() {
         onCustomer={() => {
           setNewOpen(false);
           nav.open({ screen: 'customer-form' });
+        }}
+        onInvoice={() => {
+          setNewOpen(false);
+          nav.open({ screen: 'invoice-step', step: 'who' });
         }}
       />
     </View>
@@ -172,7 +187,17 @@ function NewButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function NewSheet({ visible, onClose, onCustomer }: { visible: boolean; onClose: () => void; onCustomer: () => void }) {
+function NewSheet({
+  visible,
+  onClose,
+  onCustomer,
+  onInvoice,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCustomer: () => void;
+  onInvoice: () => void;
+}) {
   const c = useColours();
   return (
     <Sheet visible={visible} title="Make something new" onClose={onClose}>
@@ -180,6 +205,8 @@ function NewSheet({ visible, onClose, onCustomer }: { visible: boolean; onClose:
         {newChoices.map((choice, i) =>
           choice === 'Customer' ? (
             <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
+          ) : choice === 'Invoice' ? (
+            <Row key={choice} first={i === 0} title="Invoice" subtitle="Bill a Customer for a Job" onPress={onInvoice} />
           ) : (
             <View
               key={choice}

@@ -56,3 +56,9 @@ export function dayBefore(date: PlainDate): PlainDate {
 export function monthStart(date: PlainDate): PlainDate {
   return `${date.slice(0, 7)}-01`;
 }
+
+/** "27 November 2026, 14:00": a recorded time (UTC, ISO 8601) shown in Harare. */
+export function longDateTime(iso: string): string {
+  const t = new Date(Date.parse(iso) + HARARE_OFFSET_MS).toISOString();
+  return `${longDate(t.slice(0, 10))}, ${t.slice(11, 16)}`;
+}
