@@ -85,7 +85,7 @@ async function makeInvoicePdf(db: Db, docs: Documents, id: string): Promise<stri
   const name = `${printed.number}.pdf`;
   const kept = new File(dir, name);
   if (kept.exists) kept.delete(); // left by an earlier try that was never recorded
-  made.move(kept);
+  await made.move(kept);
   const checksum = await kept.digest('SHA-256');
   const size = kept.size;
   return db.transaction(() => {
