@@ -58,6 +58,7 @@ Settled while charting:
 - [Test strategy](issues/24-test-strategy.md): Vitest and fast-check on every push for money, ledger, rules, upgrades from every release and Backup round trips; emulator smoke run on pull requests and tags; one arm APK; release key only on approved, all-green `v*` tags; S22 checklist before each release.
 - [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): local error log with IDs only; plain error screen; ledger checks on every open with a red banner; a plain-text problem report sent through the Share menu; a Backup only with the User's agreement.
 - [Handover and support](issues/26-handover-and-support.md): public and self-service; GitHub Pages site with a direct `mhizha.apk` download, install guide (Auto Blocker off, then on), tutorials and built-in Help; daily update check with a Home banner; support through GitHub issues; no User holds the key; developer verification not now.
+- [Re-entering records after a restore](issues/28-re-entering-records-after-a-restore.md): each missing number is entered again under its own number and original date from the Customer's copy, or marked Lost with a reason; no number reused.
 
 ## Not yet specified
 

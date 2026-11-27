@@ -58,6 +58,9 @@ _Avoid_: Discount
 **Cancelled**: An Issued Document withdrawn because of a mistake. Stays visible; any replacement gets a new number.
 _Avoid_: Deleted, void
 
+**Lost**: A Document number issued after the last Backup that could not be entered again after a Restore. The number stays used and carries no money.
+_Avoid_: Missing, void, gap
+
 **Discount**: An agreed reduction of a Quotation or Invoice, taken before VAT.
 _Avoid_: Write-off
 
