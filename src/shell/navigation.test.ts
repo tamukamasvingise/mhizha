@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, openReport, openSettings, selectTab, start, tabs } from './navigation';
+import { back, openPriceList, openReport, openSettings, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -18,6 +18,12 @@ describe('the shell', () => {
     const settings = openSettings(selectTab(start, 'customers'));
     expect(settings.screen).toBe('settings');
     expect(back(settings)).toEqual({ tab: 'customers', screen: 'tab' });
+  });
+
+  it('opens the Price list from Settings and goes back to Settings', () => {
+    const prices = openPriceList(openSettings(selectTab(start, 'money')));
+    expect(prices).toEqual({ tab: 'money', screen: 'prices' });
+    expect(back(prices)).toEqual({ tab: 'money', screen: 'settings' });
   });
 
   it('goes back to Home from another tab, then lets the phone close the app', () => {
