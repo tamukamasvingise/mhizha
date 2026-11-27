@@ -1,19 +1,23 @@
 import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, BackHandler, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Mark } from '../ui/Icon';
+import { CustomersTab } from '../people/screens/CustomersTab';
+import { SubScreen } from '../people/screens/SubScreen';
+import { priceItems } from '../prices/priceList';
+import { PriceListScreen } from '../prices/PriceListScreen';
+import { EmptyState, IconButton, Sheet, SubTopBar, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { Row } from '../ui/forms';
-import { Button, EmptyState, IconButton, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
-import { SubScreen } from '../people/screens/SubScreen';
-import { CustomersTab } from '../people/screens/CustomersTab';
+import { useDb } from './Records';
 import {
   back,
   current,
   newChoices,
   open,
+  openPriceList,
   openSettings,
   replace,
   selectTab,
@@ -58,11 +62,16 @@ export function Shell() {
     );
   }
 
-  if (place.screen === 'settings') {
+  if (place.screen !== 'tab') {
+    const goBack = () => setPlace(back(place) as Place);
     return (
       <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
         <View style={{ height: insets.top, backgroundColor: c.surface }} />
-        <Settings onBack={() => setPlace(back(place) as Place)} />
+        {place.screen === 'prices' ? (
+          <PriceListScreen onBack={goBack} />
+        ) : (
+          <Settings onBack={goBack} onPriceList={() => setPlace(openPriceList(place))} />
+        )}
       </View>
     );
   }
@@ -83,7 +92,7 @@ export function Shell() {
         )}
       </TopBar>
       <View style={local.content}>
-        <ScrollView contentContainerStyle={local.main}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
           {tab.id === 'customers' ? <CustomersTab nav={nav} /> : <EmptyState title={tab.empty.title} body={tab.empty.body} />}
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
@@ -96,7 +105,6 @@ export function Shell() {
           setNewOpen(false);
           nav.open({ screen: 'customer-form' });
         }}
-        bottom={insets.bottom}
       />
     </View>
   );
@@ -149,76 +157,60 @@ function NewButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function NewSheet({
-  visible,
-  onClose,
-  onCustomer,
-  bottom,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onCustomer: () => void;
-  bottom: number;
-}) {
+function NewSheet({ visible, onClose, onCustomer }: { visible: boolean; onClose: () => void; onCustomer: () => void }) {
   const c = useColours();
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-  }, []);
   return (
-    <Modal
-      visible={visible}
-      transparent
-      statusBarTranslucent
-      navigationBarTranslucent
-      animationType={reduceMotion ? 'fade' : 'slide'}
-      onRequestClose={onClose}
-    >
-      <View style={[local.scrim, { backgroundColor: c.scrim }]}>
-        <Tappable style={local.scrimTap} onPress={onClose} importantForAccessibility="no" accessible={false} />
-        <View
-          accessibilityViewIsModal
-          style={[local.sheet, { backgroundColor: c.surface, paddingBottom: space.s4 + bottom }]}
-        >
-          <Text accessibilityRole="header" style={[local.sheetTitle, { color: c.fg }]}>
-            Make something new
-          </Text>
-          <View style={[local.list, { borderColor: c.line }]}>
-            {newChoices.map((choice, i) =>
-              choice === 'Customer' ? (
-                <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
-              ) : (
-                <View
-                  key={choice}
-                  accessible
-                  style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
-                >
-                  <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
-                  <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
-                </View>
-              ),
-            )}
-          </View>
-          <Button label="Close" onPress={onClose} />
-        </View>
+    <Sheet visible={visible} title="Make something new" onClose={onClose}>
+      <View style={[local.list, { borderColor: c.line }]}>
+        {newChoices.map((choice, i) =>
+          choice === 'Customer' ? (
+            <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
+          ) : (
+            <View
+              key={choice}
+              accessible
+              style={[local.item, i > 0 && { borderTopWidth: size.hairline, borderTopColor: c.line }]}
+            >
+              <Text style={[local.itemTitle, { color: c.fg }]}>{choice}</Text>
+              <Text style={[parts.small, { color: c.label }]}>Comes in a later test build</Text>
+            </View>
+          ),
+        )}
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
-function Settings({ onBack }: { onBack: () => void }) {
+function Settings({ onBack, onPriceList }: { onBack: () => void; onPriceList: () => void }) {
   const c = useColours();
+  const db = useDb();
+  const [itemCount] = useState(() => priceItems(db).length);
   const version = Constants.expoConfig?.version ?? '';
   const build = String(Constants.expoConfig?.extra?.build ?? '');
+  const countText = itemCount === 0 ? 'No items yet' : itemCount === 1 ? '1 item' : `${itemCount} items`;
   return (
     <>
-      <View style={[parts.topBar, local.subBar, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
-        <IconButton icon="back" label="Back" onPress={onBack} />
-        <View style={parts.topBarTitle}>
-          <TopBarTitle>Settings</TopBarTitle>
-        </View>
-      </View>
+      <SubTopBar title="Settings" onBack={onBack} />
       <ScrollView contentContainerStyle={local.main}>
+        <View style={local.section}>
+          <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
+            Documents and money
+          </Text>
+          <View style={[local.list, { borderColor: c.line, backgroundColor: c.surface }]}>
+            <Tappable
+              accessibilityRole="button"
+              accessibilityLabel={`Price list, ${countText}`}
+              onPress={onPriceList}
+              style={({ pressed }) => [local.item, local.linkItem, pressed && { backgroundColor: c.tint }]}
+            >
+              <View style={local.itemText}>
+                <Text style={[local.itemTitle, { color: c.fg }]}>Price list</Text>
+                <Text style={[parts.small, { color: c.label }]}>{countText}</Text>
+              </View>
+              <Icon name="next" colour={c.label} px={size.iconS} />
+            </Tappable>
+          </View>
+        </View>
         <View style={local.section}>
           <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
             About
@@ -246,7 +238,6 @@ const local = StyleSheet.create({
   main: { padding: space.s4, paddingBottom: size.fab + space.s8 + space.s4, gap: space.s4 },
   mark: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
   markText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
-  subBar: { paddingLeft: space.s1 },
   tabs: { flexDirection: 'row', borderTopWidth: size.hairline },
   tab: {
     flex: 1,
@@ -277,18 +268,11 @@ const local = StyleSheet.create({
     elevation: elevation.fab,
   },
   fabText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
-  scrim: { flex: 1, justifyContent: 'flex-end' },
-  scrimTap: { flex: 1 },
-  sheet: {
-    borderTopLeftRadius: radius.rL,
-    borderTopRightRadius: radius.rL,
-    padding: space.s4,
-    gap: space.s4,
-  },
-  sheetTitle: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
   section: { gap: space.s2 },
   sectionTitle: { fontSize: type.s, lineHeight: lineHeight(type.s), fontWeight: '600' },
   list: { borderWidth: size.hairline, borderRadius: radius.r, overflow: 'hidden' },
   item: { minHeight: size.topBar, padding: space.s3, justifyContent: 'center', gap: space.s05 },
+  linkItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: space.s3 },
+  itemText: { flex: 1, gap: space.s05 },
   itemTitle: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600' },
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
-# the shell in place, in light and dark, adds a Customer with a Job and marks
-# it Done, shows the problem screen, runs the
+# the shell in place, in light and dark, opens the Price list, adds a Customer
+# with a Job and marks it Done, shows the problem screen, runs the
 # database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
@@ -41,6 +41,12 @@ tap_field() {
   adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
 }
 
+# Close the on-screen keyboard if it is up (back would otherwise close the screen).
+hide_keyboard() {
+  adb shell dumpsys input_method | grep -q 'mInputShown=true' && adb shell input keyevent KEYCODE_BACK
+  sleep 1
+}
+
 # Scroll a screen to its end.
 to_end() { for _ in 1 2 3 4; do adb shell input swipe 360 1000 360 250 200; done; sleep 1; }
 
@@ -50,6 +56,17 @@ wait_for() {
     adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
     adb shell cat /sdcard/ui.xml 2>/dev/null | grep -q "$1" && return 0
     sleep 2
+  done
+  return 1
+}
+
+# back_until <text> <n>: press Back one at a time until the screen shows the text (at most n presses).
+back_until() {
+  for _ in $(seq 1 "$2"); do
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    adb shell cat /sdcard/ui.xml 2>/dev/null | grep -q "$1" && return 0
   done
   return 1
 }
@@ -140,6 +157,17 @@ for mode in light dark; do
   adb shell input keyevent KEYCODE_BACK
   tap Settings && capture "$mode-settings" || fail "$mode: open Settings"
   has "$mode-settings" 'text="Settings"' && pass "$mode: Settings opens" || fail "$mode: Settings opens"
+  tap 'Price list, No items yet' && capture "$mode-prices" || fail "$mode: open the Price list"
+  has "$mode-prices" 'No items yet' && pass "$mode: Price list opens, empty" || fail "$mode: Price list opens, empty"
+  tap 'Add an item' && capture "$mode-price-add" || fail "$mode: open Add an item"
+  tap 'Add to Price list' && capture "$mode-price-add-errors" || fail "$mode: tap Add to Price list"
+  has "$mode-price-add-errors" "Enter the item's name" &&
+    pass "$mode: an item with no name is refused, saying why" || fail "$mode: an item with no name is refused, saying why"
+  # Back closes the keyboard (if it is up), then the sheet, then the Price list.
+  back_until 'Documents and money' 4
+  capture "$mode-settings-again"
+  has "$mode-settings-again" 'text="Documents and money"' &&
+    pass "$mode: back from the Price list returns to Settings" || fail "$mode: back from the Price list returns to Settings"
   adb shell input keyevent KEYCODE_BACK
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
@@ -159,7 +187,7 @@ for mode in light dark; do
     adb shell input swipe 360 250 360 1100 200; adb shell input swipe 360 250 360 1100 200
     tap_field Name && adb shell input text 'Test%sCustomer' || fail "$mode: type a name"
     tap_field 'Phone (optional)' && adb shell input text '0771234567' || fail "$mode: type a phone"
-    adb shell input keyevent KEYCODE_BACK
+    hide_keyboard
     to_end
     tap 'Save Customer' && sleep 1 || fail "$mode: save the Customer"
     adb shell input keyevent KEYCODE_BACK
@@ -173,7 +201,7 @@ for mode in light dark; do
   if [ "$mode" = light ]; then
     tap 'Add Job' && capture "$mode-job-form" || fail "$mode: open New Job"
     adb shell input text 'Kitchen%srewiring'
-    adb shell input keyevent KEYCODE_BACK
+    hide_keyboard
     tap 'Add Job' || fail "$mode: add the Job"
   else
     tap 'Kitchen rewiring, Main site · Open' || fail "$mode: open the Job"
