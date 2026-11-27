@@ -1,8 +1,8 @@
 # Mhizha version 1 spec
 
-Status: draft, assembled 2026-11-27 and updated the same day from the resolved tickets of the [Mhizha v1 map](map.md). Each section links the ticket that holds the full decision; where this page and a ticket disagree, the ticket wins and this page is fixed. Words in capitals (Customer, Invoice, Deposit) mean what [GLOSSARY.md](../../GLOSSARY.md) says. Not reviewed by an accountant or tax adviser.
+Status: ready to build from (owner, 2026-11-27). Assembled from the resolved tickets of the [Mhizha v1 map](map.md). Each section links the ticket that holds the full decision; where this page and a ticket disagree, the ticket wins and this page is fixed. Words in capitals (Customer, Invoice, Deposit) mean what [GLOSSARY.md](../../GLOSSARY.md) says. Not reviewed by an accountant or tax adviser.
 
-One open gap is listed at the end. It is its own ticket; nothing here guesses at it.
+No gaps are open; see the end.
 
 ## 1. What it is
 
@@ -205,6 +205,6 @@ Several users or phones, sync and login; charging VAT and ZIMRA fiscalisation; s
 
 ## 16. Open gaps
 
-This spec is ready to build from once this gap is resolved and folded in here.
+None. This spec is ready to build from.
 
-- [Reminders on real phones](issues/27-reminders-on-real-phones.md): whether follow-up and backup reminders survive phones that kill background work, and what the User must allow. A test is running on the owner's Galaxy S22 Ultra (branch `prototype/reminders-on-real-phones`).
+[Reminders on real phones](issues/27-reminders-on-real-phones.md) was ruled out of scope for now (owner, 2026-11-27). Follow-up and backup reminders are built as described above but are not yet proven on a phone that closes background apps; the reminders line of the release checklist on the Galaxy S22 Ultra checks them before each release. The test app is on branch `prototype/reminders-on-real-phones`.

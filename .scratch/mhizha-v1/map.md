@@ -59,10 +59,11 @@ Settled while charting:
 - [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): local error log with IDs only; plain error screen; ledger checks on every open with a red banner; a plain-text problem report sent through the Share menu; a Backup only with the User's agreement.
 - [Handover and support](issues/26-handover-and-support.md): public and self-service; GitHub Pages site with a direct `mhizha.apk` download, install guide (Auto Blocker off, then on), tutorials and built-in Help; daily update check with a Home banner; support through GitHub issues; no User holds the key; developer verification not now.
 - [Re-entering records after a restore](issues/28-re-entering-records-after-a-restore.md): each missing number is entered again under its own number and original date from the Customer's copy, or marked Lost with a reason; no number reused.
+- [Finish the version 1 spec](issues/29-finish-the-version-1-spec.md): every answer folded into [spec.md](spec.md), no gaps open; marked ready to build from.
 
 ## Not yet specified
 
-Nothing at present: the remaining fog graduated into tickets when the spec was assembled.
+Nothing. The spec is ready to build from.
 
 ## Out of scope
 
@@ -71,5 +72,6 @@ Nothing at present: the remaining fog graduated into tickets when the spec was a
 - Stock, staff, expenses, profit, closing, financial statements and accountant export: later versions; see Accounting foundation.
 - The developer account route after Google's developer verification reaches Zimbabwe: owner's call, see Signing and delivery.
 - Play Store release, iPhone, other currencies, and importing old records.
+- [Reminders on real phones](issues/27-reminders-on-real-phones.md): the multi-day check on the S22 is put off by the owner; reminders stay in version 1, checked before each release.
 - Personal support: only once Mhizha is a paid product; until then GitHub issues, best effort. See [Handover and support](issues/26-handover-and-support.md).
 - [Google Cloud without a domain](issues/16-google-cloud-without-a-domain.md): automatic Google Drive backup is out of version 1, so no Google Cloud project is needed; backup is manual through the Share menu (owner, 2026-11-26).
