@@ -1,4 +1,4 @@
-// The Invoice as an A4 page (spec section 10), in plain TypeScript: the HTML
+// The Invoice and the Quotation as A4 pages (spec section 10), in plain TypeScript: the HTML
 // that expo-print turns into the PDF. expo-print runs with JavaScript off, so
 // the app lays out the pages itself: every block gets the height planned here,
 // later pages get a short "continued" header, and every page is written out
@@ -10,7 +10,23 @@ import { textColourFor } from '../setup/colour';
 import { FONT_DATA } from './fontData';
 import { lineCount, type TextStyle } from './measure';
 
-/** What an Invoice prints. A Draft has no number and prints marked DRAFT. */
+/** What only a Quotation prints: its Revision line and its terms. Values already in words. */
+export type QuotationTerms = {
+  /** "Revision 2 · replaces Rev 1 of 20 Nov 2026", or '' for the first version. */
+  revisionLine: string;
+  /** "30 days, until 27 Dec 2026". */
+  validity: string;
+  validUntil: string;
+  /** "150.00 USD on acceptance", or ''. */
+  deposit: string;
+  leadTime: string;
+};
+
+/**
+ * What an Invoice or, with `quotation`, a Quotation prints. A Draft has no
+ * number and prints marked DRAFT. A Quotation has Terms instead of payment
+ * details, no VAT row and no due date.
+ */
 export type InvoicePrint = {
   number: string | null;
   issueDate: string;
@@ -28,7 +44,10 @@ export type InvoicePrint = {
   discountKind: Discount | null;
   total: Cents;
   sumInWords: string;
+  quotation?: QuotationTerms;
 };
+
+const WORD = (p: InvoicePrint) => (p.quotation ? 'QUOTATION' : 'INVOICE');
 
 /** Pictures as data: URIs (the page is loaded with no address to fetch from), and whether to embed the fonts. */
 export type PrintAssets = { logo: string | null; signature: string | null; fonts: boolean };
@@ -105,23 +124,33 @@ function letterhead(p: InvoicePrint, a: PrintAssets): Block {
 
 function shortHeader(p: InvoicePrint): Block {
   return {
-    html: `<header class="lh-small" style="height:${SHORT_HEAD}pt"><b>${esc(p.business.name)}</b><span>INVOICE ${esc(p.number ?? 'DRAFT')} · continued</span></header>`,
+    html: `<header class="lh-small" style="height:${SHORT_HEAD}pt"><b>${esc(p.business.name)}</b><span>${WORD(p)} ${esc(p.number ?? 'DRAFT')} · continued</span></header>`,
     height: SHORT_HEAD,
   };
 }
 
 function titleBlock(p: InvoicePrint): Block {
-  const meta = filled([
-    ['Invoice No.', p.number ?? ''],
-    ['Date', shortDate(p.issueDate)],
-    ['Due date', shortDate(p.dueDate)],
-    ['Quote ref.', p.quoteRef],
-  ]);
-  const sub = p.number === null ? 'Draft, not issued' : '';
-  const left = 34 + (sub ? 18 : 0);
+  const q = p.quotation;
+  const meta = filled(
+    q
+      ? [
+          ['Quotation No.', p.number ?? ''],
+          ['Date', shortDate(p.issueDate)],
+          ['Valid until', shortDate(q.validUntil)],
+        ]
+      : [
+          ['Invoice No.', p.number ?? ''],
+          ['Date', shortDate(p.issueDate)],
+          ['Due date', shortDate(p.dueDate)],
+          ['Quote ref.', p.quoteRef],
+        ],
+  );
+  const subs = [p.number === null ? 'Draft, not issued' : '', q?.revisionLine ?? ''].filter(Boolean);
+  const sub = subs.join('<br>');
+  const left = 34 + subs.length * 18;
   const inner = Math.max(left, meta.length * 17);
   const html =
-    `<div class="title" data-h="${inner}"><h1>INVOICE${sub ? `<small>${sub}</small>` : ''}</h1>` +
+    `<div class="title" data-h="${inner}"><h1>${WORD(p)}${sub ? `<small>${subs.map(esc).join('<br>')}</small>` : ''}</h1>` +
     `<table class="meta">${meta.map(([k, v]) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`).join('')}</table></div>`;
   return { html, height: 16 + inner + 14 };
 }
@@ -153,7 +182,7 @@ function parties(p: InvoicePrint): Block {
   const inner = 19 + Math.max(kvHeight(who, valueW, f), kvHeight(where, valueW, f));
   const html =
     `<div class="parties" data-h="${inner}">` +
-    `<div><h2>Bill to</h2>${kv(who)}</div><div><h2>Job / Site</h2>${kv(where)}</div></div>`;
+    `<div><h2>${p.quotation ? 'Quotation for' : 'Bill to'}</h2>${kv(who)}</div><div><h2>${p.quotation ? 'Site / Job' : 'Job / Site'}</h2>${kv(where)}</div></div>`;
   return { html, height: inner + 14 };
 }
 
@@ -178,18 +207,27 @@ function lineRow(p: InvoicePrint, i: number): Block {
 function afterTable(p: InvoicePrint): Block {
   const b = p.business;
   const f = b.font;
-  const pay = filled([
-    ['Bank', b.bankName],
-    ['Account name', b.accountName],
-    ['Account No.', b.accountNumber],
-    ['Branch', b.branch],
-    ['Mobile money', b.mobileMoney],
-  ]);
+  const q = p.quotation;
+  const pay = filled(
+    q
+      ? [
+          ['Validity', q.validity],
+          ['Deposit', q.deposit],
+          ['Lead time', q.leadTime],
+        ]
+      : [
+          ['Bank', b.bankName],
+          ['Account name', b.accountName],
+          ['Account No.', b.accountNumber],
+          ['Branch', b.branch],
+          ['Mobile money', b.mobileMoney],
+        ],
+  );
   const left = pay.length ? 15 + kvHeight(pay, AFTER_LEFT - PAY_LABEL, f) : 0;
   const rows: [string, string, string?][] = [['Subtotal', `${usd(p.subtotal)} USD`]];
   if (p.discount > 0 && p.discountKind) rows.push([discountLabel(p.discountKind), `−${usd(p.discount)} USD`]);
-  // Version 1 charges no VAT: the row is printed and left blank, never 0.00.
-  rows.push(['VAT', '', 'vat']);
+  // Version 1 charges no VAT: an Invoice prints the row blank, never 0.00; a Quotation has none.
+  if (!q) rows.push(['VAT', '', 'vat']);
   rows.push(['Total', `${usd(p.total)} USD`, 'big']);
   const words = `Total: ${p.sumInWords}`;
   const wordLines = lineCount(words, AFTER_RIGHT, style(f, 9));
@@ -197,7 +235,7 @@ function afterTable(p: InvoicePrint): Block {
   const inner = Math.max(left, right);
   const html =
     `<div class="after" data-h="${inner}"><div>` +
-    (pay.length ? `<div class="sec">Payment details</div>${kv(pay, 'kv pay')}` : '') +
+    (pay.length ? `<div class="sec">${q ? 'Terms' : 'Payment details'}</div>${kv(pay, 'kv pay')}` : '') +
     `</div><div><table class="totals">` +
     rows
       .map(([k, v, cls]) => `<tr${cls ? ` class="${cls}"` : ''} data-h="${cls === 'big' ? BIG_ROW : TOTAL_ROW}"><td>${esc(k)}</td><td>${esc(v)}</td></tr>`)
@@ -206,9 +244,9 @@ function afterTable(p: InvoicePrint): Block {
   return { html, height: 14 + inner };
 }
 
-function signature(a: PrintAssets): Block {
+function signature(p: InvoicePrint, a: PrintAssets): Block {
   return {
-    html: `<div class="sig" style="height:${SIGNATURE}pt"><div>${a.signature ? `<img src="${a.signature}" alt="">` : ''}Authorised signature</div></div>`,
+    html: `<div class="sig" style="height:${SIGNATURE}pt"><div>${a.signature ? `<img src="${a.signature}" alt="">` : ''}${p.quotation ? 'Prepared by' : 'Authorised signature'}</div></div>`,
     height: SIGNATURE,
   };
 }
@@ -221,7 +259,7 @@ function footer(p: InvoicePrint, page: number, pages: number): { html: string; h
     html:
       `<footer class="foot" data-h="${box}">` +
       (whatLines ? `<div class="what" style="height:${whatLines * 11}pt">${esc(what)}</div>` : '') +
-      `<div class="pg"><span>INVOICE ${esc(p.number ?? 'DRAFT')}</span><span>Page ${page} of ${pages}</span></div></footer>`,
+      `<div class="pg"><span>${WORD(p)} ${esc(p.number ?? 'DRAFT')}</span><span>Page ${page} of ${pages}</span></div></footer>`,
     height: 11 + box,
   };
 }
@@ -330,11 +368,11 @@ function css(p: InvoicePrint, a: PrintAssets): string {
   );
 }
 
-/** The whole Invoice as one HTML page for expo-print (or the Draft preview), and how many A4 pages it has. */
+/** The whole Invoice or Quotation as one HTML page for expo-print (or the Draft preview), and how many A4 pages it has. */
 export function invoiceHtml(p: InvoicePrint, a: PrintAssets): { html: string; pages: number } {
   const plan = planPages(p, a);
   const total = plan.length;
-  const tail = afterTable(p).html + signature(a).html;
+  const tail = afterTable(p).html + signature(p, a).html;
   const watermark = p.business.watermark && a.logo ? `<img class="wm" src="${a.logo}" alt="">` : '';
   const stamp = p.number === null ? '<div class="stamp">DRAFT</div>' : '';
   const sections = plan.map((rows, i) => {
@@ -349,7 +387,7 @@ export function invoiceHtml(p: InvoicePrint, a: PrintAssets): { html: string; pa
       `${footer(p, i + 1, total).html}${stamp}</section>`
     );
   });
-  const title = p.number ?? 'Draft Invoice';
+  const title = p.number ?? (p.quotation ? 'Draft Quotation' : 'Draft Invoice');
   const html =
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title>` +
     `<style>${css(p, a)}</style></head><body>${sections.join('')}</body></html>`;
