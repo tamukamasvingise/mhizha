@@ -1,0 +1,14 @@
+{
+  "name": "mhizha",
+  "private": true,
+  "packageManager": "pnpm@12.23.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "fast-check": "^4.11.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.2"
+  }
+}
