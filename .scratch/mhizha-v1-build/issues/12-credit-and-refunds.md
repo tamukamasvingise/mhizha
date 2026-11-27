@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Overpayment becomes Credit after confirmation
-- [ ] Credit is suggested and applied only when the User agrees, with a "Credit applied" Receipt
-- [ ] Refund: amount up to what is held, date, method, reason; REF numbers and PDF; posts Deposits or Credit held / Money account
-- [ ] Deposits and Credit shown separately on the Customer screen, never set off silently
-- [ ] Credit and Refund events added to the fast-check harness
+- [x] Overpayment becomes Credit after confirmation
+- [x] Credit is suggested and applied only when the User agrees, with a "Credit applied" Receipt
+- [x] Refund: amount up to what is held, date, method, reason; REF numbers and PDF; posts Deposits or Credit held / Money account
+- [x] Deposits and Credit shown separately on the Customer screen, never set off silently
+- [x] Credit and Refund events added to the fast-check harness
