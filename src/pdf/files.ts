@@ -48,7 +48,7 @@ export async function printHtml(html: string): Promise<string> {
 async function printWithRetries(html: string): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     try {
-      const uri = await printHtml(html);
+      const uri = await withTimeout(printHtml(html), PRINT_TIMEOUT_MS);
       const file = new File(uri);
       if (file.exists && file.size > 0) return uri;
       throw new Error('The printed PDF is empty.');
@@ -68,6 +68,19 @@ function pageOf(db: Db, docs: Documents, id: string): { number: string; html: st
   }
   const printed = docs.printable(id);
   return { number: printed.number!, html: invoiceHtml(printed, printAssets(db, printed.business)).html };
+}
+
+// Android 10's WebView now and then never finishes a print; give up on that try and print again.
+const PRINT_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(job: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`The print took more than ${ms / 1000} s.`)), ms);
+    job.then(
+      (v) => (clearTimeout(timer), resolve(v)),
+      (e: unknown) => (clearTimeout(timer), reject(e)),
+    );
+  });
 }
 
 const making = new Map<string, Promise<string>>();

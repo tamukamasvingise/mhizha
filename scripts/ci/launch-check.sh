@@ -379,7 +379,8 @@ for mode in light dark; do
     fail "$mode: Check Payment says which Receipt it issues"
   tap 'Save and issue Receipt' || fail "$mode: tap Save and issue Receipt"
   wait_for 'Received · US\$20\.00' && pass "$mode: the Payment is saved and REC-0001 issued" || fail "$mode: the Payment is saved and REC-0001 issued"
-  if wait_for 'text="Share PDF"'; then pass "$mode: the Receipt PDF is made"; else
+  # A print that never finishes is given up after 30 s and tried again, so allow two waits.
+  if wait_for 'text="Share PDF"' || wait_for 'text="Share PDF"'; then pass "$mode: the Receipt PDF is made"; else
     fail "$mode: the Receipt PDF is made"
     PID=$(adb shell pidof "$PKG" | tr -d '')
     [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/$mode-receipt-logcat.txt" 2>/dev/null
