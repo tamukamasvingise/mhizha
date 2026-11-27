@@ -8,6 +8,8 @@ import { DocumentsTab, HomeTab } from '../documents/screens/Tabs';
 import { SubScreen } from '../people/screens/SubScreen';
 import { priceItems } from '../prices/priceList';
 import { PriceListScreen } from '../prices/PriceListScreen';
+import { payments } from '../payments';
+import { PaymentMethodsScreen } from '../payments/screens/PaymentMethodsScreen';
 import { EmptyState, IconButton, Sheet, SubTopBar, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { Row } from '../ui/forms';
 import { useColours } from '../ui/theme';
@@ -24,6 +26,7 @@ import {
   newChoices,
   open,
   openHelp,
+  openPaymentMethods,
   openPriceList,
   openReport,
   openSettings,
@@ -80,6 +83,8 @@ export function Shell() {
         <View style={{ height: insets.top, backgroundColor: c.surface }} />
         {place.screen === 'prices' ? (
           <PriceListScreen onBack={goBack} />
+        ) : place.screen === 'methods' ? (
+          <PaymentMethodsScreen onBack={goBack} />
         ) : place.screen === 'help' ? (
           <HelpScreen onBack={goBack} onReport={() => setPlace(openReport(place))} />
         ) : place.screen === 'report' ? (
@@ -90,6 +95,7 @@ export function Shell() {
           <Settings
             onBack={goBack}
             onPriceList={() => setPlace(openPriceList(place))}
+            onMethods={() => setPlace(openPaymentMethods(place))}
             onOpen={(page) => setPlace(openSettingsPage(place, page))}
             onReport={() => setPlace(openReport(place))}
             onHelp={() => setPlace(openHelp(place))}
@@ -141,6 +147,10 @@ export function Shell() {
         onInvoice={() => {
           setNewOpen(false);
           nav.open({ screen: 'invoice-step', step: 'who' });
+        }}
+        onPayment={() => {
+          setNewOpen(false);
+          nav.open({ screen: 'payment' });
         }}
       />
     </View>
@@ -199,11 +209,13 @@ function NewSheet({
   onClose,
   onCustomer,
   onInvoice,
+  onPayment,
 }: {
   visible: boolean;
   onClose: () => void;
   onCustomer: () => void;
   onInvoice: () => void;
+  onPayment: () => void;
 }) {
   const c = useColours();
   return (
@@ -212,6 +224,8 @@ function NewSheet({
         {newChoices.map((choice, i) =>
           choice === 'Customer' ? (
             <Row key={choice} first={i === 0} title="Customer" subtitle="A person or organisation you work for" onPress={onCustomer} />
+          ) : choice === 'Payment' ? (
+            <Row key={choice} first={i === 0} title="Payment" subtitle="Money a Customer paid you, with its Receipt" onPress={onPayment} />
           ) : choice === 'Invoice' ? (
             <Row key={choice} first={i === 0} title="Invoice" subtitle="Bill a Customer for a Job" onPress={onInvoice} />
           ) : (
@@ -233,12 +247,14 @@ function NewSheet({
 function Settings({
   onBack,
   onPriceList,
+  onMethods,
   onOpen,
   onReport,
   onHelp,
 }: {
   onBack: () => void;
   onPriceList: () => void;
+  onMethods: () => void;
   onOpen: (page: SettingsPage) => void;
   onReport: () => void;
   onHelp: () => void;
@@ -246,6 +262,13 @@ function Settings({
   const c = useColours();
   const db = useDb();
   const [itemCount] = useState(() => priceItems(db).length);
+  const [methodsText] = useState(() =>
+    payments(db, Date.now)
+      .methods()
+      .filter((m) => !m.hidden)
+      .map((m) => m.name)
+      .join(', '),
+  );
   const version = Constants.expoConfig?.version ?? '';
   const build = String(Constants.expoConfig?.extra?.build ?? '');
   const countText = itemCount === 0 ? 'No items yet' : itemCount === 1 ? '1 item' : `${itemCount} items`;
@@ -256,6 +279,7 @@ function Settings({
         <SetupSettings
           onOpen={onOpen}
           priceList={
+            <>
             <Tappable
               accessibilityRole="button"
               accessibilityLabel={`Price list, ${countText}`}
@@ -268,6 +292,8 @@ function Settings({
               </View>
               <Icon name="next" colour={c.label} px={size.iconS} />
             </Tappable>
+            <Row title="Payment methods" subtitle={methodsText} onPress={onMethods} />
+            </>
           }
         />
         <View style={local.section}>

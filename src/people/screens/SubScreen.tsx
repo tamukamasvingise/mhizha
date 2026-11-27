@@ -1,6 +1,7 @@
 import { DocumentScreen } from '../../documents/screens/DocumentScreen';
 import { InvoiceStepScreen } from '../../documents/screens/InvoiceSteps';
 import { PreviewScreen } from '../../documents/screens/PreviewScreen';
+import { PaymentScreen } from '../../payments/screens/PaymentScreen';
 import type { Sub } from '../../shell/navigation';
 import type { Nav } from './common';
 import { CustomerForm } from './CustomerForm';
@@ -9,7 +10,7 @@ import { JobForm } from './JobForm';
 import { JobScreen } from './JobScreen';
 import { SiteForm } from './SiteForm';
 
-/** The Customer, Site, Job and Document screens opened over a tab. */
+/** The Customer, Site, Job, Document and Payment screens opened over a tab. */
 export function SubScreen({ sub, nav }: { sub: Sub; nav: Nav }) {
   switch (sub.screen) {
     case 'customer':
@@ -28,5 +29,7 @@ export function SubScreen({ sub, nav }: { sub: Sub; nav: Nav }) {
       return <DocumentScreen id={sub.id} nav={nav} />;
     case 'preview':
       return <PreviewScreen id={sub.id} nav={nav} />;
+    case 'payment':
+      return <PaymentScreen customerId={sub.customerId} nav={nav} />;
   }
 }

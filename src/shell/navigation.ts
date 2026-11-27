@@ -70,16 +70,18 @@ export type Sub =
   /** An Issued Document, or a Draft opened from a list. */
   | { screen: 'document'; id: string }
   /** A Draft's pages as they would print, marked DRAFT. */
-  | { screen: 'preview'; id: string };
+  | { screen: 'preview'; id: string }
+  /** Recording a Payment; it asks who paid when `customerId` is not given. */
+  | { screen: 'payment'; customerId?: string };
 
 /** The steps of making an Invoice, one question each: who, which Job, the lines, then check and issue. */
 export type InvoiceStep = 'who' | 'job' | 'lines' | 'check';
 export const invoiceSteps: readonly InvoiceStep[] = ['who', 'job', 'lines', 'check'];
 
 /** Where the User is: a tab, Settings (with `page`, one of its setup pages), the Price list or the problem report, and any sub screens opened over it, last on top. */
-/** `prices` is the Price list and `help` the Help page, sub screens of Settings. `report` is the problem report; `from` says whether it was opened from a tab or Settings. */
+/** `prices` is the Price list, `methods` the Payment methods and `help` the Help page, sub screens of Settings. `report` is the problem report; `from` says whether it was opened from a tab or Settings. */
 export type Place =
-  | { tab: TabId; screen: 'tab' | 'settings' | 'prices' | 'help'; page?: SettingsPage; subs?: readonly Sub[] }
+  | { tab: TabId; screen: 'tab' | 'settings' | 'prices' | 'methods' | 'help'; page?: SettingsPage; subs?: readonly Sub[] }
   | { tab: TabId; screen: 'report'; from: 'tab' | 'settings'; page?: undefined; subs?: undefined };
 
 export const start: Place = { tab: 'home', screen: 'tab' };
@@ -105,6 +107,10 @@ export function openSettingsPage(from: Place, page: SettingsPage): Place {
 
 export function openPriceList(from: Place): Place {
   return { tab: from.tab, screen: 'prices' };
+}
+
+export function openPaymentMethods(from: Place): Place {
+  return { tab: from.tab, screen: 'methods' };
 }
 
 export function openHelp(from: Place): Place {
@@ -143,7 +149,7 @@ export function current(place: Place): Sub | null {
 export function back(from: Place): Place | 'exit' {
   if (from.subs?.length) return withSubs(from, from.subs.slice(0, -1));
   if (from.screen === 'report') return { tab: from.tab, screen: from.from };
-  if (from.screen === 'prices' || from.screen === 'help') return { tab: from.tab, screen: 'settings' };
+  if (from.screen === 'prices' || from.screen === 'methods' || from.screen === 'help') return { tab: from.tab, screen: 'settings' };
   if (from.screen === 'settings' && from.page) return { tab: from.tab, screen: 'settings' };
   if (from.screen === 'settings') return { tab: from.tab, screen: 'tab' };
   if (from.tab !== 'home') return start;

@@ -2,7 +2,8 @@
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
-# and marks it Done, issues an Invoice step by step, opens the problem report,
+# and marks it Done, issues an Invoice step by step, records a part-payment
+# with its Receipt, opens Payment methods, opens the problem report,
 # Updates and Help, and the failed-check banner, shows the problem screen, runs
 # the database checks on the real expo-sqlite, and screenshots every screen for
 # the UI review. Usage: launch-check.sh <apk> <results folder>
@@ -252,6 +253,10 @@ for mode in light dark; do
   capture "$mode-settings-again"
   has "$mode-settings-again" 'text="Documents and money"' &&
     pass "$mode: back from the Price list returns to Settings" || fail "$mode: back from the Price list returns to Settings"
+  tap 'Payment methods, [^"]*' && capture "$mode-settings-methods" || fail "$mode: open Payment methods"
+  has "$mode-settings-methods" 'Switch off the ways you are never paid' && has "$mode-settings-methods" 'text="InnBucks"' &&
+    pass "$mode: Payment methods open from Settings" || fail "$mode: Payment methods open from Settings"
+  back_until 'Documents and money' 2 || fail "$mode: back from Payment methods to Settings"
   adb shell input keyevent KEYCODE_BACK
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
@@ -358,11 +363,39 @@ for mode in light dark; do
     pass "$mode: Share PDF opens the Share menu" || fail "$mode: Share PDF opens the Share menu"
   adb shell input keyevent KEYCODE_BACK
   wait_for 'Unpaid · US\$40\.50' || fail "$mode: back from the Share menu"
+
+  # A part-payment from the Invoice: the amount fills it, Check Payment, then
+  # the Receipt is issued with its PDF and the Invoice is Part-paid.
+  tap 'Record Payment' || fail "$mode: tap Record Payment"
+  wait_for 'What it pays, oldest first' && capture "$mode-payment" || fail "$mode: Record Payment opens"
+  tap_field 'Amount received (US\$)' && adb shell input text '20' || fail "$mode: type the amount received"
+  hide_keyboard
+  capture "$mode-payment-filled"
+  has "$mode-payment-filled" 'INV-0001, [^"]*US\$20\.00 from this Payment' &&
+    pass "$mode: the amount fills the ticked Invoice" || fail "$mode: the amount fills the ticked Invoice"
+  tap 'Check Payment' || fail "$mode: tap Check Payment"
+  wait_for 'Save and issue Receipt' && capture "$mode-payment-check" || fail "$mode: Check Payment opens"
+  has "$mode-payment-check" 'Saving issues Receipt REC-0001' && pass "$mode: Check Payment says which Receipt it issues" ||
+    fail "$mode: Check Payment says which Receipt it issues"
+  tap 'Save and issue Receipt' || fail "$mode: tap Save and issue Receipt"
+  wait_for 'Received · US\$20\.00' && pass "$mode: the Payment is saved and REC-0001 issued" || fail "$mode: the Payment is saved and REC-0001 issued"
+  if wait_for 'text="Share PDF"'; then pass "$mode: the Receipt PDF is made"; else
+    fail "$mode: the Receipt PDF is made"
+    PID=$(adb shell pidof "$PKG" | tr -d '')
+    [ -n "$PID" ] && adb logcat -d --pid="$PID" > "$OUT/$mode-receipt-logcat.txt" 2>/dev/null
+    note "  $(grep -h 'MHIZHA_PDF_ERROR' "$OUT/$mode-receipt-logcat.txt" 2>/dev/null | head -3)"
+  fi
+  capture "$mode-receipt"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'Part-paid · US\$40\.50' && pass "$mode: the Invoice is now Part-paid" || fail "$mode: the Invoice is now Part-paid"
+  capture "$mode-invoice-part-paid"
+
   back_until 'Customers owe you' 3
   capture "$mode-home-owed"
-  has "$mode-home-owed" 'Customers owe you US\$40\.50' && pass "$mode: Home shows what Customers owe" || fail "$mode: Home shows what Customers owe"
+  has "$mode-home-owed" 'Customers owe you US\$20\.50' && pass "$mode: Home shows what Customers owe" || fail "$mode: Home shows what Customers owe"
   tap Documents && capture "$mode-documents-list" || fail "$mode: open Documents"
   has "$mode-documents-list" 'INV-0001' && pass "$mode: the Documents tab lists the Invoice" || fail "$mode: the Documents tab lists the Invoice"
+  has "$mode-documents-list" 'REC-0001' && pass "$mode: the Documents tab lists the Receipt" || fail "$mode: the Documents tab lists the Receipt"
 
   # The problem report from Settings.
   # Help sits below the setup pages and About, so scroll to it.

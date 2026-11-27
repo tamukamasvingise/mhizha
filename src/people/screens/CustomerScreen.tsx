@@ -110,6 +110,7 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           ) : (
             <Text style={[parts.body, { color: c.label }]}>No phone number yet. Tap Change details to add one.</Text>
           )}
+          {owes > 0 ? <Button primary label="Record Payment" onPress={() => nav.open({ screen: 'payment', customerId: id })} /> : null}
         </View>
 
         <View style={styles.group}>

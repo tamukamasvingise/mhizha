@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, current, leaveDraft, open, openHelp, openPriceList, openReport, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
+import { back, current, leaveDraft, open, openHelp, openPaymentMethods, openPriceList, openReport, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -24,6 +24,12 @@ describe('the shell', () => {
     const prices = openPriceList(openSettings(selectTab(start, 'money')));
     expect(prices).toEqual({ tab: 'money', screen: 'prices' });
     expect(back(prices)).toEqual({ tab: 'money', screen: 'settings' });
+  });
+
+  it('opens the Payment methods from Settings and goes back to Settings', () => {
+    const methods = openPaymentMethods(openSettings(selectTab(start, 'home')));
+    expect(methods).toEqual({ tab: 'home', screen: 'methods' });
+    expect(back(methods)).toEqual({ tab: 'home', screen: 'settings' });
   });
 
   it('opens Help from Settings and goes back to Settings', () => {

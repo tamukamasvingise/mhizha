@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { discountLabel, formatQuantity, formatUsd } from '../../core';
 import { customerOwes } from '../../ledger';
+import { appliedTo } from '../../payments';
+import { ReceiptScreen } from '../../payments/screens/ReceiptScreen';
 import { addressLine } from '../../people';
 import { invoicePdf, shareInvoicePdf } from '../../pdf/files';
 import type { Nav } from '../../people/screens/common';
@@ -14,15 +16,23 @@ import { lineHeight, size, space, type } from '../../ui/tokens';
 import { STATUS_WORDS, useDocuments } from './common';
 
 // One Issued Invoice: its number and status, what it printed (from its frozen
-// copy), its lines and totals, and what the Customer owes now.
+// copy), its lines and totals, what has been paid, what the Customer owes now,
+// and Record Payment while money is owing. A Receipt has its own screen.
 
 export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
+  const d = useDocuments();
+  return d.issued(id).type === 'REC' ? <ReceiptScreen id={id} nav={nav} /> : <InvoiceScreen id={id} nav={nav} />;
+}
+
+function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const db = useDb();
   const d = useDocuments();
   const inv = d.issued(id);
   const f = inv.frozen;
   const owes = customerOwes(db, inv.customerId);
+  const paid = appliedTo(db, id);
+  const left = inv.total - paid;
   const facts: [string, string][] = [
     ['Issued', longDateTime(inv.issuedAt)],
     ['Due', longDate(inv.dueDate)],
@@ -51,6 +61,9 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
           <Text style={[parts.body, { color: c.label }]}>{`${f.customer.name} · ${f.job.title}`}</Text>
         </View>
 
+        {left > 0 ? (
+          <Button primary label="Record Payment" onPress={() => nav.open({ screen: 'payment', customerId: inv.customerId })} />
+        ) : null}
         <PdfPart id={id} number={inv.number} />
 
         <List>
@@ -81,6 +94,15 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
             <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(inv.total)}</Text>
           </View>
           <Text style={[parts.small, { color: c.label }]}>{inv.sumInWords}</Text>
+          {paid > 0 ? (
+            <>
+              <Line k="Paid" v={`−${formatUsd(paid)}`} />
+              <View style={[styles.totalRow, styles.totalLine, { borderTopColor: c.line }]}>
+                <Text style={[styles.totalText, styles.grow, { color: c.fg }]}>Left to pay</Text>
+                <Text style={[styles.totalText, styles.amount, { color: c.fg }]}>{formatUsd(left)}</Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         <Section title={f.customer.name}>
@@ -96,7 +118,7 @@ export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
 type PdfState = 'making' | 'ready' | 'failed';
 
 /** The PDF, made once at issue: Share once it is ready; what went wrong if it could not be made or sent. */
-function PdfPart({ id, number }: { id: string; number: string }) {
+export function PdfPart({ id, number }: { id: string; number: string }) {
   const c = useColours();
   const db = useDb();
   const d = useDocuments();

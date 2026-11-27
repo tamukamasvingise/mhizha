@@ -37,7 +37,7 @@ export const tutorials: readonly HelpTopic[] = [
       'Enter the amount, the date you received it and how they paid.',
       'Tick the Invoices it pays. The money fills the oldest first; change the amounts if they paid differently.',
       'Money paid before the work goes as a Deposit on their accepted Quotation. Money left over becomes Credit once you confirm.',
-      'Check and confirm. Mhizha issues a Receipt you can share with the Customer.',
+      'Tap Check Payment, then Save and issue Receipt. Mhizha issues a Receipt you can share with the Customer.',
     ],
   },
   {

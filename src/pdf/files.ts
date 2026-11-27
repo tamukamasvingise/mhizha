@@ -1,5 +1,5 @@
-// Invoice PDFs on the phone (spec section 10). App only: the page itself is
-// made in invoice.ts. An Issued Invoice's PDF is made once, kept in the app's
+// Document PDFs on the phone (spec section 10): Invoices and Receipts. App
+// only: the pages themselves are made in invoice.ts and receipt.ts. An Issued Document's PDF is made once, kept in the app's
 // own `pdfs` folder with its checksum, and never made again or overwritten;
 // sharing sends that same file. A Draft is only ever previewed.
 import { Directory, File, Paths } from 'expo-file-system';
@@ -8,7 +8,9 @@ import * as Sharing from 'expo-sharing';
 import type { Db } from '../db';
 import type { Documents } from '../documents';
 import { fileRecord, saveFile, type BusinessDetails } from '../setup/store';
+import { payments } from '../payments';
 import { invoiceHtml, PAGE, type PrintAssets } from './invoice';
+import { receiptHtml } from './receipt';
 
 const FOLDER = 'pdfs';
 const MIME: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml' };
@@ -58,10 +60,20 @@ async function printWithRetries(html: string): Promise<string> {
   }
 }
 
+/** The page an Issued Document prints, by its type, from its frozen copy. */
+function pageOf(db: Db, docs: Documents, id: string): { number: string; html: string } {
+  if (docs.issued(id).type === 'REC') {
+    const r = payments(db, Date.now).printable(id);
+    return { number: r.number, html: receiptHtml(r, printAssets(db, r.business)).html };
+  }
+  const printed = docs.printable(id);
+  return { number: printed.number!, html: invoiceHtml(printed, printAssets(db, printed.business)).html };
+}
+
 const making = new Map<string, Promise<string>>();
 
 /**
- * The PDF of an Issued Invoice: made from its frozen copy the first time it is
+ * The PDF of an Issued Invoice or Receipt: made from its frozen copy the first time it is
  * asked for (right after issuing), then always the same file. Returns the file record's ID.
  */
 export function invoicePdf(db: Db, docs: Documents, id: string): Promise<string> {
@@ -76,13 +88,12 @@ export function invoicePdf(db: Db, docs: Documents, id: string): Promise<string>
 }
 
 async function makeInvoicePdf(db: Db, docs: Documents, id: string): Promise<string> {
-  const printed = docs.printable(id);
-  const { html } = invoiceHtml(printed, printAssets(db, printed.business));
+  const { number, html } = pageOf(db, docs, id);
   const made = new File(await printWithRetries(html));
   // Each Invoice gets its own folder, so the shared file keeps a plain name ("INV-0001.pdf").
   const dir = new Directory(Paths.document, FOLDER, id);
   if (!dir.exists) dir.create({ intermediates: true });
-  const name = `${printed.number}.pdf`;
+  const name = `${number}.pdf`;
   const kept = new File(dir, name);
   if (kept.exists) kept.delete(); // left by an earlier try that was never recorded
   await made.move(kept);
