@@ -59,6 +59,8 @@ Colour rules:
 - Empty state: centred bold title, then a `label` line saying what will appear and how it gets there ("Tap New to ..."). An action button only when it leads somewhere that is built.
 - Sub screen: top bar with back, no tabs, no New button.
 - Problem screen (unexpected errors, records that could not be opened or updated): focused, no top bar, tabs or New button. The mark and name, a 24/700 title saying what happened, a `label` line saying what to do, then Restart (primary) and Send a problem report.
+- Problem report (from Settings, Help, and from Send a problem report on the problem screen or the check banner): a `label` line saying it holds no Customer details, Share the report (primary), then the whole file in a `surface` list box, 14, selectable, so the User reads it before sharing.
+- Check banner (a check on open failed): at the top of every tab, `surface` with a 1px `bad` border, radius 8, padding 12; "! A check failed. Please send a problem report." 16/600 in `bad`, then a `label` line that work goes on. Tapping it opens the problem report.
 - Bottom sheet: `scrim`, `surface`, top radius 16, padding 16, a bold title, then its list, then Close. Slides up; fades instead when the phone asks for reduced motion.
 - List: `surface`, 1px `line` border, radius 8; rows min 56, padding 12, title 16/600, subtitle 14 `label`.
 - First screen and the App lock screen: focused, like the problem screen. The mark and name, a 24/700 title, a `label` line, then the actions (Start new primary, Restore from a backup; or Unlock).

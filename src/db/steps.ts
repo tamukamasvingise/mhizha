@@ -156,6 +156,24 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never deleted'); END;`);
   },
   {
     to: 4,
+    name: 'check log',
+    run(ctx) {
+      // One row per run of the checks on open: what each check found and the
+      // record counts, so the next open can tell whether records were erased.
+      ctx.exec(`
+CREATE TABLE check_log (
+  ${recordColumns()},
+  app_version TEXT NOT NULL,
+  db_version INTEGER NOT NULL,
+  failed INTEGER NOT NULL CHECK (failed IN (0, 1)),
+  results TEXT NOT NULL,
+  counts TEXT NOT NULL
+) STRICT;
+`);
+    },
+  },
+  {
+    to: 5,
     name: 'setup: business details, Accounting period, Document numbers, files',
     run(ctx) {
       ctx.exec(`

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, current, open, openPriceList, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
+import { back, current, open, openPriceList, openReport, openSettings, openSettingsPage, replace, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -63,5 +63,19 @@ describe('sub screens', () => {
     const customer = open(selectTab(start, 'customers'), { screen: 'customer', id: 'c1' });
     expect(selectTab(customer, 'home')).toEqual(start);
     expect(current(start)).toBeNull();
+  });
+});
+
+describe('the problem report screen', () => {
+  it('opens from Settings and goes back to Settings', () => {
+    const settings = openSettings(selectTab(start, 'money'));
+    const report = openReport(settings);
+    expect(report.screen).toBe('report');
+    expect(back(report)).toEqual(settings);
+  });
+
+  it('opens from the check banner on a tab and goes back to that tab', () => {
+    const tab = selectTab(start, 'customers');
+    expect(back(openReport(tab))).toEqual(tab);
   });
 });

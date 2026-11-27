@@ -34,6 +34,8 @@ export type ErrorEntry = { at: string; appVersion: string; dbVersion: number; pl
 
 export interface Db {
   readonly installId: string;
+  /** The version of the app that opened the records. */
+  readonly appVersion: string;
   /** The database version (`PRAGMA user_version`). */
   readonly version: number;
   /** The version the app's steps reach. */
@@ -240,6 +242,7 @@ function makeDb(conn: SqlConnection, env: Env, installId: string, version: numbe
   const now = () => iso(env.clock());
   const db: Db = {
     installId,
+    appVersion: env.appVersion,
     version,
     latestVersion: env.latest,
     get: (sql, params) => conn.get(sql, params),

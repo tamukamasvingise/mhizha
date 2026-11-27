@@ -2,7 +2,8 @@
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
 # the shell in place, in light and dark, walks the setup wizard from a new
 # install, opens Settings pages and the Price list, adds a Customer with a Job
-# and marks it Done, shows the problem screen, runs the
+# and marks it Done, opens the problem report and the failed-check banner,
+# shows the problem screen, runs the
 # database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
@@ -305,14 +306,30 @@ for mode in light dark; do
   capture "$mode-customers-back"
   has "$mode-customers-back" 'Welcome to Mhizha' && pass "$mode: back closes the Job, the Customer, then goes Home" || fail "$mode: back closes the Job, the Customer, then goes Home"
 
+  # The problem report from Settings.
+  # Help sits below the setup pages and About, so scroll to it.
+  tap Settings && to_end && tap 'Send a problem report' && capture "$mode-report" || fail "$mode: open the problem report from Settings"
+  has "$mode-report" 'Mhizha problem report [0-9-]*\.txt' && has "$mode-report" 'text="Share the report"' &&
+    pass "$mode: Settings opens the problem report" || fail "$mode: Settings opens the problem report"
+  has "$mode-report" 'Record counts' && pass "$mode: the report shows record counts" || fail "$mode: the report shows record counts"
+  has "$mode-report" 'Test Customer|0771234567' && fail "$mode: the report holds no Customer details" || pass "$mode: the report holds no Customer details"
+
+  # The red banner when a check on open fails, through the test build's link.
+  open_link 'mhizha-test://self-test/check-failed'
+  if wait_for 'A check failed'; then pass "$mode: a failed check shows the banner"; else fail "$mode: a failed check shows the banner"; fi
+  capture "$mode-check-failed"
+  has "$mode-check-failed" 'content-desc="Customers"' && pass "$mode: the banner does not block work" || fail "$mode: the banner does not block work"
+  tap '! A check failed. Please send a problem report.' && capture "$mode-check-report" || fail "$mode: tap the banner"
+  has "$mode-check-report" 'text="Share the report"' && pass "$mode: the banner opens the problem report" || fail "$mode: the banner opens the problem report"
+
   # The problem screen, through the test build's link.
   open_link 'mhizha-test://self-test/error'
   if wait_for 'Your records are safe'; then pass "$mode: an unexpected error shows the problem screen"; else fail "$mode: an unexpected error shows the problem screen"; fi
   capture "$mode-problem"
   has "$mode-problem" 'text="Restart"' && pass "$mode: problem screen offers Restart" || fail "$mode: problem screen offers Restart"
   tap 'Send a problem report' && capture "$mode-problem-report" || fail "$mode: tap Send a problem report"
-  has "$mode-problem-report" 'Problem reports come in a later test build' &&
-    pass "$mode: Send a problem report answers" || fail "$mode: Send a problem report answers"
+  has "$mode-problem-report" 'Mhizha problem report [0-9-]*\.txt' && has "$mode-problem-report" 'holds no Customer details' &&
+    pass "$mode: the problem screen shows the report" || fail "$mode: the problem screen shows the report"
 done
 adb shell cmd uimode night no
 

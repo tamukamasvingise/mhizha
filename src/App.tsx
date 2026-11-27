@@ -15,6 +15,7 @@ import { Start } from './setup/Start';
 const selfTestLinks = Constants.expoConfig?.extra?.selfTest === true;
 const DB_CHECKS = 'mhizha-test://self-test/db';
 const SHOW_ERROR = 'mhizha-test://self-test/error';
+const CHECK_FAILED = 'mhizha-test://self-test/check-failed';
 
 function open(): OpenResult {
   try {
@@ -52,11 +53,11 @@ export default function App() {
   }, []);
 
   let screen: ReactNode;
-  if (failed) screen = <UnexpectedProblem />;
+  if (failed) screen = <UnexpectedProblem db={records.db} />;
   else if (link === DB_CHECKS) screen = <SelfTest />;
   else
     screen = (
-      <Records opened={records}>
+      <Records opened={records} failCheckForTest={link === CHECK_FAILED}>
         {link === SHOW_ERROR ? <Thrower /> : (
           <Start>
             <Shell />
@@ -67,7 +68,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ProblemBoundary onError={(e) => logError('screen', e)}>{screen}</ProblemBoundary>
+      <ProblemBoundary db={records.db} onError={(e) => logError('screen', e)}>{screen}</ProblemBoundary>
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
