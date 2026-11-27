@@ -240,3 +240,55 @@ describe('the Draft preview on screen', () => {
     expect(shown).toContain('html,body{background:#F6F7F7}');
   });
 });
+
+describe('the Quotation page', () => {
+  const quotation: InvoicePrint = {
+    ...invoice,
+    number: 'QUO-0012 Rev 2',
+    dueDate: '2026-11-26',
+    quotation: {
+      revisionLine: 'Revision 2 · replaces Rev 1 of 20 Nov 2026',
+      validity: '30 days, until 26 Dec 2026',
+      validUntil: '2026-12-26',
+      deposit: '150.00 USD on acceptance',
+      leadTime: '5 working days after the Deposit',
+    },
+  };
+
+  it('prints its title, Revision line, number, valid-until date and terms instead of payment details', () => {
+    const [text] = pageTexts(invoiceHtml(quotation, noAssets).html);
+    expect(text).toContain('QUOTATION Revision 2 · replaces Rev 1 of 20 Nov 2026');
+    expect(text).toContain('Quotation No. QUO-0012 Rev 2 Date 26 Nov 2026 Valid until 26 Dec 2026');
+    expect(text).toContain('Quotation for Name Tendai Moyo');
+    expect(text).toContain('Site / Job');
+    expect(text).toContain('Terms Validity 30 days, until 26 Dec 2026 Deposit 150.00 USD on acceptance Lead time 5 working days after the Deposit');
+    expect(text).not.toContain('Payment details');
+    expect(text).not.toContain('Due date');
+    expect(text).toContain('Prepared by');
+    expect(text).toContain('QUOTATION QUO-0012 Rev 2 Page 1 of 1');
+  });
+
+  it('has no VAT row', () => {
+    const { html } = invoiceHtml(quotation, noAssets);
+    expect(pageTexts(html)[0]).not.toContain('VAT');
+    expect(pageTexts(html)[0]).toContain('Discount (10%) −79.50 USD Total 715.48 USD');
+  });
+
+  it('leaves off terms not given, and prints a first version with no Revision line', () => {
+    const [text] = pageTexts(
+      invoiceHtml({ ...quotation, number: 'QUO-0012', quotation: { ...quotation.quotation!, revisionLine: '', deposit: '', leadTime: '' } }, noAssets).html,
+    );
+    expect(text).toContain('Terms Validity 30 days, until 26 Dec 2026 Subtotal');
+    expect(text).not.toContain('Revision');
+    expect(text).not.toContain('Lead time');
+  });
+
+  it('runs onto more pages with QUOTATION in the continued header, and a Draft is marked DRAFT', () => {
+    const { html, pages } = invoiceHtml({ ...quotation, number: null, lines: many(60) }, noAssets);
+    const texts = pageTexts(html);
+    expect(texts[0]).toContain('QUOTATION Draft, not issued Revision 2');
+    expect(texts[1]!.startsWith('Demo Building Services QUOTATION DRAFT · continued')).toBe(true);
+    expect(html.match(/<div class="stamp">DRAFT<\/div>/g)).toHaveLength(pages);
+    expect(html).toContain('<title>Draft Quotation</title>');
+  });
+});
