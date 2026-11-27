@@ -24,15 +24,15 @@ function open(platform: SqlPlatform = nodePlatform(), steps: readonly Step[] = a
   return opened.db;
 }
 
-// A ledger and a Customer table as later tickets will add them, on top of the app's steps.
+// A ledger as a later ticket will add it, and a table with no delete guard, on top of the app's steps.
 const later: Step[] = [
   ...appSteps,
   {
     to: appSteps.length + 1,
-    name: 'ledger and customers for the test',
+    name: 'ledger and a plain table for the test',
     run: (ctx) =>
       ctx.exec(`
-CREATE TABLE customer (${recordColumns()}, name TEXT NOT NULL, phone TEXT) STRICT;
+CREATE TABLE test_record (${recordColumns()}, label TEXT) STRICT;
 CREATE TABLE journal_entry (${recordColumns()}, accounting_date TEXT NOT NULL) STRICT;
 CREATE TABLE journal_line (${recordColumns()},
   journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
@@ -75,7 +75,7 @@ describe('checks on open', () => {
 
   it('a balanced ledger passes', () => {
     const db = open(nodePlatform(), later);
-    const c = db.insert('customer', { name: 'Jane Moyo' });
+    const c = db.insert('customer', { kind: 'person', name: 'Jane Moyo' });
     entry(db, [
       { account: '1100', customer: c, debit: 10000 },
       { account: '4000', credit: 10000 },
@@ -114,15 +114,15 @@ describe('checks on open', () => {
   it('Rule 7 fails when records were erased since the last open', () => {
     const platform = nodePlatform();
     let db = open(platform, later);
-    const c = db.insert('customer', { name: 'Jane Moyo' });
-    db.insert('customer', { name: 'Tendai' });
+    const c = db.insert('test_record', { label: 'a' });
+    db.insert('test_record', { label: 'b' });
     expect(checkOnOpen(db).failed).toBe(false);
-    db.run('DELETE FROM customer WHERE id = ?', [c]);
+    db.run('DELETE FROM test_record WHERE id = ?', [c]);
     db.close();
     db = open(platform, later);
     const rule7 = checkOnOpen(db).results.find((r) => r.name.startsWith('Rule 7:'))!;
     expect(rule7.outcome).toBe('failed');
-    expect(rule7.problems.join(' ')).toContain('customer');
+    expect(rule7.problems.join(' ')).toContain('test_record');
   });
 
   it('a check that cannot run counts as failed instead of stopping the app', () => {
@@ -152,7 +152,7 @@ describe('the problem report', () => {
 
   it('holds versions, phone, error log, upgrade log, check results and record counts', () => {
     const db = open(nodePlatform(), later);
-    db.insert('customer', { name: 'Jane Moyo' });
+    db.insert('customer', { kind: 'person', name: 'Jane Moyo' });
     db.logError('customers', new Error('save failed for record 0190'));
     const { text } = problemReport(facts(db));
     expect(text).toContain('Mhizha 1.0.0 (build 42)');
@@ -168,7 +168,7 @@ describe('the problem report', () => {
 
   it('holds no Customer details', () => {
     const db = open(nodePlatform(), later);
-    const c = db.insert('customer', { name: 'Jane Moyo', phone: '+263 77 123 4567' });
+    const c = db.insert('customer', { kind: 'person', name: 'Jane Moyo', phones: JSON.stringify(['+263 77 123 4567']) });
     entry(db, [
       { account: '1100', customer: c, debit: 12345 },
       { account: '4000', credit: 12000 },

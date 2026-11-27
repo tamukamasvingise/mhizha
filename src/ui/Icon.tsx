@@ -5,7 +5,9 @@ import { size } from './tokens';
 // stroke 2, round caps and joins. Icons are decoration: the control that holds
 // one carries the accessible name.
 
-export type IconName = 'home' | 'people' | 'doc' | 'wallet' | 'plus' | 'back' | 'next' | 'gear' | 'close';
+export type IconName =
+  | 'home' | 'people' | 'doc' | 'wallet' | 'plus' | 'back' | 'next' | 'gear' | 'close'
+  | 'phone' | 'chat' | 'search' | 'calendar';
 
 const paths: Record<IconName, React.ReactNode> = {
   home: (
@@ -39,6 +41,22 @@ const paths: Record<IconName, React.ReactNode> = {
   back: <Path d="M15 5l-7 7 7 7" />,
   next: <Path d="M9 5l7 7-7 7" />,
   close: <Path d="M6 6l12 12M18 6 6 18" />,
+  phone: (
+    <Path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
+  ),
+  chat: <Path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />,
+  search: (
+    <>
+      <Circle cx="11" cy="11" r="7" />
+      <Path d="m20 20-3.5-3.5" />
+    </>
+  ),
+  calendar: (
+    <>
+      <Path d="M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <Path d="M16 2v4M8 2v4M3 10h18" />
+    </>
+  ),
   gear: (
     <>
       <Path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />

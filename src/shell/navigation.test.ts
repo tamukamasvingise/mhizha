@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { back, openPriceList, openReport, openSettings, selectTab, start, tabs } from './navigation';
+import { back, current, open, openPriceList, openReport, openSettings, replace, selectTab, start, tabs } from './navigation';
 
 describe('the shell', () => {
   it('opens on Home', () => {
@@ -30,6 +30,30 @@ describe('the shell', () => {
     const fromDocuments = back({ tab: 'documents', screen: 'tab' });
     expect(fromDocuments).toEqual(start);
     expect(back(start)).toBe('exit');
+  });
+});
+
+describe('sub screens', () => {
+  it('opens a Customer over the Customers tab, then a Job over it, and back returns one at a time', () => {
+    const list = selectTab(start, 'customers');
+    const customer = open(list, { screen: 'customer', id: 'c1' });
+    const job = open(customer, { screen: 'job', id: 'j1' });
+    expect(current(job)).toEqual({ screen: 'job', id: 'j1' });
+    expect(back(job)).toEqual(customer);
+    expect(back(customer)).toEqual(list);
+  });
+
+  it('a saved form gives way to what it made', () => {
+    const form = open(selectTab(start, 'customers'), { screen: 'customer-form' });
+    const made = replace(form, { screen: 'customer', id: 'c1' });
+    expect(made.subs).toEqual([{ screen: 'customer', id: 'c1' }]);
+    expect(back(made)).toEqual({ tab: 'customers', screen: 'tab' });
+  });
+
+  it('changing tab closes the sub screens', () => {
+    const customer = open(selectTab(start, 'customers'), { screen: 'customer', id: 'c1' });
+    expect(selectTab(customer, 'home')).toEqual(start);
+    expect(current(start)).toBeNull();
   });
 });
 

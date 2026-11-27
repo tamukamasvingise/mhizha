@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
-# the shell in place, in light and dark, opens the Price list, shows the problem screen, runs the
+# the shell in place, in light and dark, opens the Price list, adds a Customer
+# with a Job and marks it Done, opens the problem report and the failed-check banner, shows the problem screen, runs the
 # database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
@@ -27,6 +28,27 @@ capture() {
 
 # has <name> <pattern>: the dump holds a node matching the pattern.
 has() { grep -q -E "$2" "$OUT/$1.xml"; }
+
+# Tap the text field whose label is exactly $1.
+tap_field() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  local b
+  b=$(adb shell cat /sdcard/ui.xml | tr '>' '\n' | grep 'class="android.widget.EditText"' | grep "content-desc=\"$1\"" | head -1 |
+    grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | grep -o '[0-9]*' | tr '\n' ' ')
+  # shellcheck disable=SC2086
+  set -- $b
+  [ $# -eq 4 ] || return 1
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+}
+
+# Close the on-screen keyboard if it is up (back would otherwise close the screen).
+hide_keyboard() {
+  adb shell dumpsys input_method | grep -q 'mInputShown=true' && adb shell input keyevent KEYCODE_BACK
+  sleep 1
+}
+
+# Scroll a screen to its end.
+to_end() { for _ in 1 2 3 4; do adb shell input swipe 360 1000 360 250 200; done; sleep 1; }
 
 # Wait until the screen shows the given text (up to 90 s).
 wait_for() {
@@ -150,13 +172,62 @@ for mode in light dark; do
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
 
+  # Customers, Sites and Jobs. The first pass adds a Customer and a Job; the
+  # second sees them again in the other colour mode.
+  tap Customers
+  if [ "$mode" = light ]; then
+    capture "$mode-customers-empty"
+    has "$mode-customers-empty" 'No Customers yet' && pass "$mode: Customers tab says how to add one" || fail "$mode: Customers tab says how to add one"
+    tap 'Add a Customer' && capture "$mode-customer-form" || fail "$mode: open New Customer"
+    has "$mode-customer-form" 'Fill in from phone contacts' && pass "$mode: New Customer offers the phone contacts" || fail "$mode: New Customer offers the phone contacts"
+    to_end
+    tap 'Save Customer' && capture "$mode-customer-form-errors" || fail "$mode: tap Save Customer"
+    has "$mode-customer-form-errors" "Enter the Customer's name" &&
+      pass "$mode: a Customer with no name is refused, saying why" || fail "$mode: a Customer with no name is refused, saying why"
+    adb shell input swipe 360 250 360 1100 200; adb shell input swipe 360 250 360 1100 200
+    tap_field Name && adb shell input text 'Test%sCustomer' || fail "$mode: type a name"
+    tap_field 'Phone (optional)' && adb shell input text '0771234567' || fail "$mode: type a phone"
+    hide_keyboard
+    to_end
+    tap 'Save Customer' && sleep 1 || fail "$mode: save the Customer"
+    adb shell input keyevent KEYCODE_BACK
+  fi
+  tap Customers
+  capture "$mode-customers"
+  has "$mode-customers" 'Test Customer' && pass "$mode: the Customer is listed" || fail "$mode: the Customer is listed"
+  tap 'Test Customer, Main site' && capture "$mode-customer" || fail "$mode: open the Customer"
+  has "$mode-customer" 'content-desc="Call Test Customer on 0771234567"' && has "$mode-customer" 'content-desc="WhatsApp Test Customer on 0771234567"' &&
+    pass "$mode: the Customer screen has Call and WhatsApp" || fail "$mode: the Customer screen has Call and WhatsApp"
+  if [ "$mode" = light ]; then
+    tap 'Add Job' && capture "$mode-job-form" || fail "$mode: open New Job"
+    adb shell input text 'Kitchen%srewiring'
+    hide_keyboard
+    tap 'Add Job' || fail "$mode: add the Job"
+  else
+    tap 'Kitchen rewiring, Main site · Open' || fail "$mode: open the Job"
+  fi
+  capture "$mode-job"
+  has "$mode-job" 'Mark Job Done' && pass "$mode: the Job is Open" || fail "$mode: the Job is Open"
+  tap 'Mark Job Done' && capture "$mode-job-done" || fail "$mode: open Mark Done"
+  DAY=$(adb shell date +%d | tr -d '\r')
+  has "$mode-job-done" "Date the work finished, $((10#$DAY)) $(adb shell date +'%B %Y' | tr -d '\r')" &&
+    pass "$mode: Done asks for the date work finished, today by default" || fail "$mode: Done asks for the date work finished, today by default"
+  if [ "$mode" = light ]; then
+    tap 'Mark Done' && capture "$mode-job-marked" || fail "$mode: mark Done"
+    has "$mode-job-marked" 'Work finished' && pass "$mode: the Job is Done" || fail "$mode: the Job is Done"
+    tap 'Open the Job again' || fail "$mode: open the Job again"
+  fi
+  # Back closes the sheet (dark), the Job, the Customer, then the tab goes Home.
+  back_until 'Welcome to Mhizha' 5
+  capture "$mode-customers-back"
+  has "$mode-customers-back" 'Welcome to Mhizha' && pass "$mode: back closes the Job, the Customer, then goes Home" || fail "$mode: back closes the Job, the Customer, then goes Home"
+
   # The problem report from Settings.
   tap Settings && tap 'Send a problem report' && capture "$mode-report" || fail "$mode: open the problem report from Settings"
   has "$mode-report" 'Mhizha problem report [0-9-]*\.txt' && has "$mode-report" 'text="Share the report"' &&
     pass "$mode: Settings opens the problem report" || fail "$mode: Settings opens the problem report"
   has "$mode-report" 'Record counts' && pass "$mode: the report shows record counts" || fail "$mode: the report shows record counts"
-  adb shell input keyevent KEYCODE_BACK
-  adb shell input keyevent KEYCODE_BACK
+  has "$mode-report" 'Test Customer|0771234567' && fail "$mode: the report holds no Customer details" || pass "$mode: the report holds no Customer details"
 
   # The red banner when a check on open fails, through the test build's link.
   open_link 'mhizha-test://self-test/check-failed'
@@ -172,7 +243,7 @@ for mode in light dark; do
   capture "$mode-problem"
   has "$mode-problem" 'text="Restart"' && pass "$mode: problem screen offers Restart" || fail "$mode: problem screen offers Restart"
   tap 'Send a problem report' && capture "$mode-problem-report" || fail "$mode: tap Send a problem report"
-  has "$mode-problem-report" 'Mhizha problem report [0-9-]*.txt' && has "$mode-problem-report" 'holds no Customer details' &&
+  has "$mode-problem-report" 'Mhizha problem report [0-9-]*\.txt' && has "$mode-problem-report" 'holds no Customer details' &&
     pass "$mode: the problem screen shows the report" || fail "$mode: the problem screen shows the report"
 done
 adb shell cmd uimode night no
