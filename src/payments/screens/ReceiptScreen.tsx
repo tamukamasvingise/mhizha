@@ -47,7 +47,7 @@ export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
               <Row
                 key={`${l.appliedTo}-${i}`}
                 first={i === 0}
-                title={`${l.appliedTo} · ${l.jobTitle}`}
+                title={l.jobTitle ? `${l.appliedTo} · ${l.jobTitle}` : l.appliedTo}
                 subtitle={l.balanceLeft > 0 ? `Left to pay then: ${formatUsd(l.balanceLeft)}` : '✓ Paid in full'}
                 right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
                 onPress={l.invoiceId ? () => nav.open({ screen: 'document', id: l.invoiceId! }) : undefined}

@@ -3,7 +3,7 @@ import { ACCOUNTS, LedgerError, postings } from '../core';
 import { ACCOUNTS_AT_STEP_7 } from '../db/steps';
 import type { Db } from '../db';
 import { freshDb } from '../testing';
-import { customerOwes, lastRecordedAt, postEntry, readJournal, totalOwed } from '.';
+import { customerOwes, lastRecordedAt, postEntry, readJournal, reverseEntry, totalOwed } from '.';
 
 let db: Db;
 let a: string;
@@ -62,5 +62,14 @@ describe('the ledger in the records', () => {
     const id = postEntry(db, entry(a, 100));
     expect(() => db.run('DELETE FROM journal_entry WHERE id = ?', [id])).toThrow();
     expect(() => db.run("UPDATE journal_line SET debit = 5 WHERE journal_entry_id = ? AND debit > 0", [id])).toThrow();
+  });
+
+  it('puts an entry right by its exact reverse, dated the day of the correction, with a reason', () => {
+    const id = postEntry(db, entry(a, 12_500, '2026-11-01T10:00:00.000Z'));
+    const back = reverseEntry(db, id, { accountingDate: '2026-11-27', recordedAt: '2026-11-27T10:00:00.000Z', reason: 'Wrong amount' });
+    expect(customerOwes(db, a)).toBe(0);
+    expect(readJournal(db).at(-1)).toMatchObject({ id: back, reverses: id, accountingDate: '2026-11-27', source: { kind: 'invoice', id: 'doc' } });
+    expect(db.get('SELECT reason FROM journal_entry WHERE id = ?', [back])?.reason).toBe('Wrong amount');
+    expect(() => reverseEntry(db, id, { accountingDate: '2026-11-27', recordedAt: '2026-11-27T10:00:00.000Z', reason: 'Again' })).toThrow(LedgerError);
   });
 });

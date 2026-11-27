@@ -548,4 +548,48 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
       }
     },
   },
+  {
+    to: 10,
+    name: 'Opening balances and sales before the Start date',
+    run(ctx) {
+      // Opening balances (spec section 8): what a Customer owed, or the
+      // Business held for them, on the Start date. An item is not a Document.
+      // Its ledger entries name it as their source ('opening-balance'). It is
+      // never changed or deleted, except that it may be Cancelled once, with
+      // a reason (the reversing entry is posted in the same save).
+      const locked = ['customer_id', 'kind', 'old_number', 'old_date', 'amount', 'note', 'job_id', 'install_id', 'created_at'];
+      ctx.exec(`
+CREATE TABLE opening_balance_item (
+  ${recordColumns()},
+  customer_id TEXT NOT NULL REFERENCES customer (id),
+  kind TEXT NOT NULL CHECK (kind IN ('owed', 'credit')),
+  old_number TEXT NOT NULL DEFAULT '',
+  old_date TEXT CHECK (old_date IS NULL OR old_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  note TEXT NOT NULL DEFAULT '',
+  job_id TEXT REFERENCES job (id),
+  cancelled_on TEXT CHECK (cancelled_on IS NULL OR cancelled_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  cancel_reason TEXT NOT NULL DEFAULT '',
+  CHECK (cancelled_on IS NULL OR length(trim(cancel_reason)) > 0)
+) STRICT;
+CREATE INDEX opening_balance_item_customer ON opening_balance_item (customer_id);
+CREATE TRIGGER opening_balance_item_never_deleted BEFORE DELETE ON opening_balance_item
+BEGIN SELECT RAISE(ABORT, 'opening_balance_item records are never deleted'); END;
+CREATE TRIGGER opening_balance_item_locked BEFORE UPDATE ON opening_balance_item
+WHEN OLD.cancelled_on IS NOT NULL OR ${locked.map((c) => `NEW.${c} IS NOT OLD.${c}`).join(' OR ')}
+BEGIN SELECT RAISE(ABORT, 'An Opening balance item can only be Cancelled'); END;
+`);
+      // Sales before the Start date: one total per month (YYYY-MM), used only
+      // by the VAT threshold warning. Posts nothing; a blank month is NULL.
+      ctx.exec(`
+CREATE TABLE sales_before_start (
+  ${recordColumns()},
+  month TEXT NOT NULL UNIQUE CHECK (month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
+  amount INTEGER CHECK (amount IS NULL OR amount >= 0)
+) STRICT;
+CREATE TRIGGER sales_before_start_never_deleted BEFORE DELETE ON sales_before_start
+BEGIN SELECT RAISE(ABORT, 'sales_before_start records are never deleted'); END;
+`);
+    },
+  },
 ];

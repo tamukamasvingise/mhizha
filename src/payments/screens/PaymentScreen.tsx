@@ -159,7 +159,7 @@ function PaymentForm({ customerId, nav }: { customerId: string; nav: Nav }) {
           </View>
           {owing.length === 0 ? (
             <Text style={[parts.body, { color: c.label }]}>
-              {`${customer.name} owes nothing now. A Payment is recorded against their Issued Invoices; issue an Invoice first.`}
+              {`${customer.name} owes nothing now. A Payment is recorded against their Issued Invoices or opening balances; issue an Invoice first.`}
             </Text>
           ) : (
             <>
@@ -267,7 +267,10 @@ function TickRow({
   onChange: () => void;
 }) {
   const c = useColours();
-  const subtitle = `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`;
+  const subtitle =
+    o.kind === 'opening'
+      ? [o.jobTitle, o.oldDate ? shortDate(o.oldDate) : '', `${formatUsd(o.owed)} owed`].filter(Boolean).join(' · ')
+      : `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`;
   return (
     <View style={[styles.tickRow, !first && { borderTopWidth: size.hairline, borderTopColor: c.line }]}>
       <Tappable
@@ -385,7 +388,7 @@ function CheckPayment({
               <Row
                 key={x.invoiceId}
                 first={i === 0}
-                title={`${o.number} · ${o.jobTitle}`}
+                title={o.jobTitle ? `${o.number} · ${o.jobTitle}` : o.number}
                 subtitle={o.owed - x.amount > 0 ? `Left to pay: ${formatUsd(o.owed - x.amount)}` : '✓ Paid in full'}
                 right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(x.amount)}</Text>}
               />

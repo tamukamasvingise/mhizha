@@ -23,16 +23,25 @@ import type { FrozenCopy } from '../documents';
 import { lastRecordedAt, postEntry } from '../ledger';
 import { addressLine, InputError, people } from '../people';
 import type { ReceiptPrint } from '../pdf/receipt';
+import { receiptName } from '../opening';
 import { longDateTime, TIME_ZONE, todayAt } from '../setup/dates';
-import { businessDetails, documentCounters, formatNumber } from '../setup/store';
+import { businessDetails, documentCounters, formatNumber, startDate } from '../setup/store';
 import { appliedTo } from './allocations';
 
 export { appliedTo } from './allocations';
 
-/** An Issued Invoice that still has money owing. */
+/**
+ * An Issued Invoice, or an Opening balance item owed (spec section 8), that
+ * still has money owing. Both are paid the same way; an Opening balance item
+ * is dated at the Start date and has no number of its own.
+ */
 export type OwingInvoice = {
   id: string;
+  kind: 'invoice' | 'opening';
+  /** "INV-0001", or "Opening balance (invoice 1234)". */
   number: string;
+  /** An Opening balance item's old invoice date, if any. */
+  oldDate?: string | null;
   jobTitle: string;
   issueDate: string;
   dueDate: string;
@@ -50,7 +59,7 @@ export type PaymentInput = {
   method: PaymentMethod;
   /** Required for Other: how they paid. */
   otherDescription: string;
-  /** What goes on each Invoice; together they make the amount. */
+  /** What goes on each Invoice or Opening balance item (its id as `invoiceId`); together they make the amount. */
   parts: readonly { invoiceId: string; amount: Cents }[];
   /** One Payment and Receipt per Invoice instead of one for all. */
   separate: boolean;
@@ -102,17 +111,47 @@ export function payments(db: Db, clock: () => number) {
   const p = people(db, today);
 
   function invoiceRow(id: string) {
-    return db.get("SELECT * FROM document WHERE id = ? AND type = 'INV' AND number IS NOT NULL AND deleted_at IS NULL", [id]);
+    return (
+      db.get("SELECT *, 'invoice' AS owing_kind FROM document WHERE id = ? AND type = 'INV' AND number IS NOT NULL AND deleted_at IS NULL", [id]) ??
+      openingRow(id)
+    );
+  }
+
+  /** An Opening balance item owed and not Cancelled, shaped like an Invoice row. */
+  function openingRow(id: string) {
+    return db.get(
+      `SELECT o.id, o.customer_id, o.job_id, o.old_number, o.old_date, o.amount AS total, j.title AS job_title, 'opening' AS owing_kind
+       FROM opening_balance_item o LEFT JOIN job j ON j.id = o.job_id
+       WHERE o.id = ? AND o.kind = 'owed' AND o.cancelled_on IS NULL`,
+      [id],
+    );
   }
 
   function owingOf(r: NonNullable<ReturnType<typeof invoiceRow>>): OwingInvoice {
     const id = String(r.id);
     const total = Number(r.total);
     const applied = appliedTo(db, id);
+    if (r.owing_kind === 'opening') {
+      const start = startDate(db);
+      return {
+        id,
+        kind: 'opening',
+        number: receiptName({ oldNumber: String(r.old_number) }),
+        oldDate: r.old_date == null ? null : String(r.old_date),
+        jobTitle: r.job_title == null ? '' : String(r.job_title),
+        issueDate: start,
+        dueDate: start,
+        total,
+        owed: total - applied,
+        // An old debt is shown as owed, never as Overdue: its due date is not known.
+        status: invoiceStatus({ total, applied, writtenOff: 0, dueDate: today() }, today()),
+      };
+    }
     const frozen = JSON.parse(String(r.frozen)) as FrozenCopy;
     const dueDate = String(r.due_date);
     return {
       id,
+      kind: 'invoice',
       number: String(r.printed_number),
       jobTitle: frozen.job.title,
       issueDate: String(r.issue_date),
@@ -201,7 +240,7 @@ export function payments(db: Db, clock: () => number) {
 
     const cust = p.customer(input.customerId);
     const owing = parts.map((x) => ({ part: x, invoice: owingOf(invoiceRow(x.invoiceId)!), row: invoiceRow(x.invoiceId)! }));
-    const jobs = [...new Set(owing.map((o) => String(o.row.job_id)))];
+    const jobs = [...new Set(owing.filter((o) => o.row.job_id != null).map((o) => String(o.row.job_id)))];
     const frozen: FrozenCopy = {
       business: (businessDetails(db, issueDate) ?? businessDetails(db))!,
       customer: {
@@ -264,15 +303,16 @@ export function payments(db: Db, clock: () => number) {
         journal_entry_id: entry,
         from_kind: 'payment',
         from_id: payment,
-        to_kind: 'invoice',
+        to_kind: o.invoice.kind === 'opening' ? 'opening-balance' : 'invoice',
         to_id: o.invoice.id,
         amount: o.part.amount,
       });
       db.insert('receipt_line', {
         receipt_id: receiptId,
         position: i + 1,
-        invoice_id: o.invoice.id,
-        job_id: String(o.row.job_id),
+        invoice_id: o.invoice.kind === 'invoice' ? o.invoice.id : null,
+        opening_balance_id: o.invoice.kind === 'opening' ? o.invoice.id : null,
+        job_id: o.row.job_id == null ? null : String(o.row.job_id),
         applied_to: o.invoice.number,
         job_title: o.invoice.jobTitle,
         total: o.invoice.total,
@@ -284,16 +324,20 @@ export function payments(db: Db, clock: () => number) {
   }
 
   return {
-    /** The Customer's Issued Invoices with money owing, oldest first. */
+    /**
+     * The Customer's Opening balance items and Issued Invoices with money owing,
+     * oldest first: Opening balance items are dated at the Start date, so they come first.
+     */
     owing(customerId: string): OwingInvoice[] {
-      return db
-        .all(
-          `SELECT * FROM document WHERE customer_id = ? AND type = 'INV' AND number IS NOT NULL AND deleted_at IS NULL
-           ORDER BY issue_date, issued_at, number`,
-          [customerId],
-        )
-        .map(owingOf)
-        .filter((o) => o.owed > 0);
+      const opening = db
+        .all("SELECT id FROM opening_balance_item WHERE customer_id = ? AND kind = 'owed' AND cancelled_on IS NULL ORDER BY rowid", [customerId])
+        .map((r) => openingRow(String(r.id))!);
+      const invoices = db.all(
+        `SELECT *, 'invoice' AS owing_kind FROM document WHERE customer_id = ? AND type = 'INV' AND number IS NOT NULL AND deleted_at IS NULL
+         ORDER BY issue_date, issued_at, number`,
+        [customerId],
+      );
+      return [...opening, ...invoices].map(owingOf).filter((o) => o.owed > 0);
     },
 
     /** The six Payment methods, in order, with whether each is hidden. */
