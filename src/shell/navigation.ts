@@ -54,9 +54,22 @@ export const tabs: readonly Tab[] = [
 /** What the New button offers, in this order. */
 export const newChoices = ['Quotation', 'Invoice', 'Payment', 'Customer'] as const;
 
-export type Place = { tab: TabId; screen: 'tab' | 'settings' };
+/** A screen opened over a tab, with a back button and no tabs or New button. */
+export type Sub =
+  | { screen: 'customer'; id: string }
+  /** A new Customer without `id`, otherwise a change to one. */
+  | { screen: 'customer-form'; id?: string }
+  | { screen: 'site-form'; customerId: string; id?: string }
+  | { screen: 'job-form'; customerId: string; id?: string }
+  | { screen: 'job'; id: string };
+
+/** Where the User is: a tab or Settings, and any sub screens opened over it, last on top. */
+export type Place = { tab: TabId; screen: 'tab' | 'settings'; subs?: readonly Sub[] };
 
 export const start: Place = { tab: 'home', screen: 'tab' };
+
+const withSubs = (from: Place, subs: readonly Sub[]): Place =>
+  subs.length > 0 ? { tab: from.tab, screen: from.screen, subs } : { tab: from.tab, screen: from.screen };
 
 export function selectTab(_from: Place, tab: TabId): Place {
   return { tab, screen: 'tab' };
@@ -66,8 +79,24 @@ export function openSettings(from: Place): Place {
   return { tab: from.tab, screen: 'settings' };
 }
 
-/** The phone's back button: Settings closes, other tabs go Home, Home exits. */
+/** Opens a sub screen on top. */
+export function open(from: Place, sub: Sub): Place {
+  return withSubs(from, [...(from.subs ?? []), sub]);
+}
+
+/** Swaps the top sub screen for another, as when a saved form shows what it made. */
+export function replace(from: Place, sub: Sub): Place {
+  return withSubs(from, [...(from.subs ?? []).slice(0, -1), sub]);
+}
+
+/** The sub screen on top, or null when a tab or Settings shows. */
+export function current(place: Place): Sub | null {
+  return place.subs?.at(-1) ?? null;
+}
+
+/** The phone's back button: a sub screen closes, then Settings, other tabs go Home, Home exits. */
 export function back(from: Place): Place | 'exit' {
+  if (from.subs?.length) return withSubs(from, from.subs.slice(0, -1));
   if (from.screen === 'settings') return { tab: from.tab, screen: 'tab' };
   if (from.tab !== 'home') return start;
   return 'exit';
