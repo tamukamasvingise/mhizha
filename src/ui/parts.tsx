@@ -1,23 +1,50 @@
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { Icon, type IconName } from './Icon';
 import { useColours } from './theme';
 import { lineHeight, radius, size, space, type } from './tokens';
 
 // Shared parts of every screen. Screens use these, never their own copies.
 
+type TappableProps = Omit<PressableProps, 'style'> & {
+  style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>);
+};
+
+/** Anything tappable. Draws the focus ring when a keyboard or switch moves focus to it. */
+export function Tappable({ style, onFocus, onBlur, ...rest }: TappableProps) {
+  const c = useColours();
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      {...rest}
+      onFocus={(e) => {
+        setFocused(true);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        onBlur?.(e);
+      }}
+      style={(state) => [
+        typeof style === 'function' ? style(state) : style,
+        focused && { outlineWidth: size.ring, outlineColor: c.ring, outlineOffset: space.s05, outlineStyle: 'solid' },
+      ]}
+    />
+  );
+}
+
 /** A 44x44 button holding one icon. `label` is what a screen reader says. */
 export function IconButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const c = useColours();
   return (
-    <Pressable
+    <Tappable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: c.tint }]}
     >
       <Icon name={icon} colour={c.fg} />
-    </Pressable>
+    </Tappable>
   );
 }
 
@@ -58,7 +85,7 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
 export function Button({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
   const c = useColours();
   return (
-    <Pressable
+    <Tappable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
@@ -69,7 +96,7 @@ export function Button({ label, onPress, primary }: { label: string; onPress: ()
       ]}
     >
       <Text style={[styles.buttonText, { color: primary ? c.primaryFg : c.fg }]}>{label}</Text>
-    </Pressable>
+    </Tappable>
   );
 }
 

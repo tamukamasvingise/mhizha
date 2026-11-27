@@ -67,5 +67,5 @@ None.
 
 Notes against the Should rules:
 
-- Keyboard focus ring: not drawn in the shell yet. Phones here are used by touch; Android's own focus highlight shows for a keyboard. The `ring` token is ready for inputs.
+- Focus: every tappable thing is a `Tappable` (`src/ui/parts.tsx`), which draws a 3dp `ring` outline, offset 2, when a keyboard or switch gives it focus.
 - Checks at 320/768/1280 px: phone only, portrait; checked at the baseline 720x1280 instead.

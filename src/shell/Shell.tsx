@@ -1,9 +1,9 @@
 import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, BackHandler, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Mark } from '../ui/Icon';
-import { Button, EmptyState, IconButton, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
+import { Button, EmptyState, IconButton, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
 import { back, newChoices, openSettings, selectTab, start, tabs, type Place, type TabId } from './navigation';
@@ -72,7 +72,7 @@ function TabBar({ current, onSelect, bottom }: { current: TabId; onSelect: (id: 
         const on = t.id === current;
         const fg = on ? c.selFg : c.label;
         return (
-          <Pressable
+          <Tappable
             key={t.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
@@ -86,7 +86,7 @@ function TabBar({ current, onSelect, bottom }: { current: TabId; onSelect: (id: 
             <Text numberOfLines={1} style={[parts.small, { color: fg, fontWeight: on ? '700' : '400' }]}>
               {t.label}
             </Text>
-          </Pressable>
+          </Tappable>
         );
       })}
     </View>
@@ -96,7 +96,7 @@ function TabBar({ current, onSelect, bottom }: { current: TabId; onSelect: (id: 
 function NewButton({ onPress }: { onPress: () => void }) {
   const c = useColours();
   return (
-    <Pressable
+    <Tappable
       accessibilityRole="button"
       accessibilityLabel="New Quotation, Invoice, Payment or Customer"
       onPress={onPress}
@@ -104,7 +104,7 @@ function NewButton({ onPress }: { onPress: () => void }) {
     >
       <Icon name="plus" colour={c.primaryFg} px={size.iconS} />
       <Text style={[local.fabText, { color: c.primaryFg }]}>New</Text>
-    </Pressable>
+    </Tappable>
   );
 }
 
@@ -124,7 +124,7 @@ function NewSheet({ visible, onClose, bottom }: { visible: boolean; onClose: () 
       onRequestClose={onClose}
     >
       <View style={[local.scrim, { backgroundColor: c.scrim }]}>
-        <Pressable style={local.scrimTap} onPress={onClose} accessibilityLabel="Close" accessibilityRole="button" />
+        <Tappable style={local.scrimTap} onPress={onClose} importantForAccessibility="no" accessible={false} />
         <View
           accessibilityViewIsModal
           style={[local.sheet, { backgroundColor: c.surface, paddingBottom: space.s4 + bottom }]}
