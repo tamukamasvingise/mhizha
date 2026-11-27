@@ -54,7 +54,10 @@ export const tabs: readonly Tab[] = [
 /** What the New button offers, in this order. */
 export const newChoices = ['Quotation', 'Invoice', 'Payment', 'Customer'] as const;
 
-export type Place = { tab: TabId; screen: 'tab' | 'settings' };
+/** Where the User is. The problem report remembers whether it was opened from a tab or Settings. */
+export type Place =
+  | { tab: TabId; screen: 'tab' | 'settings' }
+  | { tab: TabId; screen: 'report'; from: 'tab' | 'settings' };
 
 export const start: Place = { tab: 'home', screen: 'tab' };
 
@@ -66,8 +69,14 @@ export function openSettings(from: Place): Place {
   return { tab: from.tab, screen: 'settings' };
 }
 
-/** The phone's back button: Settings closes, other tabs go Home, Home exits. */
+/** The problem report, from Settings or from the banner a failed check shows on a tab. */
+export function openReport(from: Place): Place {
+  return { tab: from.tab, screen: 'report', from: from.screen === 'settings' ? 'settings' : 'tab' };
+}
+
+/** The phone's back button: the report goes back where it came from, Settings closes, other tabs go Home, Home exits. */
 export function back(from: Place): Place | 'exit' {
+  if (from.screen === 'report') return { tab: from.tab, screen: from.from };
   if (from.screen === 'settings') return { tab: from.tab, screen: 'tab' };
   if (from.tab !== 'home') return start;
   return 'exit';

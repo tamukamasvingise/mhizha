@@ -6,7 +6,9 @@ import { Icon, Mark } from '../ui/Icon';
 import { Button, EmptyState, IconButton, Tappable, TopBar, TopBarTitle, styles as parts } from '../ui/parts';
 import { useColours } from '../ui/theme';
 import { elevation, lineHeight, radius, size, space, type } from '../ui/tokens';
-import { back, newChoices, openSettings, selectTab, start, tabs, type Place, type TabId } from './navigation';
+import { back, newChoices, openReport, openSettings, selectTab, start, tabs, type Place, type TabId } from './navigation';
+import { ProblemReportBody } from './ProblemReport';
+import { useCheckFailed, useDb } from './Records';
 
 // The app shell: top bar with the Mhizha mark and Settings, the current tab,
 // the New button and the four bottom tabs.
@@ -31,7 +33,16 @@ export function Shell() {
     return (
       <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
         <View style={{ height: insets.top, backgroundColor: c.surface }} />
-        <Settings onBack={() => setPlace(back(place) as Place)} />
+        <Settings onBack={() => setPlace(back(place) as Place)} onReport={() => setPlace(openReport(place))} />
+      </View>
+    );
+  }
+
+  if (place.screen === 'report') {
+    return (
+      <View style={[local.root, { backgroundColor: c.page, paddingBottom: insets.bottom }]}>
+        <View style={{ height: insets.top, backgroundColor: c.surface }} />
+        <Report onBack={() => setPlace(back(place) as Place)} />
       </View>
     );
   }
@@ -53,6 +64,7 @@ export function Shell() {
       </TopBar>
       <View style={local.content}>
         <ScrollView contentContainerStyle={local.main}>
+          <CheckBanner onPress={() => setPlace(openReport(place))} />
           <EmptyState title={tab.empty.title} body={tab.empty.body} />
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
@@ -153,18 +165,13 @@ function NewSheet({ visible, onClose, bottom }: { visible: boolean; onClose: () 
   );
 }
 
-function Settings({ onBack }: { onBack: () => void }) {
+function Settings({ onBack, onReport }: { onBack: () => void; onReport: () => void }) {
   const c = useColours();
   const version = Constants.expoConfig?.version ?? '';
   const build = String(Constants.expoConfig?.extra?.build ?? '');
   return (
     <>
-      <View style={[parts.topBar, local.subBar, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
-        <IconButton icon="back" label="Back" onPress={onBack} />
-        <View style={parts.topBarTitle}>
-          <TopBarTitle>Settings</TopBarTitle>
-        </View>
-      </View>
+      <SubBar title="Settings" onBack={onBack} />
       <ScrollView contentContainerStyle={local.main}>
         <View style={local.section}>
           <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
@@ -179,6 +186,23 @@ function Settings({ onBack }: { onBack: () => void }) {
             </View>
           </View>
         </View>
+        <View style={local.section}>
+          <Text accessibilityRole="header" style={[local.sectionTitle, { color: c.label }]}>
+            Help
+          </Text>
+          <View style={[local.list, { borderColor: c.line, backgroundColor: c.surface }]}>
+            <Tappable
+              accessibilityRole="button"
+              onPress={onReport}
+              style={({ pressed }) => [local.item, pressed && { backgroundColor: c.tint }]}
+            >
+              <Text style={[local.itemTitle, { color: c.fg }]}>Send a problem report</Text>
+              <Text style={[parts.small, { color: c.label }]}>
+                A text file of logs and checks, with no Customer details. You see it before you share it.
+              </Text>
+            </Tappable>
+          </View>
+        </View>
         <Text style={[parts.body, { color: c.label }]}>
           Your business details, Document numbers and backups are set here once setup is built.
         </Text>
@@ -187,10 +211,57 @@ function Settings({ onBack }: { onBack: () => void }) {
   );
 }
 
+function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
+  const c = useColours();
+  return (
+    <View style={[parts.topBar, local.subBar, { backgroundColor: c.surface, borderBottomColor: c.line }]}>
+      <IconButton icon="back" label="Back" onPress={onBack} />
+      <View style={parts.topBarTitle}>
+        <TopBarTitle>{title}</TopBarTitle>
+      </View>
+    </View>
+  );
+}
+
+/** The problem report, read in full before it goes to the Share menu. */
+function Report({ onBack }: { onBack: () => void }) {
+  const db = useDb();
+  return (
+    <>
+      <SubBar title="Problem report" onBack={onBack} />
+      <ScrollView contentContainerStyle={local.sub}>
+        <ProblemReportBody db={db} />
+      </ScrollView>
+    </>
+  );
+}
+
+/** Shown on every tab while a check on open has failed. Work goes on. */
+function CheckBanner({ onPress }: { onPress: () => void }) {
+  const c = useColours();
+  if (!useCheckFailed()) return null;
+  return (
+    <Tappable
+      accessibilityRole="button"
+      accessibilityHint="Opens the problem report"
+      onPress={onPress}
+      style={({ pressed }) => [
+        local.banner,
+        { backgroundColor: pressed ? c.tint : c.surface, borderColor: c.bad },
+      ]}
+    >
+      <Text style={[local.itemTitle, { color: c.bad }]}>! A check failed. Please send a problem report.</Text>
+      <Text style={[parts.small, { color: c.label }]}>Your records are still there and you can keep working.</Text>
+    </Tappable>
+  );
+}
+
 const local = StyleSheet.create({
   root: { flex: 1 },
   content: { flex: 1 },
   main: { padding: space.s4, paddingBottom: size.fab + space.s8 + space.s4, gap: space.s4 },
+  sub: { padding: space.s4, gap: space.s4 },
+  banner: { borderWidth: size.hairline, borderRadius: radius.r, padding: space.s3, gap: space.s05 },
   mark: { flexDirection: 'row', alignItems: 'center', gap: space.s2 },
   markText: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '700' },
   subBar: { paddingLeft: space.s1 },
