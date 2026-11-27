@@ -22,10 +22,11 @@ import {
 } from '../core';
 import type { Db, Row } from '../db';
 import { lastRecordedAt, postEntry } from '../ledger';
-import { InputError, people, type Address, type CustomerKind } from '../people';
+import { addressLine, InputError, people, type Address, type CustomerKind } from '../people';
+import type { InvoicePrint } from '../pdf/invoice';
 import type { PriceItem } from '../prices/priceList';
 import { longDateTime, TIME_ZONE, todayAt } from '../setup/dates';
-import { businessDetails, documentCounters, formatNumber, type BusinessDetails, type DocumentType } from '../setup/store';
+import { businessDetails, documentCounters, emptyBusiness, formatNumber, type BusinessDetails, type DocumentType } from '../setup/store';
 
 export type LineInput = {
   /** Kept when the line was edited, so the same record is changed. */
@@ -81,6 +82,8 @@ export type Issued = {
   sumInWords: string;
   frozen: FrozenCopy;
   status: InvoiceStatus;
+  /** The PDF made at issue; null until it is made. */
+  pdfFileId: string | null;
 };
 
 export type ListFilter = 'all' | 'drafts' | 'quotations' | 'invoices' | 'receipts';
@@ -123,6 +126,25 @@ function totalsOf(lines: readonly LineInput[], discount: Discount | null): Draft
     const plain = documentTotals({ lines });
     return { ...plain, error: e.message };
   }
+}
+
+type PrintedNumbers = Pick<
+  InvoicePrint,
+  'number' | 'issueDate' | 'dueDate' | 'orderNo' | 'lines' | 'subtotal' | 'discount' | 'discountKind' | 'total' | 'sumInWords'
+>;
+
+function printOf(f: FrozenCopy, n: PrintedNumbers): InvoicePrint {
+  return {
+    ...n,
+    quoteRef: '',
+    business: f.business,
+    customer: { name: f.customer.name, address: addressLine(f.customer.address), phones: f.customer.phones, email: f.customer.email },
+    site: {
+      location: [f.site.name, addressLine(f.site.address)].filter(Boolean).join(', '),
+      contact: [f.site.contactName, f.site.contactPhone].filter(Boolean).join(', '),
+    },
+    job: f.job.title,
+  };
 }
 
 export function documents(db: Db, clock: () => number) {
@@ -169,15 +191,19 @@ export function documents(db: Db, clock: () => number) {
   function frozenCopy(customerId: string, jobId: string, issueDate: string): FrozenCopy | null {
     const business = businessDetails(db, issueDate) ?? businessDetails(db);
     if (!business) return null;
-    const c = p.customer(customerId);
     const j = p.job(jobId);
     const s = p.site(j.siteId);
     return {
       business,
-      customer: { kind: c.kind, name: c.name, phones: c.phones, whatsapp: c.whatsapp, email: c.email, address: c.address, taxNumber: c.taxNumber },
+      ...customerPart(customerId),
       site: { name: s.name, address: s.address, contactName: s.contactName, contactPhone: s.contactPhone },
       job: { title: j.title },
     };
+  }
+
+  function customerPart(customerId: string): Pick<FrozenCopy, 'customer'> {
+    const c = p.customer(customerId);
+    return { customer: { kind: c.kind, name: c.name, phones: c.phones, whatsapp: c.whatsapp, email: c.email, address: c.address, taxNumber: c.taxNumber } };
   }
 
   return {
@@ -372,7 +398,61 @@ export function documents(db: Db, clock: () => number) {
         frozen: JSON.parse(String(r.frozen)) as FrozenCopy,
         // Payments, applied money and Write-offs come with later tickets.
         status: invoiceStatus({ total, applied: 0, writtenOff: 0, dueDate }, todayAt(clock())),
+        pdfFileId: r.pdf_file_id == null ? null : String(r.pdf_file_id),
       };
+    },
+
+    /**
+     * What the Invoice prints. An Issued one prints its frozen copy; a Draft
+     * prints as it stands now, with no number, dated today.
+     */
+    printable(id: string): InvoicePrint {
+      const r = row(id);
+      if (r.number != null) {
+        const inv = this.issued(id);
+        return printOf(inv.frozen, {
+          number: inv.number,
+          issueDate: inv.issueDate,
+          dueDate: inv.dueDate,
+          orderNo: inv.orderNo,
+          lines: inv.lines,
+          subtotal: inv.subtotal,
+          discount: inv.discount,
+          discountKind: inv.discountKind,
+          total: inv.total,
+          sumInWords: inv.sumInWords,
+        });
+      }
+      const draft = this.draft(id);
+      const today = todayAt(clock());
+      const frozen = (draft.jobId && jobProblem(draft.customerId, draft.jobId) === null
+        ? frozenCopy(draft.customerId, draft.jobId, today)
+        : null) ?? {
+        business: businessDetails(db, today) ?? businessDetails(db) ?? emptyBusiness(),
+        ...customerPart(draft.customerId),
+        site: { name: '', address: { lines: '', suburb: '', city: '', province: '', country: '' }, contactName: '', contactPhone: '' },
+        job: { title: '' },
+      };
+      return printOf(frozen, {
+        number: null,
+        issueDate: today,
+        dueDate: draft.dueDate ?? today,
+        orderNo: draft.orderNo,
+        lines: draft.lines,
+        subtotal: draft.totals.subtotal,
+        discount: draft.totals.error ? 0 : draft.totals.discount,
+        discountKind: draft.totals.error ? null : draft.discount,
+        total: draft.totals.total,
+        sumInWords: draft.totals.total > 0 ? sumInWords(draft.totals.total) : 'Zero US dollars only',
+      });
+    },
+
+    /** Records the PDF made for an Issued Document. It is set once and never replaced. */
+    setPdf(id: string, fileId: string) {
+      const r = row(id);
+      if (r.number == null) throw new Error('A Draft has no PDF; it is previewed only.');
+      if (r.pdf_file_id != null) throw new Error(`Document ${id} already has its PDF`);
+      db.update('document', id, { pdf_file_id: fileId });
     },
 
     /** Drafts first, newest changed first; then Issued, newest first, same day higher number first. */

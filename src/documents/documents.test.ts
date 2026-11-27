@@ -272,3 +272,59 @@ describe('the Documents list', () => {
     expect(d.list()[0]!.status).toBe('overdue');
   });
 });
+
+describe('what an Invoice prints', () => {
+  it('prints an Issued Invoice from its frozen copy, even after the Customer changes', () => {
+    const id = readyDraft();
+    d.setDetails(id, { dueDate: '2026-12-11', orderNo: 'PO 4471' });
+    d.setDiscount(id, { kind: 'percent', tenths: 100 });
+    d.issue(id);
+    const c = p.customer(tendai);
+    p.updateCustomer(tendai, { ...c, name: 'Tendai Moyo-Ncube' });
+    const printed = d.printable(id);
+    expect(printed).toMatchObject({
+      number: 'INV-0001',
+      issueDate: '2026-11-27',
+      dueDate: '2026-12-11',
+      orderNo: 'PO 4471',
+      quoteRef: '',
+      customer: { name: 'Tendai Moyo', address: 'Harare', phones: ['077 123 4567'], email: '' },
+      site: { location: 'Home, Harare', contact: '' },
+      job: 'Kitchen rewiring',
+      subtotal: 11_488,
+      discount: 1_149,
+      discountKind: { kind: 'percent', tenths: 100 },
+      total: 10_339,
+      sumInWords: 'One hundred and three US dollars and thirty-nine cents only',
+    });
+    expect(printed.business.name).toBe('Demo Building Services');
+    expect(printed.lines.map((l) => [l.description, l.amount])).toEqual([['Labour', 9_000], ['Cable 2.5mm', 2_488]]);
+  });
+
+  it('prints a Draft as it stands now, with no number, dated today', () => {
+    const id = readyDraft();
+    const printed = d.printable(id);
+    expect(printed).toMatchObject({ number: null, issueDate: '2026-11-27', dueDate: '2026-11-27', customer: { name: 'Tendai Moyo' }, total: 11_488 });
+    expect(printed.sumInWords).toBe('One hundred and fourteen US dollars and eighty-eight cents only');
+  });
+});
+
+describe('the PDF of an Issued Invoice', () => {
+  const pdfFile = () => db.insert('file', { kind: 'pdf', path: 'pdfs/x/INV-0001.pdf', checksum: 'abc', size: 10 });
+
+  it('is recorded once and never replaced', () => {
+    const id = readyDraft();
+    d.issue(id);
+    expect(d.issued(id).pdfFileId).toBeNull();
+    const first = pdfFile();
+    d.setPdf(id, first);
+    expect(d.issued(id).pdfFileId).toBe(first);
+    expect(() => d.setPdf(id, pdfFile())).toThrow();
+    expect(d.issued(id).pdfFileId).toBe(first);
+  });
+
+  it('is never made for a Draft', () => {
+    const id = readyDraft();
+    expect(() => d.setPdf(id, pdfFile())).toThrow(/Draft/);
+  });
+});
