@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] First screen shows Start new and Restore from a backup (Restore is a later ticket; the button can say it is coming)
-- [ ] Business details: name, trading-as, what we do, phones, email, structured address, tax number, logo, brand colour (pale colours darkened for text), font, watermark, payment details, optional drawn signature
-- [ ] Starting number per Document type, locked once the first of that type is Issued
-- [ ] Start date (today by default) and Accounting period (monthly and January prefilled; a change applies from the next period)
-- [ ] App lock asked once, only if the phone has a screen lock; uses the phone's own lock; can be changed in Settings
-- [ ] Business details and the Accounting period are kept with the date each took effect
+- [x] First screen shows Start new and Restore from a backup (Restore is a later ticket; the button can say it is coming)
+- [x] Business details: name, trading-as, what we do, phones, email, structured address, tax number, logo, brand colour (pale colours darkened for text), font, watermark, payment details, optional drawn signature
+- [x] Starting number per Document type, locked once the first of that type is Issued
+- [x] Start date (today by default) and Accounting period (monthly and January prefilled; a change applies from the next period)
+- [x] App lock asked once, only if the phone has a screen lock; uses the phone's own lock; can be changed in Settings
+- [x] Business details and the Accounting period are kept with the date each took effect
