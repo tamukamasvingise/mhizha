@@ -50,7 +50,7 @@ export function Shell() {
         )}
       </TopBar>
       <View style={local.content}>
-        <ScrollView contentContainerStyle={local.main} accessibilityLabel={tab.label}>
+        <ScrollView contentContainerStyle={local.main}>
           <EmptyState title={tab.empty.title} body={tab.empty.body} />
         </ScrollView>
         <NewButton onPress={() => setNewOpen(true)} />
