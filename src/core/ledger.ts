@@ -41,6 +41,36 @@ export function post(journal: Journal, input: EntryInput): Journal {
   return append(journal, { ...input, lines: [...input.lines] });
 }
 
+/**
+ * Correct an entry by posting its exact reverse, dated the day of the correction. The original
+ * stays. Refused for an entry already reversed, a reversing entry, or one whose money is used.
+ */
+export function reverse(
+  journal: Journal,
+  entryId: string,
+  correction: { id: string; accountingDate: string; recordedAt: string },
+): Journal {
+  const original = journal.find((e) => e.id === entryId);
+  if (!original) throw new LedgerError(`Entry ${entryId} can't be reversed: there is no such entry.`);
+  if (original.reverses !== undefined) {
+    throw new LedgerError(`Entry ${entryId} can't be reversed: it is itself a reversal.`);
+  }
+  if (journal.some((e) => e.reverses === entryId)) {
+    throw new LedgerError(`Entry ${entryId} can't be reversed: it is already reversed.`);
+  }
+  return append(journal, {
+    ...correction,
+    source: original.source,
+    reverses: entryId,
+    lines: original.lines.map((l) => ({ ...l, side: l.side === "debit" ? "credit" : "debit" })),
+  });
+}
+
+/** True when the entry has been reversed. */
+export function isReversed(journal: Journal, entryId: string): boolean {
+  return journal.some((e) => e.reverses === entryId);
+}
+
 function append(journal: Journal, entry: Entry): Journal {
   refuseUnlessValid(journal, entry);
   return [...journal, entry];
