@@ -4,13 +4,22 @@ Mhizha (Shona for a skilled craftsman) is a planned offline Android app for cons
 
 ## Status
 
-Planning. There is no app code yet. The plan is a map of decisions worked one at a time:
+Building version 1. The app so far is its shell. The plan is a map of decisions worked one at a time:
 
 - Map: [.scratch/mhizha-v1/map.md](.scratch/mhizha-v1/map.md)
 - Terms: [GLOSSARY.md](GLOSSARY.md)
 - Research notes: [docs/research](docs/research)
 
 Planned stack: Expo with TypeScript and SQLite on the phone, built with GitHub Actions, installed as an APK outside the Play Store.
+
+## Development
+
+Expo SDK 58 with TypeScript, built only in GitHub Actions (no Expo cloud builds). Use pnpm, never npm.
+
+- `pnpm install`, then `pnpm test` (Vitest) and `pnpm typecheck`.
+- The look is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md); its values in `src/ui/tokens.ts`.
+- Every push runs `.github/workflows/ci.yml`: tests, a `.test` APK (`io.github.tamukamasvingise.mhizha.test`, arm64-v8a, armeabi-v7a and x86_64), and a launch check on Android 10 (2 GB, 720p) and current emulators. The APK and screenshots are kept 7 days as run artifacts.
+- Test signing key, read from these Actions secrets when they exist: `MHIZHA_TEST_KEYSTORE_BASE64` (the keystore, base64), `MHIZHA_TEST_KEYSTORE_PASSWORD`, `MHIZHA_TEST_KEY_ALIAS`, `MHIZHA_TEST_KEY_PASSWORD` (defaults to the store password). Without them each run signs with a throwaway key, so its APK cannot install over a `.test` build from another run. Never commit a keystore.
 
 ## Contributing
 
