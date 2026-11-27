@@ -24,7 +24,8 @@ function open(platform: SqlPlatform = nodePlatform(), steps: readonly Step[] = a
   return opened.db;
 }
 
-// A ledger as a later ticket will add it, and a table with no delete guard, on top of the app's steps.
+// A loose ledger that lets the test write entries the real tables refuse, and a table with no
+// delete guard, on top of the app's steps.
 const later: Step[] = [
   ...appSteps,
   {
@@ -33,6 +34,8 @@ const later: Step[] = [
     run: (ctx) =>
       ctx.exec(`
 CREATE TABLE test_record (${recordColumns()}, label TEXT) STRICT;
+DROP TABLE journal_line;
+DROP TABLE journal_entry;
 CREATE TABLE journal_entry (${recordColumns()}, accounting_date TEXT NOT NULL) STRICT;
 CREATE TABLE journal_line (${recordColumns()},
   journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),

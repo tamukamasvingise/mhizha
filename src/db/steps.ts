@@ -3,6 +3,34 @@
 // User's records.
 import type { SqlValue } from './sql';
 
+// Every column of an Issued Document that may never change. Only its PDF file
+// may be set, once, after issuing.
+const LOCKED_DOCUMENT_COLUMNS = [
+  'type', 'customer_id', 'job_id', 'number', 'printed_number', 'revision', 'revises_id', 'quotation_id',
+  'issued_at', 'time_zone', 'issue_date', 'valid_until', 'due_date', 'order_no', 'tax_status', 'vat_rate',
+  'vat_amount', 'subtotal', 'discount_kind', 'discount_value', 'discount_cents', 'total', 'sum_in_words',
+  'frozen', 'deleted_at', 'install_id', 'created_at',
+] as const;
+
+// The chart of accounts as step 6 writes it. Released steps never change, so
+// this is a copy, not src/core's live list (a test keeps the two in step).
+export const ACCOUNTS_AT_STEP_6: Record<string, { name: string; normal: 'debit' | 'credit'; perCustomer: boolean; hidden: boolean }> = {
+  '1010': { name: 'Cash', normal: 'debit', perCustomer: false, hidden: false },
+  '1020': { name: 'Bank', normal: 'debit', perCustomer: false, hidden: false },
+  '1030': { name: 'EcoCash', normal: 'debit', perCustomer: false, hidden: false },
+  '1040': { name: 'InnBucks', normal: 'debit', perCustomer: false, hidden: false },
+  '1090': { name: 'Other money', normal: 'debit', perCustomer: false, hidden: false },
+  '1100': { name: 'Customers owe', normal: 'debit', perCustomer: true, hidden: false },
+  '1200': { name: 'Unbilled work', normal: 'debit', perCustomer: false, hidden: true },
+  '2100': { name: 'Deposits held', normal: 'credit', perCustomer: true, hidden: false },
+  '2200': { name: 'Credit held', normal: 'credit', perCustomer: true, hidden: false },
+  '2300': { name: 'Unearned income', normal: 'credit', perCustomer: false, hidden: true },
+  '3000': { name: "Owner's equity", normal: 'credit', perCustomer: false, hidden: false },
+  '3100': { name: 'Opening balances', normal: 'credit', perCustomer: false, hidden: false },
+  '4000': { name: 'Sales', normal: 'credit', perCustomer: false, hidden: false },
+  '5000': { name: 'Bad debts', normal: 'debit', perCustomer: false, hidden: false },
+};
+
 export type StepContext = {
   exec(sql: string): void;
   run(sql: string, params?: readonly SqlValue[]): void;
@@ -244,6 +272,130 @@ BEGIN SELECT RAISE(ABORT, 'Document numbers are locked once one is Issued'); END
           [ctx.newId(), ctx.installId, now, now, type, type],
         ),
       );
+    },
+  },
+  {
+    to: 6,
+    name: 'documents, lines, accounts and the journal',
+    run(ctx) {
+      // Documents (spec sections 6 and 12). A Draft has no number and may be
+      // deleted (a marker; nothing is erased). Issuing gives the number and
+      // locks the Document: after that only its PDF file may be set, once.
+      ctx.exec(`
+CREATE TABLE document (
+  ${recordColumns({ deletable: true })},
+  type TEXT NOT NULL CHECK (type IN ('QUO', 'INV', 'REC', 'REF')),
+  customer_id TEXT NOT NULL REFERENCES customer (id),
+  job_id TEXT REFERENCES job (id),
+  number INTEGER CHECK (number IS NULL OR number >= 1),
+  printed_number TEXT,
+  revision INTEGER,
+  revises_id TEXT REFERENCES document (id),
+  quotation_id TEXT REFERENCES document (id),
+  issued_at TEXT,
+  time_zone TEXT,
+  issue_date TEXT,
+  valid_until TEXT,
+  due_date TEXT,
+  order_no TEXT NOT NULL DEFAULT '',
+  tax_status TEXT CHECK (tax_status IS NULL OR tax_status IN ('not registered')),
+  vat_rate INTEGER,
+  vat_amount INTEGER,
+  subtotal INTEGER NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
+  discount_kind TEXT CHECK (discount_kind IS NULL OR discount_kind IN ('amount', 'percent')),
+  discount_value INTEGER CHECK (discount_value IS NULL OR discount_value >= 0),
+  discount_cents INTEGER NOT NULL DEFAULT 0 CHECK (discount_cents >= 0 AND discount_cents <= subtotal),
+  total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
+  sum_in_words TEXT,
+  frozen TEXT CHECK (frozen IS NULL OR json_valid(frozen)),
+  pdf_file_id TEXT REFERENCES file (id),
+  CHECK ((discount_kind IS NULL) = (discount_value IS NULL)),
+  CHECK (total = subtotal - discount_cents),
+  CHECK (number IS NULL OR (printed_number IS NOT NULL AND issued_at IS NOT NULL AND time_zone IS NOT NULL
+    AND issue_date IS NOT NULL AND tax_status IS NOT NULL AND total > 0 AND sum_in_words IS NOT NULL
+    AND frozen IS NOT NULL AND deleted_at IS NULL)),
+  UNIQUE (type, number, revision)
+) STRICT;
+CREATE INDEX document_customer ON document (customer_id);
+CREATE INDEX document_job ON document (job_id);
+CREATE TABLE document_line (
+  ${recordColumns({ deletable: true })},
+  document_id TEXT NOT NULL REFERENCES document (id),
+  position INTEGER NOT NULL CHECK (position >= 1),
+  price_list_item_id TEXT REFERENCES price_list_item (id),
+  description TEXT NOT NULL CHECK (length(trim(description)) > 0),
+  unit TEXT NOT NULL DEFAULT '',
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+  amount INTEGER NOT NULL CHECK (amount >= 0)
+) STRICT;
+CREATE INDEX document_line_document ON document_line (document_id);
+CREATE TRIGGER document_never_deleted BEFORE DELETE ON document
+BEGIN SELECT RAISE(ABORT, 'document records are never deleted'); END;
+CREATE TRIGGER document_line_never_deleted BEFORE DELETE ON document_line
+BEGIN SELECT RAISE(ABORT, 'document_line records are never deleted'); END;
+CREATE TRIGGER document_issued_locked BEFORE UPDATE ON document
+WHEN OLD.number IS NOT NULL AND (${LOCKED_DOCUMENT_COLUMNS.map((c) => `NEW.${c} IS NOT OLD.${c}`).join(' OR ')}
+  OR (OLD.pdf_file_id IS NOT NULL AND NEW.pdf_file_id IS NOT OLD.pdf_file_id))
+BEGIN SELECT RAISE(ABORT, 'An Issued Document is locked'); END;
+CREATE TRIGGER document_line_issued_locked_insert BEFORE INSERT ON document_line
+WHEN (SELECT number FROM document WHERE id = NEW.document_id) IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'An Issued Document is locked'); END;
+CREATE TRIGGER document_line_issued_locked_update BEFORE UPDATE ON document_line
+WHEN (SELECT number FROM document WHERE id = OLD.document_id) IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'An Issued Document is locked'); END;
+`);
+      // The ledger (spec section 9): accounts with permanent codes, and journal
+      // entries that are never changed or deleted.
+      ctx.exec(`
+CREATE TABLE account (
+  ${recordColumns()},
+  code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  normal TEXT NOT NULL CHECK (normal IN ('debit', 'credit')),
+  per_customer INTEGER NOT NULL CHECK (per_customer IN (0, 1)),
+  hidden INTEGER NOT NULL CHECK (hidden IN (0, 1))
+) STRICT;
+CREATE TABLE journal_entry (
+  ${recordColumns()},
+  accounting_date TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  time_zone TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  reverses_id TEXT UNIQUE REFERENCES journal_entry (id),
+  adjustment INTEGER NOT NULL DEFAULT 0 CHECK (adjustment IN (0, 1))
+) STRICT;
+CREATE INDEX journal_entry_source ON journal_entry (source_id);
+CREATE TABLE journal_line (
+  ${recordColumns()},
+  journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
+  account_code TEXT NOT NULL REFERENCES account (code),
+  customer_id TEXT REFERENCES customer (id),
+  debit INTEGER NOT NULL DEFAULT 0 CHECK (debit >= 0),
+  credit INTEGER NOT NULL DEFAULT 0 CHECK (credit >= 0),
+  CHECK ((debit > 0) <> (credit > 0))
+) STRICT;
+CREATE INDEX journal_line_entry ON journal_line (journal_entry_id);
+CREATE INDEX journal_line_customer ON journal_line (customer_id, account_code);
+`);
+      for (const table of ['account', 'journal_entry', 'journal_line']) {
+        ctx.exec(`CREATE TRIGGER ${table}_never_deleted BEFORE DELETE ON ${table}
+BEGIN SELECT RAISE(ABORT, '${table} records are never deleted'); END;`);
+      }
+      for (const table of ['journal_entry', 'journal_line']) {
+        ctx.exec(`CREATE TRIGGER ${table}_never_changed BEFORE UPDATE ON ${table}
+BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
+      }
+      const now = ctx.now();
+      for (const [code, a] of Object.entries(ACCOUNTS_AT_STEP_6)) {
+        ctx.run(
+          `INSERT INTO account (id, install_id, created_at, changed_at, code, name, normal, per_customer, hidden)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [ctx.newId(), ctx.installId, now, now, code, a.name, a.normal, a.perCustomer ? 1 : 0, a.hidden ? 1 : 0],
+        );
+      }
     },
   },
 ];
