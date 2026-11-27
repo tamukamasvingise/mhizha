@@ -49,6 +49,8 @@ export interface PaymentRecord {
   toCredit: Cents;
   active: boolean;
   entryId: string;
+  /** Entries posted later in the same save, such as money held until the Invoice date, then applied. */
+  laterEntryIds?: readonly string[];
 }
 
 export interface RefundRecord {

@@ -66,25 +66,28 @@ const BIG_ROW = 26;
 const SIGNATURE = 62;
 const LOGO = 45;
 
-const style = (font: FontName, size: number, more: Partial<TextStyle> = {}): TextStyle => ({ font, size, ...more });
+/** The measures other Document pages (Receipt, Refund) share with this one. */
+export const LAYOUT = { W, H, SLACK, ROW_LH, ROW_PAD, RULE, THICK, CELL_X, TABLE_HEAD, CONTINUED, SHORT_HEAD } as const;
 
-const usd = (c: Cents) => formatUsd(c).replace('US$', '');
+export const style = (font: FontName, size: number, more: Partial<TextStyle> = {}): TextStyle => ({ font, size, ...more });
 
-function esc(s: string): string {
+export const usd = (c: Cents) => formatUsd(c).replace('US$', '');
+
+export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 const addressText = (a: BusinessDetails['address']) =>
   [a.line1, a.line2, a.suburb, a.city, a.province, a.country].map((x) => x.trim()).filter(Boolean).join(', ');
 
-type Kv = [string, string];
-const filled = (rows: Kv[]) => rows.filter(([, v]) => v.trim() !== '');
+export type Kv = [string, string];
+export const filled = (rows: Kv[]) => rows.filter(([, v]) => v.trim() !== '');
 
 // --- The blocks, each with the height it is given ---
 
-type Block = { html: string; height: number };
+export type Block = { html: string; height: number };
 
-function letterhead(p: InvoicePrint, a: PrintAssets): Block {
+export function letterhead(p: Pick<InvoicePrint, 'business'>, a: PrintAssets): Block {
   const b = p.business;
   const f = b.font;
   const ta = b.tradingAs.trim();
@@ -126,13 +129,13 @@ function titleBlock(p: InvoicePrint): Block {
   return { html, height: 16 + inner + 14 };
 }
 
-function kvHeight(rows: Kv[], valueW: number, f: FontName): number {
+export function kvHeight(rows: Kv[], valueW: number, f: FontName): number {
   if (rows.length === 0) return 0;
   const lines = rows.reduce((n, [, v]) => n + Math.max(1, lineCount(v, valueW, style(f, 9.5))), 0);
   return lines * ROW_LH + (rows.length - 1) * KV_GAP;
 }
 
-const kv = (rows: Kv[], cls = 'kv') =>
+export const kv = (rows: Kv[], cls = 'kv') =>
   `<div class="${cls}">${rows.map(([k, v]) => `<span>${k}</span><div>${esc(v)}</div>`).join('')}</div>`;
 
 function parties(p: InvoicePrint): Block {
@@ -206,14 +209,19 @@ function afterTable(p: InvoicePrint): Block {
   return { html, height: 14 + inner };
 }
 
-function signature(a: PrintAssets): Block {
+export function signature(a: PrintAssets, label = 'Authorised signature'): Block {
   return {
-    html: `<div class="sig" style="height:${SIGNATURE}pt"><div>${a.signature ? `<img src="${a.signature}" alt="">` : ''}Authorised signature</div></div>`,
+    html: `<div class="sig" style="height:${SIGNATURE}pt"><div>${a.signature ? `<img src="${a.signature}" alt="">` : ''}${esc(label)}</div></div>`,
     height: SIGNATURE,
   };
 }
 
-function footer(p: InvoicePrint, page: number, pages: number): { html: string; height: number } {
+export function footer(
+  p: Pick<InvoicePrint, 'business' | 'number'>,
+  page: number,
+  pages: number,
+  label = `INVOICE ${p.number ?? 'DRAFT'}`,
+): { html: string; height: number } {
   const what = p.business.whatWeDo.trim();
   const whatLines = Math.min(2, lineCount(what, W, style(p.business.font, 8.5)));
   const box = THICK + 6 + (whatLines ? whatLines * 11 + 4 : 0) + 10;
@@ -221,7 +229,7 @@ function footer(p: InvoicePrint, page: number, pages: number): { html: string; h
     html:
       `<footer class="foot" data-h="${box}">` +
       (whatLines ? `<div class="what" style="height:${whatLines * 11}pt">${esc(what)}</div>` : '') +
-      `<div class="pg"><span>INVOICE ${esc(p.number ?? 'DRAFT')}</span><span>Page ${page} of ${pages}</span></div></footer>`,
+      `<div class="pg"><span>${esc(label)}</span><span>Page ${page} of ${pages}</span></div></footer>`,
     height: 11 + box,
   };
 }
@@ -273,7 +281,7 @@ function fontFaces(font: FontName): string {
     .join('');
 }
 
-function css(p: InvoicePrint, a: PrintAssets): string {
+export function css(p: Pick<InvoicePrint, 'business'>, a: PrintAssets): string {
   const accent = p.business.brandColour;
   return (
     (a.fonts ? fontFaces(p.business.font) : '') +

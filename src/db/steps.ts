@@ -415,4 +415,94 @@ BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
       }
     },
   },
+  {
+    to: 8,
+    name: 'Payment methods, Payments, allocations and Receipt lines',
+    run(ctx) {
+      // Payments (spec sections 6 and 9). A Payment is saved with its Receipt
+      // (a Document of type REC, issued at once), the lines that Receipt
+      // prints, and the allocations that say what the money paid. None of
+      // these is ever changed or deleted; a mistake is put right by a
+      // reversing record (Cancel, a later ticket). Hiding a Payment method is
+      // a dated change; the latest one counts.
+      ctx.exec(`
+CREATE TABLE payment_method (
+  ${recordColumns()},
+  code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  money_account_code TEXT NOT NULL REFERENCES account (code),
+  needs_description INTEGER NOT NULL CHECK (needs_description IN (0, 1))
+) STRICT;
+CREATE TABLE payment_method_change (
+  ${recordColumns()},
+  method_code TEXT NOT NULL REFERENCES payment_method (code),
+  hidden INTEGER NOT NULL CHECK (hidden IN (0, 1)),
+  effective_from TEXT NOT NULL
+) STRICT;
+CREATE TABLE payment (
+  ${recordColumns()},
+  customer_id TEXT NOT NULL REFERENCES customer (id),
+  receipt_id TEXT NOT NULL UNIQUE REFERENCES document (id),
+  date_received TEXT NOT NULL,
+  method_code TEXT NOT NULL REFERENCES payment_method (code),
+  other_description TEXT NOT NULL DEFAULT '',
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  separate_receipts INTEGER NOT NULL CHECK (separate_receipts IN (0, 1)),
+  journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id)
+) STRICT;
+CREATE INDEX payment_customer ON payment (customer_id);
+CREATE TABLE allocation (
+  ${recordColumns()},
+  journal_entry_id TEXT NOT NULL REFERENCES journal_entry (id),
+  from_kind TEXT NOT NULL CHECK (from_kind IN ('payment', 'deposit', 'credit', 'opening-credit')),
+  from_id TEXT NOT NULL,
+  to_kind TEXT NOT NULL CHECK (to_kind IN ('invoice', 'opening-balance', 'quotation', 'credit')),
+  to_id TEXT NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  reverses_id TEXT UNIQUE REFERENCES allocation (id)
+) STRICT;
+CREATE INDEX allocation_to ON allocation (to_id);
+CREATE INDEX allocation_from ON allocation (from_id);
+CREATE TABLE receipt_line (
+  ${recordColumns()},
+  receipt_id TEXT NOT NULL REFERENCES document (id),
+  position INTEGER NOT NULL CHECK (position >= 1),
+  invoice_id TEXT REFERENCES document (id),
+  opening_balance_id TEXT,
+  job_id TEXT REFERENCES job (id),
+  applied_to TEXT NOT NULL,
+  job_title TEXT NOT NULL DEFAULT '',
+  total INTEGER NOT NULL CHECK (total > 0),
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  balance_left INTEGER NOT NULL CHECK (balance_left >= 0),
+  UNIQUE (receipt_id, position)
+) STRICT;
+CREATE INDEX receipt_line_receipt ON receipt_line (receipt_id);
+`);
+      for (const table of ['payment_method', 'payment_method_change', 'payment', 'allocation', 'receipt_line']) {
+        ctx.exec(`CREATE TRIGGER ${table}_never_deleted BEFORE DELETE ON ${table}
+BEGIN SELECT RAISE(ABORT, '${table} records are never deleted'); END;`);
+      }
+      for (const table of ['payment_method_change', 'payment', 'allocation', 'receipt_line']) {
+        ctx.exec(`CREATE TRIGGER ${table}_never_changed BEFORE UPDATE ON ${table}
+BEGIN SELECT RAISE(ABORT, '${table} records are never changed'); END;`);
+      }
+      const now = ctx.now();
+      const methods: [string, string, string, number][] = [
+        ['cash', 'Cash', '1010', 0],
+        ['bank-transfer', 'Bank transfer', '1020', 0],
+        ['card', 'Card (swipe)', '1020', 0],
+        ['ecocash', 'EcoCash', '1030', 0],
+        ['innbucks', 'InnBucks', '1040', 0],
+        ['other', 'Other', '1090', 1],
+      ];
+      for (const [code, name, account, describe] of methods) {
+        ctx.run(
+          `INSERT INTO payment_method (id, install_id, created_at, changed_at, code, name, money_account_code, needs_description)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [ctx.newId(), ctx.installId, now, now, code, name, account, describe],
+        );
+      }
+    },
+  },
 ];

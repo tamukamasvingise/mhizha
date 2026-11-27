@@ -60,3 +60,13 @@ export function moneyAccountFor(method: PaymentMethod): AccountCode {
 }
 
 export const MONEY_ACCOUNTS: readonly AccountCode[] = [...new Set(Object.values(MONEY_ACCOUNT))];
+
+/** Each Payment method as the User sees it, and as the Receipt prints it. */
+export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, string> = {
+  cash: "Cash",
+  "bank-transfer": "Bank transfer",
+  card: "Card (swipe)",
+  ecocash: "EcoCash",
+  innbucks: "InnBucks",
+  other: "Other",
+};

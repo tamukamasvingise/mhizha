@@ -30,6 +30,7 @@ export {
   ACCOUNTS,
   ACCOUNT,
   PAYMENT_METHODS,
+  PAYMENT_METHOD_NAMES,
   MONEY_ACCOUNTS,
   moneyAccountFor,
   type AccountCode,
@@ -52,3 +53,4 @@ export { postings } from "./postings";
 export { type CustomerBalances, customerBalances, checkLedger } from "./checks";
 export { type InvoiceStatus, invoiceStatus } from "./status";
 export { issuableTotals } from "./issue";
+export { type Owing, type PaymentSplit, fillOldestFirst, dateReceivedProblem } from "./payment";

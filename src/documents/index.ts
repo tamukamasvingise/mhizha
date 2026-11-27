@@ -22,6 +22,7 @@ import {
 } from '../core';
 import type { Db, Row } from '../db';
 import { lastRecordedAt, postEntry } from '../ledger';
+import { appliedTo } from '../payments/allocations';
 import { addressLine, InputError, people, type Address, type CustomerKind } from '../people';
 import type { InvoicePrint } from '../pdf/invoice';
 import type { PriceItem } from '../prices/priceList';
@@ -99,7 +100,8 @@ export type ListItem = {
   /** The issue date; for a Draft, the day it was last changed. */
   date: string;
   total: Cents;
-  status: InvoiceStatus | 'draft';
+  /** An Invoice's worked-out status; 'received' for a money Receipt. */
+  status: InvoiceStatus | 'draft' | 'received';
 };
 
 const TYPE_NAMES: Record<DocumentType, string> = { QUO: 'Quotation', INV: 'Invoice', REC: 'Receipt', REF: 'Refund' };
@@ -396,8 +398,8 @@ export function documents(db: Db, clock: () => number) {
         total,
         sumInWords: String(r.sum_in_words),
         frozen: JSON.parse(String(r.frozen)) as FrozenCopy,
-        // Payments, applied money and Write-offs come with later tickets.
-        status: invoiceStatus({ total, applied: 0, writtenOff: 0, dueDate }, todayAt(clock())),
+        // Write-offs come with a later ticket.
+        status: invoiceStatus({ total, applied: appliedTo(db, id), writtenOff: 0, dueDate }, todayAt(clock())),
         pdfFileId: r.pdf_file_id == null ? null : String(r.pdf_file_id),
       };
     },
@@ -503,7 +505,10 @@ export function documents(db: Db, clock: () => number) {
             jobTitle: frozen.job.title,
             date: String(r.issue_date),
             total,
-            status: invoiceStatus({ total, applied: 0, writtenOff: 0, dueDate: String(r.due_date) }, today),
+            status:
+              type === 'REC'
+                ? 'received'
+                : invoiceStatus({ total, applied: appliedTo(db, String(r.id)), writtenOff: 0, dueDate: String(r.due_date) }, today),
           };
         });
     },

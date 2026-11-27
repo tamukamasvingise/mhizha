@@ -280,7 +280,11 @@ const cancelPayment: HarnessEvent = {
         return {
           ...w,
           // The ledger refuses this if the Deposit or Credit it brought in has been used or refunded.
-          journal: reverse(w.journal, payment.entryId, correction(w)),
+          // Later entries of the same save are reversed first, newest first.
+          journal: [...(payment.laterEntryIds ?? []).slice().reverse(), payment.entryId].reduce(
+            (j, entryId) => reverse(j, entryId, correction({ ...w, journal: j })),
+            w.journal,
+          ),
           invoices,
           payments: replaceById(w.payments, payment.id, { active: false }),
           held: withHeld(w, payment.customerId, {

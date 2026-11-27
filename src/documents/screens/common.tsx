@@ -26,6 +26,7 @@ export const STATUS_WORDS: Record<ListItem['status'], string> = {
   paid: '✓ Paid',
   overdue: '! Overdue',
   closed: 'Closed',
+  received: 'Received',
 };
 
 /** Opens a Document: a Draft at its last step, with the earlier steps behind it; an Issued one on its own screen. */
