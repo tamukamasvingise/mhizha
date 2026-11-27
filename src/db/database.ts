@@ -206,6 +206,7 @@ function stepContext(conn: SqlConnection, env: Env, installId: string): StepCont
     installId,
     appVersion: env.appVersion,
     now: () => iso(env.clock()),
+    newId: () => uuidv7(env.clock(), env.random),
   };
 }
 

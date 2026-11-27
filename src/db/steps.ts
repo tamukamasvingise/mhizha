@@ -10,6 +10,8 @@ export type StepContext = {
   appVersion: string;
   /** The time now, UTC, ISO 8601. */
   now(): string;
+  /** A new record ID (UUID v7). */
+  newId(): string;
 };
 
 export type Step = { to: number; name: string; run(ctx: StepContext): void };
@@ -62,6 +64,80 @@ CREATE TABLE error_log (
       ctx.run(
         'INSERT INTO install (id, install_id, created_at, changed_at, first_opened_at, app_version) VALUES (?, ?, ?, ?, ?, ?)',
         [ctx.installId, ctx.installId, now, now, now, ctx.appVersion],
+      );
+    },
+  },
+  {
+    to: 2,
+    name: 'setup: business details, Accounting period, Document numbers, files',
+    run(ctx) {
+      ctx.exec(`
+CREATE TABLE file (
+  ${recordColumns()},
+  kind TEXT NOT NULL CHECK (kind IN ('logo', 'signature', 'pdf')),
+  path TEXT NOT NULL,
+  checksum TEXT NOT NULL,
+  size INTEGER NOT NULL CHECK (size > 0)
+) STRICT;
+CREATE TABLE setup (
+  ${recordColumns()},
+  start_date TEXT NOT NULL,
+  app_lock INTEGER NOT NULL DEFAULT 0 CHECK (app_lock IN (0, 1)),
+  app_lock_asked INTEGER NOT NULL DEFAULT 0 CHECK (app_lock_asked IN (0, 1)),
+  finished_at TEXT
+) STRICT;
+CREATE TABLE business_details (
+  ${recordColumns()},
+  effective_from TEXT NOT NULL,
+  name TEXT NOT NULL CHECK (length(name) > 0),
+  trading_as TEXT NOT NULL DEFAULT '',
+  what_we_do TEXT NOT NULL DEFAULT '',
+  phones TEXT NOT NULL DEFAULT '[]',
+  email TEXT NOT NULL DEFAULT '',
+  address_line1 TEXT NOT NULL DEFAULT '',
+  address_line2 TEXT NOT NULL DEFAULT '',
+  suburb TEXT NOT NULL DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  province TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT '',
+  tax_number TEXT NOT NULL DEFAULT '',
+  logo_file_id TEXT REFERENCES file (id),
+  brand_colour TEXT NOT NULL,
+  font TEXT NOT NULL,
+  watermark INTEGER NOT NULL DEFAULT 0 CHECK (watermark IN (0, 1)),
+  bank_name TEXT NOT NULL DEFAULT '',
+  account_name TEXT NOT NULL DEFAULT '',
+  account_number TEXT NOT NULL DEFAULT '',
+  branch TEXT NOT NULL DEFAULT '',
+  mobile_money TEXT NOT NULL DEFAULT '',
+  signature_file_id TEXT REFERENCES file (id),
+  time_zone TEXT NOT NULL
+) STRICT;
+CREATE INDEX business_details_from ON business_details (effective_from);
+CREATE TABLE accounting_period_setting (
+  ${recordColumns()},
+  effective_from TEXT NOT NULL UNIQUE,
+  every INTEGER NOT NULL CHECK (every IN (1, 3, 12)),
+  year_starts INTEGER NOT NULL CHECK (year_starts BETWEEN 1 AND 12)
+) STRICT;
+CREATE TABLE document_counter (
+  ${recordColumns()},
+  type TEXT NOT NULL UNIQUE CHECK (type IN ('QUO', 'INV', 'REC', 'REF')),
+  prefix TEXT NOT NULL,
+  starting_number INTEGER NOT NULL CHECK (starting_number >= 1),
+  last_number INTEGER CHECK (last_number IS NULL OR last_number >= starting_number)
+) STRICT;
+CREATE TRIGGER document_counter_locked BEFORE UPDATE OF prefix, starting_number ON document_counter
+WHEN OLD.last_number IS NOT NULL AND (NEW.prefix IS NOT OLD.prefix OR NEW.starting_number IS NOT OLD.starting_number)
+BEGIN SELECT RAISE(ABORT, 'Document numbers are locked once one is Issued'); END;
+`);
+      const now = ctx.now();
+      ['QUO', 'INV', 'REC', 'REF'].forEach((type) =>
+        ctx.run(
+          `INSERT INTO document_counter (id, install_id, created_at, changed_at, type, prefix, starting_number)
+           VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          [ctx.newId(), ctx.installId, now, now, type, type],
+        ),
       );
     },
   },
