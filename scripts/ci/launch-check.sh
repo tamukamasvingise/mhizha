@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs the `.test` APK on a running emulator, checks it opens on Home with
-# the shell in place, in light and dark, shows the problem screen, runs the
+# the shell in place, in light and dark, walks the setup wizard from a new
+# install, shows the problem screen, runs the
 # database checks on the real expo-sqlite, and screenshots every screen for the
 # UI review. Usage: launch-check.sh <apk> <results folder>
 # Exits non-zero if any check fails; summary.md says which.
@@ -91,6 +92,57 @@ open_link() {
   adb shell am start -W -a android.intent.action.VIEW -d "$1" "$PKG" >/dev/null 2>&1
 }
 
+# hide_keyboard: close the on-screen keyboard if it is open (Back would
+# otherwise reach the app).
+hide_keyboard() {
+  if adb shell dumpsys input_method | grep -q 'mInputShown=true'; then
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+  fi
+}
+
+# tap_first_field: tap the first text field on the screen.
+tap_first_field() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  local b
+  b=$(adb shell cat /sdcard/ui.xml | tr '>' '\n' | grep 'class="android.widget.EditText"' | head -1 |
+    grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | grep -o '[0-9]*' | tr '\n' ' ')
+  # shellcheck disable=SC2086
+  set -- $b
+  [ $# -eq 4 ] || return 1
+  adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+}
+
+# walk_setup <mode>: a new install shows the first screen; Start new walks the
+# setup wizard to Home. The emulator has no screen lock, so the App lock step
+# is not asked.
+walk_setup() {
+  local m="$1"
+  if wait_for 'Start new'; then pass "$m: a new install offers Start new"; else fail "$m: a new install offers Start new"; return; fi
+  capture "$m-first"
+  has "$m-first" 'text="Restore from a backup"' && pass "$m: first screen offers Restore from a backup" || fail "$m: first screen offers Restore from a backup"
+  tap 'Start new' || { fail "$m: tap Start new"; return; }
+  wait_for 'What is your business called?' && pass "$m: Start new opens setup" || fail "$m: Start new opens setup"
+  hide_keyboard
+  tap Next
+  capture "$m-setup-name-missing"
+  has "$m-setup-name-missing" 'Enter the name of your business' &&
+    pass "$m: setup asks for the business name before moving on" || fail "$m: setup asks for the business name before moving on"
+  tap_first_field
+  adb shell input text 'Demo%sBuilding%sServices'
+  hide_keyboard
+  capture "$m-setup-business"
+  local step
+  for step in contact look payment signature numbers start period; do
+    tap Next || { fail "$m: tap Next towards $step"; return; }
+    capture "$m-setup-$step"
+  done
+  has "$m-setup-period" 'text="Finish"' && pass "$m: the Accounting period is the last step without a screen lock" ||
+    fail "$m: the Accounting period is the last step without a screen lock"
+  has "$m-setup-period" 'Every month' && pass "$m: Accounting period offers monthly" || fail "$m: Accounting period offers monthly"
+  tap Finish || fail "$m: tap Finish"
+}
+
 echo "# Launch check" > "$SUMMARY"
 note ""
 note "Emulator: Android $(adb shell getprop ro.build.version.release | tr -d '\r'), API $(adb shell getprop ro.build.version.sdk | tr -d '\r'), $(adb shell wm size | tr -d '\r' | sed 's/Physical size: //'), $(adb shell grep MemTotal /proc/meminfo | tr -d '\r' | tr -s ' ')"
@@ -102,7 +154,10 @@ if INSTALL=$(adb install "$APK" 2>&1); then pass "installs"; else fail "installs
 
 for mode in light dark; do
   set_night "$mode"
+  # Each mode starts as a new install, so setup is checked in light and dark.
+  adb shell pm clear "$PKG" >/dev/null 2>&1
   launch
+  walk_setup "$mode"
   if wait_for 'Welcome to Mhizha'; then pass "$mode: opens on Home"; else fail "$mode: opens on Home (no 'Welcome to Mhizha' within 90 s)"; fi
   capture "$mode-home"
   page_is "$mode-home" "$mode"
@@ -124,6 +179,14 @@ for mode in light dark; do
   adb shell input keyevent KEYCODE_BACK
   tap Settings && capture "$mode-settings" || fail "$mode: open Settings"
   has "$mode-settings" 'text="Settings"' && pass "$mode: Settings opens" || fail "$mode: Settings opens"
+  has "$mode-settings" "text=\"Demo Building Services\"" && pass "$mode: Settings shows the business" || fail "$mode: Settings shows the business"
+  tap "Document numbers" && capture "$mode-settings-numbers" || fail "$mode: open Document numbers"
+  has "$mode-settings-numbers" "First Invoice number" && pass "$mode: Document numbers open from Settings" || fail "$mode: Document numbers open from Settings"
+  adb shell input keyevent KEYCODE_BACK
+  tap "Demo Building Services" && capture "$mode-settings-business" || fail "$mode: open Your business"
+  has "$mode-settings-business" 'text="Business name"' && pass "$mode: Your business opens from Settings" || fail "$mode: Your business opens from Settings"
+  adb shell input keyevent KEYCODE_BACK
+  sleep 1
   adb shell input keyevent KEYCODE_BACK
   capture "$mode-back"
   has "$mode-back" 'Welcome to Mhizha' && pass "$mode: back from Settings returns Home" || fail "$mode: back from Settings returns Home"
