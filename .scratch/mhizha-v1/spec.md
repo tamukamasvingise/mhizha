@@ -1,8 +1,8 @@
 # Mhizha version 1 spec
 
-Status: draft, assembled 2026-11-27 from the resolved tickets of the [Mhizha v1 map](map.md). Each section links the ticket that holds the full decision; where this page and a ticket disagree, the ticket wins and this page is fixed. Words in capitals (Customer, Invoice, Deposit) mean what [GLOSSARY.md](../../GLOSSARY.md) says. Not reviewed by an accountant or tax adviser.
+Status: draft, assembled 2026-11-27 and updated the same day from the resolved tickets of the [Mhizha v1 map](map.md). Each section links the ticket that holds the full decision; where this page and a ticket disagree, the ticket wins and this page is fixed. Words in capitals (Customer, Invoice, Deposit) mean what [GLOSSARY.md](../../GLOSSARY.md) says. Not reviewed by an accountant or tax adviser.
 
-Open gaps are listed at the end. Each is its own ticket; nothing here guesses at them.
+One open gap is listed at the end. It is its own ticket; nothing here guesses at it.
 
 ## 1. What it is
 
@@ -18,12 +18,14 @@ Open gaps are listed at the end. Each is its own ticket; nothing here guesses at
 - **Baseline phone:** Android 10, 2 GB RAM, 720p, no fingerprint reader, 32-bit. The APK runs on 32-bit and 64-bit phones (armeabi-v7a and arm64-v8a). minSdk 29.
 - **Build:** GitHub Actions runs `expo prebuild` then Gradle. Expo cloud builds are not used. ([Build route](issues/15-build-route.md))
 - **Package names:** `io.github.tamukamasvingise.mhizha` (permanent); test builds `io.github.tamukamasvingise.mhizha.test` with their own test key, installing beside the real app. ([Signing and delivery](issues/11-signing-and-delivery.md))
-- **Signing:** one release key held by the developer, never the User. Copies: GitHub Actions secrets, an encrypted offline USB stick, the developer's password manager or encrypted cloud storage. Never in the repo. Losing every copy means a new install plus Restore.
+- **Signing:** one release key held by the developer, never the User. Copies: GitHub Actions secrets, an encrypted offline USB stick, the developer's password manager or encrypted cloud storage. Never in the repo. No User ever holds a copy. Losing every copy, or the developer stopping, means a build under a new key: the User makes a Backup, uninstalls, installs the new build and Restores. Anyone may make such a build under the GPL. This is explained on the site and in Help. ([Handover and support](issues/26-handover-and-support.md))
 - **Version code** rises with every build. Going back means rebuilding old code under a higher number.
-- **Delivery:** the developer shares the signed APK by Google Drive link; the User installs over the old version. No developer account today. Google's developer verification may change this from January 2027 (out of scope). Declare no SMS, notification-listener or accessibility permissions. ([Installing outside the Play Store](issues/02-installing-outside-the-play-store.md))
-- **In the app:** Settings shows the version number and short plain-language notes on what changed. No update check. The update message tells the User to check that the last Backup is recent.
+- **Delivery:** Mhizha is public and self-service; no single Business is assumed and nobody installs it for the User. Each signed `v*` release on GitHub Releases attaches the APK as `mhizha.apk` with its checksum. A GitHub Pages site has a **Download Mhizha** button linking straight to `https://github.com/tamukamasvingise/mhizha/releases/latest/download/mhizha.apk`, with the checksum beside it. The site shows an install guide before the download: allow the browser to install apps, turn Samsung's Auto Blocker off, install, open once, turn Auto Blocker back on. The same steps cover every update, installed over the old version. No developer account today; Google's developer verification is out of scope for now, though public distribution makes it matter from January 2027. Declare no SMS, notification-listener or accessibility permissions. ([Handover and support](issues/26-handover-and-support.md), [Installing outside the Play Store](issues/02-installing-outside-the-play-store.md))
+- **In the app:** Settings shows the version number and short plain-language notes on what changed.
+- **Update check:** **Check for updates** in Settings reads a small version file on the GitHub Pages site. An automatic check runs at most once a day, when the app opens with internet; a setting turns it off. A newer version shows a Home banner, "Mhizha 1.2 is ready. Make a Backup, then download.", with **Download**; it stays until the User updates or dismisses it for that version. No Android notification, nothing in the background, and nothing about the User is sent.
 - **Proven on GitHub's Android 10 and 16 emulators:** an install over the old version keeps every record and PDF; a build signed with the wrong key and a downgrade are both refused; the safety copy and the upgrade steps work. Confirmed on a Galaxy S22 Ultra (Android 16, One UI 8.0); Samsung's Auto Blocker must be turned off first. No cheap real phone: the Android 10 emulator stands in for the baseline, and the 32-bit build is shipped untested. ([Real phone check](issues/05-accounts-and-test-phone.md)) ([Install and update proof](issues/13-install-and-update-proof.md))
-- **Known build facts:** list config plugins (expo-sqlite) in `app.config.js` by hand; `expo install` cannot edit it. One APK carrying three processor types is about 54 MB; separate APKs per processor type cut this.
+- **APK:** one APK carrying arm64-v8a and armeabi-v7a (about 40 MB), no x86_64. Test builds add x86_64 for the emulator. ([Test strategy](issues/24-test-strategy.md))
+- **Known build facts:** list config plugins (expo-sqlite) in `app.config.js` by hand; `expo install` cannot edit it. pnpm build scripts are approved only when the build fails without them, each recorded in `package.json` with a one-line reason.
 
 ## 3. App shell and look
 
@@ -36,10 +38,12 @@ From [Main screens prototype](issues/09-main-screens-prototype.md) (branch `prot
 - **Money:** money received, invoiced sales, money owed, and Deposits and Credit held, for any date range. It never shows profit or cash in hand.
 - **Quotations and Invoices** are made step by step, one question per screen: who, which Job, the lines, then check and issue. No feature appears twice.
 - **Colour:** one orange accent on greys. Light and dark follow the phone. The tokens in the ticket become the app's `DESIGN-SYSTEM.md`. Red only for errors, overdue amounts and Cancel. No warning or success colours.
+- **Help:** a Help page in Settings carries the site's tutorials built in, so it works offline: make a Quotation, turn it into an Invoice, record a payment, make a Backup, Restore. Every empty screen says what to do next. No tutorial overlay. ([Handover and support](issues/26-handover-and-support.md))
 - Every screen meets the ui-standards quality bar (contrast, 24px targets, no clipping) in light and dark.
 
 ## 4. First open and setup
 
+- The setup wizard guides first use; nobody sets the app up for the User.
 - **First screen** of a new install: "Start new" or "Restore from a backup". ([Backup and restore](issues/10-backup-and-restore.md))
 - **Setup order** for Start new: business details and logo, Document numbers, Start date, Accounting period, Opening balances (can be skipped), sales before the Start date (can be skipped), App lock. Both skippable steps can be reached later from Settings.
 - **Business details:** name, trading-as line (optional), "what we do" line, phones, email, structured address, tax number, logo, brand colour (a premade colour or its own; a colour too pale for small text is darkened for text only), font (Inter by default, IBM Plex Sans, Manrope or Source Serif 4, all built in), optional faint logo watermark (off by default), payment details (bank, account name and number, branch, mobile money), and an optional signature drawn once. ([Document PDF prototype](issues/08-document-pdf-prototype.md))
@@ -152,6 +156,16 @@ From [Backup and restore](issues/10-backup-and-restore.md).
 - **Reminder:** when something has changed and the last Backup is more than 7 days old, "Needs you" shows it and the phone shows one notification a week.
 - **Restore:** from the first screen, or from Settings, which replaces everything after a safety copy and the User typing RESTORE. The app picks the file, asks for the password, then shows the Business, the backup date, counts, and the last number of each type. It then asks for the last number of each type issued after the backup, so numbering continues without reuse; the missing numbers become Review items. Older Backups are upgraded; newer ones are refused ("Update Mhizha first, then restore"). The ledger checks run afterwards.
 
+### Re-entering records after a restore
+
+From [Re-entering records after a restore](issues/28-re-entering-records-after-a-restore.md). Every issued number is accounted for, each record is entered on the date it happened from the copy the Customer has, and no number is reused.
+
+- **Review item:** one per type lists the missing numbers ("INV-0045 to INV-0047 were issued after your last Backup."). Each number has **Enter again** and **Mark as lost**. The item stays open until every number is dealt with.
+- **Enter again:** opens a Draft already set to that number. The User picks the Customer, enters the original issue date (between the Backup and the Restore) and types the lines from the Customer's copy. Issuing posts it normally on that date. The new PDF carries one small line: "Re-entered on 27/11/2026 after a restore."
+- **Other types:** Receipts, Refunds and Quotations are entered again the same way, under their own numbers and dates; a Receipt is then applied to its Invoices as usual. The app suggests Invoices first, then Receipts.
+- **Details gone:** if no copy survives but the Customer and total are known, the Document is entered again as one line, "Details lost after a restore", with the real total.
+- **Mark as lost:** needs a reason. The number stays used and shows as Lost, like a Cancelled number but carrying no money. Lost can be undone into Enter again if a copy turns up.
+
 ## 12. Data and storage
 
 From [Data model](issues/12-data-model.md), which holds the full table list.
@@ -164,16 +178,33 @@ From [Data model](issues/12-data-model.md), which holds the full table list.
 - **Files:** logos, signatures and PDFs are files with an ID and a checksum, and are never overwritten. Business details, the Accounting period and Payment methods are kept with the date each took effect.
 - **Database upgrades:** numbered, forward-only steps tracked by `PRAGMA user_version`, each in its own transaction, logged in `upgrade_log`. Before upgrading, a safety copy is made with SQLite `VACUUM INTO` and opened to check it. If a step fails, the app returns to the copy and says so. Restoring an older Backup runs the same steps. ([Install and update proof](issues/13-install-and-update-proof.md))
 
-## 13. Out of scope for version 1
+## 13. Noticing problems and support
 
-Several users or phones, sync and login; charging VAT and ZIMRA fiscalisation; stock, staff, expenses, profit, closing, financial statements and accountant export; automatic Google Drive backup; Play Store, iPhone, other currencies; importing old records; the developer account route after verification reaches Zimbabwe. See the map's Out of scope.
+From [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md) and [Handover and support](issues/26-handover-and-support.md).
 
-## 14. Open gaps
+- **Error log:** kept on the phone. Each entry: time, app version, database version, the screen or job, the error text. Records are referred to by ID only, never their contents (no names, phone numbers, amounts or descriptions). Keeps the last 500 entries.
+- **Unexpected errors:** caught and shown as a plain screen, "Something went wrong. Your records are safe.", with **Restart** and **Send a problem report**. Native Android crashes are not caught; Android's own dialog covers them.
+- **Ledger checks on every open:** the ledger balances and the seven rules hold. A failure is logged and shows a red banner, "A check failed. Please send a problem report." Work is not blocked; a fix is a correcting entry, never an edit.
+- **Failed upgrade or Backup:** besides the plain-words message, each is logged.
+- **Problem report:** Settings, **Send a problem report**, makes one plain-text file `Mhizha problem report 2026-11-27.txt`: versions, phone model and Android version, error log, upgrade log, ledger check results, record counts. It opens the Share menu. The User can open it first and see it holds no Customer details.
+- **Support:** through GitHub issues, attaching the problem report; Help warns that issues are public. Best effort. No Backups are asked for. A Backup for diagnosis is sent only with the User's clear agreement, its password by a different route, never put in the repo, and deleted once the problem is fixed. A project email comes later; personal help only once Mhizha is a paid product.
 
-Each gap is a ticket on the map. This spec is ready to build from once they are resolved and folded in here.
+## 14. Testing and release
 
-- [Test strategy](issues/24-test-strategy.md): what automated tests must cover (money sums, the ledger rules, database upgrades, Backup and Restore), the app lock and Share-menu checks on the S22, and how the CI build is set up.
-- [Noticing problems with no server](issues/25-noticing-problems-with-no-server.md): how problems on the User's phone get noticed and diagnosed.
-- [Handover and support](issues/26-handover-and-support.md): first install, training, support, and whether the User ever holds a sealed copy of the signing key.
-- [Reminders on real phones](issues/27-reminders-on-real-phones.md): whether follow-up and backup reminders survive phones that kill background work.
-- [Re-entering records after a restore](issues/28-re-entering-records-after-a-restore.md): how Documents and money issued after the last Backup are entered again.
+From [Test strategy](issues/24-test-strategy.md).
+
+- **Every push:** money and accounting logic is plain TypeScript, free of Expo, written test first with Vitest: money sums and rounding, Discount shares, the seven rules, every ledger posting and reversal, period-end adjustments, numbering. fast-check runs thousands of random sequences of Documents, Payments and reversals; after each step the seven rules hold and the ledger balances. Database upgrade steps and Backup and Restore round trips run on Node's built-in SQLite. Each release saves a small sample database of invented records (never client data), and every push upgrades each saved database to the current version. PDF content is checked through the page the PDF is made from (totals, VAT, Discount, number); no picture comparison.
+- **On pull requests to main and release tags,** on GitHub's Android 10 (2 GB) and current emulators: the same database tests against the real expo-sqlite, and one adb smoke run: setup, add a Customer, a Quotation, turn it into an Invoice, take a Payment, check a PDF is made and opens, Backup, Restore.
+- **Coverage:** no percentage target. Every rule, posting, reversal and upgrade step has at least one test.
+- **Release:** only a `v*` tag on main signs with the release key, held in a GitHub environment that needs the owner's approval, and only if the every-push tests and both emulator runs passed on that commit. Every other build is a `.test` build signed with the test key.
+- **Before each release,** a checklist in the repo is ticked in the release notes on the owner's Galaxy S22 Ultra: app lock, saving a Backup through the Share menu, reminders, installing over the previous version.
+
+## 15. Out of scope for version 1
+
+Several users or phones, sync and login; charging VAT and ZIMRA fiscalisation; stock, staff, expenses, profit, closing, financial statements and accountant export; automatic Google Drive backup; Play Store, iPhone, other currencies; importing old records; Google developer verification and the developer account route (not now); personal support before Mhizha is a paid product. See the map's Out of scope.
+
+## 16. Open gaps
+
+This spec is ready to build from once this gap is resolved and folded in here.
+
+- [Reminders on real phones](issues/27-reminders-on-real-phones.md): whether follow-up and backup reminders survive phones that kill background work, and what the User must allow. A test is running on the owner's Galaxy S22 Ultra (branch `prototype/reminders-on-real-phones`).

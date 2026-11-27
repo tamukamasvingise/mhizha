@@ -71,4 +71,5 @@ Nothing at present: the remaining fog graduated into tickets when the spec was a
 - Stock, staff, expenses, profit, closing, financial statements and accountant export: later versions; see Accounting foundation.
 - The developer account route after Google's developer verification reaches Zimbabwe: owner's call, see Signing and delivery.
 - Play Store release, iPhone, other currencies, and importing old records.
+- Personal support: only once Mhizha is a paid product; until then GitHub issues, best effort. See [Handover and support](issues/26-handover-and-support.md).
 - [Google Cloud without a domain](issues/16-google-cloud-without-a-domain.md): automatic Google Drive backup is out of version 1, so no Google Cloud project is needed; backup is manual through the Share menu (owner, 2026-11-26).
