@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatUsd } from '../../core';
 import { longDate, shortDate, today } from '../../dates';
 import { DocumentList, useDocuments } from '../../documents/screens/common';
-import { customerHeld, customerOwes } from '../../ledger';
+import { customerOwes } from '../../ledger';
+import { HeldForCustomer } from '../../payments/screens/CreditParts';
 import { useDb } from '../../shell/Records';
 import { DateField, List, Row, Section, SmallButton, useToast } from '../../ui/forms';
 import { TextField } from '../../ui/fields';
@@ -15,8 +16,9 @@ import { callLink, whatsappFor, whatsappLink } from '../contact';
 import { openLink, styles, useProblems, usePeople, type Nav } from './common';
 import { jobStatusWord } from './JobScreen';
 
-// One Customer: Call and WhatsApp first, then the follow-up date, Jobs, notes,
-// Sites, Documents and the contact details.
+// One Customer: Call and WhatsApp first, the money held for them (Deposits
+// and Credit, apart from what they owe), then the follow-up date, Jobs,
+// notes, Sites, Documents and the contact details.
 
 export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
@@ -39,13 +41,6 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
   const failed = (m: string) => toast.show(m);
   const docs = d.list({ customerId: id });
   const owes = customerOwes(db, id);
-  const held = customerHeld(db, id);
-  const heldText = [
-    held.deposits > 0 ? `Deposits held ${formatUsd(held.deposits)}` : '',
-    held.credit > 0 ? `Credit held ${formatUsd(held.credit)}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
   const newInvoice = () => {
     const draftId = d.newInvoice(id);
     nav.open({ screen: 'invoice-step', step: 'job', id: draftId });
@@ -95,7 +90,6 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           {owes > 0 ? (
             <Text style={[parts.body, local.owes, { color: c.fg }]}>{`Owes you ${formatUsd(owes)}`}</Text>
           ) : null}
-          {heldText ? <Text style={[parts.body, local.owes, { color: c.label }]}>{`${heldText}. Their money, kept for them.`}</Text> : null}
           {phone || whatsapp ? (
             <View style={styles.buttons}>
               {phone ? (
@@ -120,6 +114,17 @@ export function CustomerScreen({ id, nav }: { id: string; nav: Nav }) {
           )}
           {owes > 0 ? <Button primary label="Record Payment" onPress={() => nav.open({ screen: 'payment', customerId: id })} /> : null}
         </View>
+
+        <HeldForCustomer
+          customerId={id}
+          customerName={x.name}
+          owes={owes}
+          nav={nav}
+          onChanged={(m) => {
+            refresh();
+            toast.show(m);
+          }}
+        />
 
         <View style={styles.group}>
           <DateField

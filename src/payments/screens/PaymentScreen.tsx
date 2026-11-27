@@ -17,7 +17,8 @@ import { payments, type PaymentInput } from '..';
 
 // Recording a Payment (spec section 6): who paid, how much, when and how,
 // then what it pays: open Invoices oldest first, then Deposits on accepted
-// Quotations. "Check Payment" shows what will be saved; "Save and issue
+// Quotations; money more than they take is kept as Credit for the Customer.
+// "Check Payment" shows what will be saved (the confirmation); "Save and issue
 // Receipt" saves it and issues the Receipt in one go.
 
 /** One thing a Payment can pay: an open Invoice, or a Deposit on an accepted Quotation. */
@@ -162,6 +163,8 @@ function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quo
       payables.find((y) => y.id === x.id)!.kind === 'deposit' ? { quotationId: x.id, amount: x.amount } : { invoiceId: x.id, amount: x.amount },
     ),
     separate,
+    // Shown on the form, and confirmed on Check Payment before it is saved.
+    toCredit: split.left,
   };
 
   // While checking, the phone's Back goes back to the form, not out of the Payment.
@@ -210,10 +213,10 @@ function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quo
           </View>
           {payables.length === 0 ? (
             <Text style={[parts.body, { color: c.label }]}>
-              {`${customer.name} owes nothing now. A Payment is recorded against their Issued Invoices, or as a Deposit on an Accepted Quotation; issue one first.`}
+              {`${customer.name} owes nothing now and has no Accepted Quotation. The whole Payment is kept as Credit for them, and suggested when you next invoice them.`}
             </Text>
-          ) : (
-            <>
+          ) : null}
+          <>
               <TextField
                 label="Amount received (US$)"
                 value={amountText}
@@ -279,10 +282,12 @@ function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quo
                 </Section>
               ) : null}
               {problems.parts ? <ProblemText text={problems.parts} /> : null}
-              {split.left > 0 && amount > 0 ? (
+              {split.left > 0 && amount > 0 && payables.length > 0 ? (
                 <View accessible accessibilityLiveRegion="polite" style={[styles.notice, { backgroundColor: c.surface, borderColor: c.line }]}>
                   <Text style={[parts.body, styles.strong, { color: c.fg }]}>{`${formatUsd(split.left)} is more than the ticked items take`}</Text>
-                  <Text style={[parts.small, { color: c.label }]}>Lower the amount, tick another item, or change an amount.</Text>
+                  <Text style={[parts.small, { color: c.label }]}>
+                    {`It is kept as Credit for ${customer.name}, and suggested when you next invoice them. Or lower the amount, tick another item, or change an amount.`}
+                  </Text>
                 </View>
               ) : null}
               {split.parts.length > 1 ? (
@@ -295,10 +300,9 @@ function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quo
               ) : null}
               {problems.clock ? <ProblemText text={problems.clock} /> : null}
               {problems.business ? <ProblemText text={problems.business} /> : null}
-            </>
-          )}
+          </>
         </ScrollView>
-        {payables.length > 0 ? <StepFoot next={{ label: 'Check Payment', onPress: toCheck }} /> : null}
+        <StepFoot next={{ label: 'Check Payment', onPress: toCheck }} />
       </KeyboardAvoidingView>
       {changing ? (
         <ChangeAmount
@@ -476,6 +480,14 @@ function CheckPayment({
               />
             );
           })}
+          {input.toCredit ? (
+            <Row
+              first={input.parts.length === 0}
+              title="Kept as Credit"
+              subtitle={`${name}'s money, held for them and suggested when you next invoice them`}
+              right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(input.toCredit)}</Text>}
+            />
+          ) : null}
         </List>
         {checked.warnings.map((w) => (
           <View key={w} accessible style={[styles.notice, { backgroundColor: c.surface, borderColor: c.line }]}>

@@ -3,7 +3,9 @@ import { AccessibilityInfo, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { discountLabel, formatQuantity, formatUsd } from '../../core';
 import { customerOwes } from '../../ledger';
 import { appliedTo, depositsAppliedTo } from '../../payments';
+import { CreditOffer } from '../../payments/screens/CreditParts';
 import { ReceiptScreen } from '../../payments/screens/ReceiptScreen';
+import { RefundDocumentScreen } from '../../payments/screens/RefundScreen';
 import { addressLine } from '../../people';
 import { documentPdf, shareDocumentPdf } from '../../pdf/files';
 import type { Nav } from '../../people/screens/common';
@@ -19,13 +21,15 @@ import { QuotationScreen } from './QuotationScreen';
 
 // One Issued Invoice: its number and status, what it printed (from its frozen
 // copy), its lines and totals, what has been paid, what the Customer owes now,
-// and Record Payment while money is owing. A Quotation and a Receipt have
-// their own screens.
+// and Record Payment while money is owing, with any Credit the Customer has
+// suggested (applied only when the User agrees). A Quotation, a Receipt and a
+// Refund have their own screens.
 
 export function DocumentScreen({ id, nav }: { id: string; nav: Nav }) {
   const d = useDocuments();
   const type = d.issued(id).type;
   if (type === 'QUO') return <QuotationScreen id={id} nav={nav} />;
+  if (type === 'REF') return <RefundDocumentScreen id={id} nav={nav} />;
   return type === 'REC' ? <ReceiptScreen id={id} nav={nav} /> : <InvoiceScreen id={id} nav={nav} />;
 }
 
@@ -72,6 +76,7 @@ function InvoiceScreen({ id, nav }: { id: string; nav: Nav }) {
         {left > 0 ? (
           <Button primary label="Record Payment" onPress={() => nav.open({ screen: 'payment', customerId: inv.customerId })} />
         ) : null}
+        {left > 0 ? <CreditOffer invoiceId={id} customerName={f.customer.name} nav={nav} /> : null}
         <PdfPart id={id} number={inv.number} />
 
         <List>

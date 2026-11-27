@@ -4,7 +4,8 @@
 # install, opens Settings pages and the Price list, adds a Customer with a Job
 # and marks it Done, issues an Invoice step by step, records a part-payment
 # with its Receipt, opens Payment methods, issues a Quotation, takes a Deposit
-# on it and turns it into an Invoice that applies it, opens the problem report,
+# on it and turns it into an Invoice that applies it, keeps an overpayment as
+# Credit and refunds it as REF-0001, opens the problem report,
 # Updates and Help, and the failed-check banner, shows the problem screen, runs
 # the database checks on the real expo-sqlite, and screenshots every screen for
 # the UI review. Usage: launch-check.sh <apk> <results folder>
@@ -458,6 +459,38 @@ for mode in light dark; do
   adb shell input keyevent KEYCODE_BACK
   wait_for 'remaining US\$0\.00' && pass "$mode: the Quotation shows what is invoiced and what remains" || fail "$mode: the Quotation shows what is invoiced and what remains"
   capture "$mode-quotation-invoiced"
+  back_until 'Customers owe you' 3
+
+  # Credit and a Refund: a Payment above what is owed keeps the rest as Credit
+  # after Check Payment; the Customer shows it apart from what they owe, and
+  # Refund pays it back as REF-0001 with its PDF.
+  tap Customers && tap 'Test Customer, [^"]*' || fail "$mode: open the Customer for Credit"
+  wait_for 'Record Payment' && tap 'Record Payment' || fail "$mode: Record Payment from the Customer"
+  wait_for 'What it pays, oldest first' || fail "$mode: the Payment opens from the Customer"
+  tap_field 'Amount received (US\$)' && adb shell input text '100' || fail "$mode: type an overpayment"
+  hide_keyboard
+  to_end
+  capture "$mode-overpayment"
+  has "$mode-overpayment" 'US\$9\.50 is more than the ticked items take' && has "$mode-overpayment" 'kept as Credit for Test Customer' &&
+    pass "$mode: money above what is owed is offered as Credit" || fail "$mode: money above what is owed is offered as Credit"
+  tap 'Check Payment' && wait_for 'Save and issue Receipt' && capture "$mode-overpayment-check" || fail "$mode: check the overpayment"
+  has "$mode-overpayment-check" 'Kept as Credit' && pass "$mode: Check Payment confirms the Credit kept" || fail "$mode: Check Payment confirms the Credit kept"
+  tap 'Save and issue Receipt' || fail "$mode: save the overpayment"
+  wait_for 'Received · US\$100\.00' && pass "$mode: the overpayment is saved with its Receipt" || fail "$mode: the overpayment is saved with its Receipt"
+  capture "$mode-overpayment-receipt"
+  adb shell input keyevent KEYCODE_BACK
+  wait_for 'Money you hold for them' && capture "$mode-customer-credit" || fail "$mode: the Customer shows the money held"
+  has "$mode-customer-credit" 'US\$9\.50' && pass "$mode: the Customer shows the Credit held apart" || fail "$mode: the Customer shows the Credit held apart"
+  tap 'Refund money you hold' || fail "$mode: tap Refund money you hold"
+  wait_for 'Pay back to' && capture "$mode-refund" || fail "$mode: the Refund opens"
+  to_end
+  tap_field Reason && adb shell input text 'Not%sneeded' || fail "$mode: type the Refund reason"
+  hide_keyboard
+  capture "$mode-refund-filled"
+  tap 'Issue Refund REF-0001' || fail "$mode: tap Issue Refund"
+  wait_for 'Refunded · US\$9\.50' && pass "$mode: the Refund is issued as REF-0001" || fail "$mode: the Refund is issued as REF-0001"
+  if wait_for 'text="Share PDF"' || wait_for 'text="Share PDF"'; then pass "$mode: the Refund PDF is made"; else fail "$mode: the Refund PDF is made"; fi
+  capture "$mode-refund-issued"
   back_until 'Customers owe you' 3
 
   # The problem report from Settings.

@@ -7,20 +7,20 @@ import { List, Row, Section } from '../../ui/forms';
 import { SubTopBar, styles as parts } from '../../ui/parts';
 import { useColours } from '../../ui/theme';
 import { lineHeight, space, type } from '../../ui/tokens';
-import { appliedNotice, appliedTitle } from '..';
+import { appliedNotice, appliedTitle, KEPT_AS_CREDIT } from '..';
 import { usePayments } from './PaymentScreen';
 
 // One Receipt: who paid, how much, how and when, its PDF, and what it paid
-// with the balance left on each Invoice when it was issued. A "Deposit
-// applied" Receipt says no new money was received and names the Receipt the
-// Deposit was paid on.
+// with the balance left on each Invoice when it was issued (and any part kept
+// as Credit). A "Deposit applied" or "Credit applied" Receipt says no new money was received and names the Receipt the
+// money was paid on.
 
 export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
   const c = useColours();
   const pay = usePayments();
   const r = pay.receipt(id);
   const facts: [string, string][] = [['Issued', longDateTime(r.issuedAt)]];
-  const applied = r.kind === 'deposit-applied';
+  const applied = r.kind !== 'money';
   if (r.dateReceived !== r.issueDate) facts.push(['Date received', longDate(r.dateReceived)]);
   if (!applied) facts.push(['How they paid', r.method]);
 
@@ -52,8 +52,8 @@ export function ReceiptScreen({ id, nav }: { id: string; nav: Nav }) {
               <Row
                 key={`${l.appliedTo}-${i}`}
                 first={i === 0}
-                title={`${l.appliedTo} · ${l.jobTitle}`}
-                subtitle={l.balanceLeft > 0 ? `Left to pay then: ${formatUsd(l.balanceLeft)}` : '✓ Paid in full'}
+                title={l.jobTitle ? `${l.appliedTo} · ${l.jobTitle}` : l.appliedTo}
+                subtitle={l.appliedTo === KEPT_AS_CREDIT ? 'Held for them as Credit' : l.balanceLeft > 0 ? `Left to pay then: ${formatUsd(l.balanceLeft)}` : '✓ Paid in full'}
                 right={<Text style={[styles.amount, { color: c.fg }]}>{formatUsd(l.amount)}</Text>}
                 onPress={l.invoiceId ? () => nav.open({ screen: 'document', id: l.invoiceId! }) : undefined}
               />
