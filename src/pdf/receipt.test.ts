@@ -80,3 +80,35 @@ describe('the Receipt page', () => {
     expect(texts.join(' ').match(/INV-\d{4} Work/g)).toHaveLength(70);
   });
 });
+
+describe('a "Deposit applied" Receipt page', () => {
+  const applied: ReceiptPrint = {
+    ...receipt,
+    number: 'REC-0023',
+    dateReceived: '2026-11-27',
+    method: null,
+    amount: 50_000,
+    sumInWords: 'Five hundred US dollars only',
+    beingPaymentFor: 'INV-0009',
+    lines: [{ appliedTo: 'INV-0009', jobTitle: 'Electric fence', total: 71_548, amount: 50_000, balanceLeft: 21_548 }],
+    applied: {
+      title: 'Deposit applied',
+      notice: 'No new money was received. This applies the Deposit paid on REC-0018 (12 Nov 2026) to the Invoice below.',
+    },
+  };
+
+  it('has a subtitle and the notice naming the original Receipt, and no Payment method', () => {
+    const [text] = pageTexts(receiptHtml(applied, noAssets).html);
+    expect(text).toContain('RECEIPT Deposit applied');
+    expect(text).toContain('No new money was received. This applies the Deposit paid on REC-0018 (12 Nov 2026) to the Invoice below.');
+    expect(text).toContain('Customer Harare Gardens Lodge');
+    expect(text).not.toContain('Received from');
+    expect(text).not.toContain('Being payment for');
+    expect(text).not.toContain('Payment method');
+    expect(text).not.toContain('Bank transfer');
+    expect(text).toContain('USD 500.00');
+    expect(text).toContain('Applied to Job Total (USD) Applied now (USD) Balance left (USD)');
+    expect(text).toContain('INV-0009 Electric fence 715.48 500.00 215.48');
+    expect(text).toContain('Issued by');
+  });
+});

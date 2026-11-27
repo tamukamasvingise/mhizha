@@ -44,6 +44,8 @@ export type InvoicePrint = {
   discountKind: Discount | null;
   total: Cents;
   sumInWords: string;
+  /** On an Invoice: each Deposit applied at issue, "Deposit applied (REC-0003)", then Balance due. */
+  depositsApplied?: readonly { label: string; amount: Cents }[];
   quotation?: QuotationTerms;
 };
 
@@ -232,7 +234,13 @@ function afterTable(p: InvoicePrint): Block {
   if (p.discount > 0 && p.discountKind) rows.push([discountLabel(p.discountKind), `−${usd(p.discount)} USD`]);
   // Version 1 charges no VAT: an Invoice prints the row blank, never 0.00; a Quotation has none.
   if (!q) rows.push(['VAT', '', 'vat']);
-  rows.push(['Total', `${usd(p.total)} USD`, 'big']);
+  const applied = q ? [] : (p.depositsApplied ?? []);
+  rows.push(['Total', `${usd(p.total)} USD`, applied.length ? undefined : 'big']);
+  if (applied.length) {
+    for (const x of applied) rows.push([x.label, `${usd(x.amount)} USD`]);
+    const due = p.total - applied.reduce((n, x) => n + x.amount, 0);
+    rows.push(['Balance due', `${usd(due)} USD`, 'big']);
+  }
   const words = `Total: ${p.sumInWords}`;
   const wordLines = lineCount(words, AFTER_RIGHT, style(f, 9));
   const right = rows.reduce((n, r) => n + (r[2] === 'big' ? BIG_ROW : TOTAL_ROW), 0) + 8 + wordLines * 12;

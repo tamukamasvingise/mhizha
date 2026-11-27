@@ -405,3 +405,37 @@ dbChecks.push({
     db.close();
   },
 });
+
+dbChecks.push({
+  name: 'a Deposit on an accepted Quotation is held, applied when its Invoice is issued, and the rest moves to Credit',
+  run(platform) {
+    const { db } = open(platform, appSteps);
+    startNew(db, '2026-11-27');
+    saveBusinessDetails(db, { ...emptyBusiness(), name: 'Demo Building Services' }, '2026-11-27');
+    const p = people(db, () => '2026-11-27');
+    const c = p.addCustomer({
+      kind: 'person', name: 'Test Customer', phones: [], whatsapp: '', email: '', address: noAddress, taxNumber: '', firstSiteName: '', note: '',
+    });
+    const job = p.addJob(c, { title: 'Work', siteId: p.sites(c)[0]!.id });
+    const clock = () => Date.UTC(2026, 10, 27, 12, 0, 0);
+    const d = documents(db, clock);
+    const pay = payments(db, clock);
+    const q = d.newQuotation(c);
+    d.setJob(q, job);
+    d.setLines(q, [{ priceListItemId: null, description: 'Labour', unit: '', quantity: 1000, unitPrice: 10000 }]);
+    d.issue(q);
+    d.accept(q, '2026-11-27');
+    pay.record({
+      customerId: c, amount: 6000, dateReceived: '2026-11-27', method: 'cash', otherDescription: '',
+      parts: [{ quotationId: q, amount: 6000 }], separate: false,
+    });
+    const inv = d.invoiceFrom(q);
+    d.setLines(inv, [{ priceListItemId: null, description: 'Labour', unit: '', quantity: 1000, unitPrice: 4000 }]);
+    d.issue(inv);
+    same([customerOwes(db, c), d.issued(inv).status, d.quotation(q).depositHeld], [0, 'paid', 2000], 'the Deposit applied up to the Invoice total');
+    const applied = d.list({ filter: 'receipts' }).map((x) => [x.title, x.status]);
+    same(applied, [['REC-0002', 'applied'], ['REC-0001', 'received']], 'the "Deposit applied" Receipt');
+    same(pay.moveToCredit(q), 2000, 'the rest moved to Credit');
+    db.close();
+  },
+});

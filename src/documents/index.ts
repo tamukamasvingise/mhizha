@@ -27,6 +27,7 @@ import {
 import type { Db, Row } from '../db';
 import { lastRecordedAt, postEntry } from '../ledger';
 import { appliedTo } from '../payments/allocations';
+import { applyDeposit, depositHeld, depositsAppliedTo, moveDepositToCredit } from '../payments/deposits';
 import { addressLine, InputError, people, type Address, type CustomerKind } from '../people';
 import type { InvoicePrint, QuotationTerms } from '../pdf/invoice';
 import { shortDate } from '../dates';
@@ -128,6 +129,8 @@ export type Quotation = Omit<Issued, 'status' | 'validUntil'> & {
   invoiced: Cents;
   /** The Total less what was invoiced; below zero when the Invoices came to more. */
   remaining: Cents;
+  /** The unused Deposit on it (on any of its versions). */
+  depositHeld: Cents;
 };
 
 /** What a Draft Invoice from a Quotation is checked against. */
@@ -144,6 +147,8 @@ export type FromQuotation = {
   invoicedBefore: Cents;
   /** How much this Draft and the earlier Invoices come to above the Quotation's Total. */
   over: Cents;
+  /** The unused Deposit on the Quotation, applied at issue up to the Invoice total. */
+  depositHeld: Cents;
 };
 
 export type ListFilter = 'all' | 'drafts' | 'quotations' | 'invoices' | 'receipts';
@@ -159,8 +164,8 @@ export type ListItem = {
   /** The issue date; for a Draft, the day it was last changed. */
   date: string;
   total: Cents;
-  /** Worked out: an Invoice's or Quotation's status; 'received' for a money Receipt. */
-  status: InvoiceStatus | QuotationStatus | 'draft' | 'received';
+  /** Worked out: an Invoice's or Quotation's status; 'received' for a money Receipt, 'applied' for a "Deposit applied" one. */
+  status: InvoiceStatus | QuotationStatus | 'draft' | 'received' | 'applied';
 };
 
 const TYPE_NAMES: Record<DocumentType, string> = { QUO: 'Quotation', INV: 'Invoice', REC: 'Receipt', REF: 'Refund' };
@@ -196,9 +201,14 @@ type PrintedNumbers = Pick<
   'number' | 'issueDate' | 'dueDate' | 'orderNo' | 'lines' | 'subtotal' | 'discount' | 'discountKind' | 'total' | 'sumInWords'
 >;
 
-function printOf(f: FrozenCopy, n: PrintedNumbers, more: { quoteRef?: string; quotation?: QuotationTerms } = {}): InvoicePrint {
+function printOf(
+  f: FrozenCopy,
+  n: PrintedNumbers,
+  more: { quoteRef?: string; quotation?: QuotationTerms; depositsApplied?: InvoicePrint['depositsApplied'] } = {},
+): InvoicePrint {
   return {
     ...n,
+    depositsApplied: more.depositsApplied ?? [],
     quoteRef: more.quoteRef ?? '',
     ...(more.quotation ? { quotation: more.quotation } : {}),
     business: f.business,
@@ -547,9 +557,11 @@ export function documents(db: Db, clock: () => number) {
      * Issues a Draft: number, date and time, frozen copy and tax status, all in
      * one save. An Invoice also posts Customers owe / Sales; a Quotation posts
      * nothing. A Revision keeps its Quotation's number with the next Rev.
-     * Returns the printed number.
+     * An Invoice from a Quotation applies the Deposit held on it, up to its
+     * Total, with a "Deposit applied" Receipt in the same save; `deposit`
+     * applies less (0: none), and the rest waits. Returns the printed number.
      */
-    issue(id: string): string {
+    issue(id: string, options: { deposit?: Cents } = {}): string {
       return db.transaction(() => {
         const draft = this.draft(id);
         const name = TYPE_NAMES[draft.type];
@@ -599,6 +611,13 @@ export function documents(db: Db, clock: () => number) {
           if (totals && totals.discount > left)
             problems.discount = `At most ${formatUsd(left)} of the Quotation's Discount is left.`;
         }
+        let deposit = 0;
+        if (draft.quotationId && totals) {
+          const most = Math.min(depositHeld(db, draft.quotationId), totals.total);
+          deposit = options.deposit ?? most;
+          if (!Number.isSafeInteger(deposit) || deposit < 0 || deposit > most)
+            problems.deposit = `Apply at most ${formatUsd(most)} of the Deposit.`;
+        }
         const frozen = draft.jobId && !problems.job ? frozenCopy(draft.customerId, draft.jobId, issueDate) : null;
         if (!businessDetails(db)) problems.business = 'Enter your business details in Settings first.';
         if (Object.keys(problems).length > 0 || !totals) throw new InputError(problems);
@@ -641,6 +660,7 @@ export function documents(db: Db, clock: () => number) {
             source: { kind: 'invoice', id },
             lines: postings.invoiceIssued({ customerId: draft.customerId, total: totals.total }),
           });
+        if (draft.quotationId && deposit > 0) applyDeposit(db, { quotationId: draft.quotationId, invoiceId: id, amount: deposit, at });
         return printed;
       });
     },
@@ -717,6 +737,7 @@ export function documents(db: Db, clock: () => number) {
         invoices,
         invoiced,
         remaining: base.total - invoiced,
+        depositHeld: depositHeld(db, id),
       };
     },
 
@@ -739,7 +760,7 @@ export function documents(db: Db, clock: () => number) {
       });
     },
 
-    /** Marks it Declined on a day; refused while an Invoice comes from it. */
+    /** Marks it Declined on a day; refused while an Invoice comes from it. A Deposit on it moves to Credit first. */
     decline(id: string, date: string) {
       db.transaction(() => {
         const r = quotationRow(id);
@@ -747,21 +768,24 @@ export function documents(db: Db, clock: () => number) {
         if (status === 'superseded' || status === 'cancelled' || status === 'declined')
           throw new InputError({ quotation: `${String(r.printed_number)} can't be declined now.` });
         refuseIfInvoiced(r, 'declined');
-        event(r, 'declined', answerDate(r, date));
+        const on = answerDate(r, date);
+        moveDepositToCredit(db, id, clock(), todayAt(clock()));
+        event(r, 'declined', on);
       });
     },
 
-    /** Takes back Accepted, so it is Issued again; refused while an Invoice comes from it. */
+    /** Takes back Accepted, so it is Issued again; refused while an Invoice comes from it. A Deposit on it moves to Credit first. */
     undoAccept(id: string) {
       db.transaction(() => {
         const r = quotationRow(id);
         if (statusOf(r, todayAt(clock())) !== 'accepted') throw new InputError({ quotation: `${String(r.printed_number)} is not Accepted.` });
         refuseIfInvoiced(r, 'taken back');
+        moveDepositToCredit(db, id, clock(), todayAt(clock()));
         event(r, 'undone', todayAt(clock()));
       });
     },
 
-    /** Cancels a Quotation issued by mistake, with a reason; it counts today and stays visible. */
+    /** Cancels a Quotation issued by mistake, with a reason; it counts today and stays visible. A Deposit on it moves to Credit first. */
     cancelQuotation(id: string, reason: string) {
       db.transaction(() => {
         const r = quotationRow(id);
@@ -770,6 +794,7 @@ export function documents(db: Db, clock: () => number) {
           throw new InputError({ quotation: `${String(r.printed_number)} can't be cancelled now.` });
         if (reason.trim() === '') throw new InputError({ reason: 'Say why it is cancelled.' });
         refuseIfInvoiced(r, 'cancelled');
+        moveDepositToCredit(db, id, clock(), todayAt(clock()));
         event(r, 'cancelled', todayAt(clock()), reason);
       });
     },
@@ -842,6 +867,7 @@ export function documents(db: Db, clock: () => number) {
         suggestedShare: sh.suggested,
         invoicedBefore: sh.invoicedBefore,
         over: Math.max(0, sh.invoicedBefore + draft.totals.total - total),
+        depositHeld: depositHeld(db, draft.quotationId),
       };
     },
 
@@ -866,7 +892,14 @@ export function documents(db: Db, clock: () => number) {
           discountKind: inv.discountKind,
           total: inv.total,
           sumInWords: inv.sumInWords,
-        }, { quoteRef, quotation });
+        }, {
+          quoteRef,
+          quotation,
+          depositsApplied:
+            inv.type === 'INV'
+              ? depositsAppliedTo(db, id).map((x) => ({ label: `Deposit applied (${x.receiptNumber})`, amount: x.amount }))
+              : [],
+        });
       }
       const draft = this.draft(id);
       const today = todayAt(clock());
@@ -971,7 +1004,9 @@ export function documents(db: Db, clock: () => number) {
               type === 'QUO'
                 ? statusOf(r, today)
                 : type === 'REC'
-                  ? 'received'
+                  ? db.get('SELECT 1 AS x FROM payment WHERE receipt_id = ?', [String(r.id)])
+                    ? 'received'
+                    : 'applied'
                   : invoiceStatus({ total, applied: appliedTo(db, String(r.id)), writtenOff: 0, dueDate: String(r.due_date) }, today),
           };
         });
