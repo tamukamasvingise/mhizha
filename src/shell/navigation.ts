@@ -2,12 +2,12 @@
 // phone's back button move between places. Plain TypeScript, free of React.
 
 export type TabId = 'home' | 'customers' | 'documents' | 'money';
-export type IconName = 'home' | 'people' | 'doc' | 'wallet';
+export type TabIcon = 'home' | 'people' | 'doc' | 'wallet';
 
 export type Tab = {
   id: TabId;
   label: string;
-  icon: IconName;
+  icon: TabIcon;
   /** What an empty tab says: what will appear here and how it gets here. */
   empty: { title: string; body: string };
 };

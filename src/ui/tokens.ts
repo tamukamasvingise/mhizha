@@ -65,7 +65,7 @@ export const themes: Record<ThemeName, Colours> = {
 };
 
 /** Space scale in dp. */
-export const space = { s1: 4, s2: 8, s3: 12, s4: 16, s6: 24, s8: 32 } as const;
+export const space = { s05: 2, s1: 4, s2: 8, s3: 12, s4: 16, s6: 24, s8: 32 } as const;
 
 /** Corner radii in dp. `pill` is for chips and the tab pill. */
 export const radius = { r: 8, rL: 16, pill: 999 } as const;
