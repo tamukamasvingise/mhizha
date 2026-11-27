@@ -96,7 +96,9 @@ export function SmallButton({ label, icon, onPress, a11yLabel }: { label: string
       style={({ pressed }) => [styles.small, { borderColor: c.input, backgroundColor: pressed ? c.tint : c.surface }]}
     >
       {icon ? <Icon name={icon} colour={c.fg} px={size.iconS} /> : null}
-      <Text style={[styles.smallText, { color: c.fg }]}>{label}</Text>
+      <Text numberOfLines={1} style={[styles.smallText, { color: c.fg }]}>
+        {label}
+      </Text>
     </Tappable>
   );
 }
@@ -260,6 +262,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: space.s05 },
   rowTitle: { fontSize: type.m, lineHeight: lineHeight(type.m), fontWeight: '600' },
   small: {
+    flexShrink: 0,
     minHeight: size.touch,
     borderRadius: radius.r,
     borderWidth: size.hairline,
