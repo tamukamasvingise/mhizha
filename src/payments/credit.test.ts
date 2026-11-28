@@ -4,6 +4,7 @@ import type { Db } from '../db';
 import { documents, type Documents } from '../documents';
 import { runChecks } from '../health/checks';
 import { postEntry, readJournal } from '../ledger';
+import { openingBalances } from '../opening';
 import { InputError, noAddress, people, type People } from '../people';
 import { emptyBusiness, saveBusinessDetails, startNew } from '../setup/store';
 import { freshDb } from '../testing';
@@ -327,5 +328,45 @@ describe('a Refund', () => {
       method: 'ecocash',
       amount: 1_234,
     });
+  });
+});
+
+describe('Credit held on the Start date (an Opening balance of Credit)', () => {
+  const opening = () =>
+    openingBalances(db, () => now).add({
+      customerId: tendai, kind: 'credit', oldNumber: '', oldDate: null, amount: 4_000, note: 'Paid ahead for the roof', jobId: null,
+    });
+
+  it('is Credit: applied to an Invoice as "Credit applied from opening balance"', () => {
+    const item = opening();
+    expect(pay.creditHeld(tendai)).toBe(4_000);
+    const rec = pay.applyCredit(invoice(3_000), 3_000);
+    expect(pay.printable(rec).applied).toEqual({
+      title: 'Credit applied from opening balance',
+      notice: 'No new money was received. This applies Credit held from the opening balance (1 Jan 2026) to the Invoice below.',
+    });
+    expect(pay.creditHeld(tendai)).toBe(1_000);
+    expect(openingBalances(db, () => now).item(item)).toMatchObject({ left: 1_000, status: 'open', depositOn: null });
+    expect(problems(() => openingBalances(db, () => now).cancel(item, 'Entered twice')).reason).toBeTruthy();
+    expect(failed()).toEqual([]);
+  });
+
+  it('can be refunded, and is then used up', () => {
+    const item = opening();
+    const ref = pay.refund(refundOf(4_000));
+    expect(pay.refundDoc(ref).refundOf).toBe('Unused Credit, from the opening balance (1 Jan 2026)');
+    expect(pay.creditHeld(tendai)).toBe(0);
+    expect(openingBalances(db, () => now).item(item)).toMatchObject({ left: 0, status: 'used', depositOn: null });
+    expect(failed()).toEqual([]);
+  });
+
+  it('is used oldest first, so Credit from the Start date goes before later Credit', () => {
+    now = day('2026-11-20');
+    opening();
+    pay.record(cash(1_000, [], { toCredit: 1_000 }));
+    now = day('2026-11-27');
+    const rec = pay.applyCredit(invoice(4_500), 4_500);
+    expect(pay.receipt(rec).appliedFrom.map((x) => x.number)).toEqual([null, 'REC-0001']);
+    expect(pay.printable(rec).applied!.title).toBe('Credit applied');
   });
 });

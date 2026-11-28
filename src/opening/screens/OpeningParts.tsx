@@ -48,9 +48,13 @@ function itemSubtitle(x: OpeningItem): string {
       : x.status === 'paid'
         ? '✓ Paid'
         : x.status === 'used'
-          ? `Deposit on ${x.depositOn ?? 'a Quotation'}`
+          ? x.depositOn
+            ? `Deposit on ${x.depositOn}`
+            : 'Used'
           : x.kind === 'owed' && x.left < x.amount
             ? `${formatUsd(x.amount - x.left)} paid`
+            : x.kind === 'credit' && x.left < x.amount
+              ? `${formatUsd(x.left)} left`
             : '';
   return [x.oldDate ? shortDate(x.oldDate) : '', x.status === 'cancelled' ? formatUsd(x.amount) : amount, x.jobTitle, state]
     .filter(Boolean)
@@ -300,7 +304,9 @@ export function OpeningItemSheet({
         <>
           {x.status === 'paid' ? <Text style={[parts.body, { color: c.fg }]}>✓ Paid</Text> : null}
           {x.status === 'used' ? (
-            <Text style={[parts.body, { color: c.fg }]}>{`This Credit is the Deposit on ${x.depositOn ?? 'a Quotation'}.`}</Text>
+            <Text style={[parts.body, { color: c.fg }]}>
+              {x.depositOn ? `This Credit is the Deposit on ${x.depositOn}.` : 'This Credit has been applied to Invoices or refunded.'}
+            </Text>
           ) : null}
           {x.kind === 'owed' && x.status === 'open' && onRecordPayment ? (
             <Button primary label="Record Payment" onPress={onRecordPayment} />

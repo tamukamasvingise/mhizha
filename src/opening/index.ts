@@ -84,17 +84,22 @@ const ITEM_SELECT = `SELECT o.*, c.name AS customer_name, j.title AS job_title F
 export function openingBalances(db: Db, clock: () => number) {
   const today = () => todayAt(clock());
 
-  /** Credit of this item made a Deposit, and on which Quotation. */
+  /**
+   * Credit of this item used: made a Deposit, applied to an Invoice or
+   * refunded; and the Quotation whose Deposit it was made, if any.
+   */
   function deposits(id: string): { amount: Cents; quotation: string | null } {
     const rows = db.all(
-      `SELECT a.amount, d.printed_number FROM allocation a LEFT JOIN document d ON d.id = a.to_id
+      `SELECT a.amount, a.to_kind, d.printed_number FROM allocation a LEFT JOIN document d ON d.id = a.to_id
        WHERE a.from_kind = 'opening-credit' AND a.from_id = ? AND a.reverses_id IS NULL
-         AND NOT EXISTS (SELECT 1 FROM allocation r WHERE r.reverses_id = a.id)`,
+         AND NOT EXISTS (SELECT 1 FROM allocation r WHERE r.reverses_id = a.id)
+       ORDER BY a.rowid`,
       [id],
     );
+    const quotation = rows.filter((r) => r.to_kind === 'quotation').at(-1);
     return {
       amount: rows.reduce((s, r) => s + Number(r.amount), 0),
-      quotation: rows.length ? String(rows.at(-1)!.printed_number) : null,
+      quotation: quotation ? String(quotation.printed_number) : null,
     };
   }
 

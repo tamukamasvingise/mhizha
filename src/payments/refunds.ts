@@ -186,7 +186,7 @@ export function refunds(db: Db, clock: () => number) {
     if (r.from === 'credit') {
       const xs = db
         .all(
-          `SELECT u.from_id FROM allocation u WHERE u.from_kind = 'credit' AND u.to_kind = 'refund' AND u.to_id = ? ORDER BY u.rowid`,
+          `SELECT u.from_id FROM allocation u WHERE u.from_kind IN ('credit', 'opening-credit') AND u.to_kind = 'refund' AND u.to_id = ? ORDER BY u.rowid`,
           [r.documentId],
         )
         .map((x) => String(x.from_id));

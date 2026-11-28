@@ -1,12 +1,14 @@
 // Credit (spec sections 6 and 9): money the Business holds for a Customer
 // that is not a Deposit on a Quotation. It comes in as the part of a Payment
-// above what it pays (after the User confirms it), or as a Deposit moved to
-// Credit. Plain TypeScript over the records.
+// above what it pays (after the User confirms it), as a Deposit moved to
+// Credit, or as an Opening balance of Credit held on the Start date. Plain
+// TypeScript over the records.
 //
-// Each piece of Credit is one allocation to the Customer's Credit (a "lot"):
-// from a Payment (an overpayment) or from a Deposit lot (a Deposit moved).
-// Using it is an allocation from that lot (from_kind 'credit'): to an Invoice
-// when applied, to a Refund when paid back. What is left of a lot is its
+// Each piece of Credit is a "lot": an allocation to the Customer's Credit
+// from a Payment (an overpayment) or from a Deposit lot (a Deposit moved); or
+// an Opening balance item of Credit not Cancelled. Using it is an allocation
+// from that lot (from_kind 'credit', or 'opening-credit' with from_id the
+// item): to an Invoice when applied, to a Refund when paid back. What is left of a lot is its
 // amount less its live uses, so every use names the Receipt the money came in on.
 import { postings, type Cents, type PaymentMethod } from '../core';
 import type { Db } from '../db';
@@ -17,8 +19,10 @@ import { LIVE } from './deposits';
 import { issueReceipt } from './receipts';
 
 export type CreditLot = {
-  /** The allocation that brought the Credit in. */
+  /** The allocation that brought the Credit in, or the Opening balance item. */
   id: string;
+  /** Where its uses come from: an allocation lot ('credit') or an Opening balance item ('opening-credit'). */
+  useKind: 'credit' | 'opening-credit';
   /** The money Receipt the money came in on; null for Credit from an Opening balance. */
   receiptNumber: string | null;
   /** The day the money came in: its Date received, or the Start date. */
@@ -31,8 +35,40 @@ export type CreditLot = {
   left: Cents;
 };
 
-/** The Credit a Customer has had, oldest first, with what is left of each. */
+/** The Credit a Customer has had, oldest first (the Start date first), with what is left of each. */
 export function creditLots(db: Db, customerId: string): CreditLot[] {
+  return [...openingLots(db, customerId), ...moneyLots(db, customerId)];
+}
+
+const hasOpening = (db: Db) => db.get("SELECT 1 AS x FROM sqlite_schema WHERE type = 'table' AND name = 'opening_balance_item'") !== undefined;
+
+/** Opening balance items of Credit, not Cancelled, dated at the Start date. */
+function openingLots(db: Db, customerId: string): CreditLot[] {
+  if (!hasOpening(db)) return [];
+  return db
+    .all(
+      `SELECT o.id, o.amount,
+         (SELECT e.accounting_date FROM journal_entry e WHERE e.source_kind = 'opening-balance' AND e.source_id = o.id
+           AND e.reverses_id IS NULL ORDER BY e.rowid LIMIT 1) AS dated,
+         (SELECT coalesce(sum(u.amount), 0) FROM allocation u WHERE u.from_kind = 'opening-credit' AND u.from_id = o.id AND ${LIVE('u')}) AS used
+       FROM opening_balance_item o
+       WHERE o.customer_id = ? AND o.kind = 'credit' AND o.cancelled_on IS NULL
+       ORDER BY o.rowid`,
+      [customerId],
+    )
+    .map((r) => ({
+      id: String(r.id),
+      useKind: 'opening-credit' as const,
+      receiptNumber: null,
+      dateReceived: String(r.dated),
+      heldFrom: String(r.dated),
+      method: null,
+      amount: Number(r.amount),
+      left: Number(r.amount) - Number(r.used),
+    }));
+}
+
+function moneyLots(db: Db, customerId: string): CreditLot[] {
   return db
     .all(
       `SELECT a.id, a.amount, e.accounting_date, d.printed_number,
@@ -51,6 +87,7 @@ export function creditLots(db: Db, customerId: string): CreditLot[] {
     )
     .map((r) => ({
       id: String(r.id),
+      useKind: 'credit' as const,
       receiptNumber: r.printed_number == null ? null : String(r.printed_number),
       dateReceived: String(r.received),
       heldFrom: String(r.accounting_date),
@@ -90,7 +127,7 @@ export function useCredit(
   for (const { lot, take } of creditTaken(db, customerId, amount)) {
     db.insert('allocation', {
       journal_entry_id: to.entryId,
-      from_kind: 'credit',
+      from_kind: lot.useKind,
       from_id: lot.id,
       to_kind: to.kind,
       to_id: to.id,
@@ -141,7 +178,8 @@ export function appliesCredit(db: Db, receiptId: string): boolean {
   return (
     db.get(
       `SELECT 1 AS x FROM allocation a JOIN journal_entry e ON e.id = a.journal_entry_id
-       WHERE a.from_kind = 'credit' AND e.source_kind = 'receipt' AND e.source_id = ? LIMIT 1`,
+       WHERE (a.from_kind = 'credit' OR (a.from_kind = 'opening-credit' AND a.to_kind = 'invoice'))
+         AND e.source_kind = 'receipt' AND e.source_id = ? LIMIT 1`,
       [receiptId],
     ) !== undefined
   );
@@ -153,7 +191,7 @@ export function creditFrom(db: Db, documentId: string, toKind: 'invoice' | 'refu
     db
       .all(
         `SELECT a.from_id FROM allocation a JOIN journal_entry e ON e.id = a.journal_entry_id
-         WHERE a.from_kind = 'credit' AND a.to_kind = ? AND e.source_id = ?`,
+         WHERE a.from_kind IN ('credit', 'opening-credit') AND a.to_kind = ? AND e.source_id = ?`,
         [toKind, documentId],
       )
       .map((r) => String(r.from_id)),

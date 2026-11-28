@@ -189,12 +189,12 @@ export function depositsAppliedTo(
     .all(
       `SELECT d.printed_number, a.from_kind, sum(a.amount) AS amount FROM allocation a
        JOIN journal_entry e ON e.id = a.journal_entry_id JOIN document d ON d.id = e.source_id
-       WHERE a.to_kind = 'invoice' AND a.to_id = ? AND a.from_kind IN ('deposit', 'credit') AND ${LIVE('a')}
-       GROUP BY d.id, a.from_kind ORDER BY d.number`,
+       WHERE a.to_kind = 'invoice' AND a.to_id = ? AND a.from_kind IN ('deposit', 'credit', 'opening-credit') AND ${LIVE('a')}
+       GROUP BY d.id, a.from_kind = 'deposit' ORDER BY d.number`,
       [invoiceId],
     )
     .map((r) => {
-      const kind = r.from_kind === 'credit' ? ('credit' as const) : ('deposit' as const);
+      const kind = r.from_kind === 'deposit' ? ('deposit' as const) : ('credit' as const);
       const receiptNumber = String(r.printed_number);
       return {
         receiptNumber,
