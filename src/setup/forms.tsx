@@ -10,6 +10,7 @@ import { BRAND_COLOURS, PAPER, parseColour, textColourFor } from './colour';
 import { dateFromParts, longDate, MONTHS, todayAt, type PlainDate } from './dates';
 import { fileText, fileUri, keepSignature, pickPicture } from './files';
 import { PERIOD_CHOICES, periodLabel, type PeriodSetting } from './period';
+import { SalesBeforeStartForm, saveSalesTexts, salesTexts } from '../opening/screens/OpeningParts';
 import { SignaturePad } from './SignaturePad';
 import {
   businessDetails,
@@ -60,6 +61,8 @@ export function useSetupForm(db: Db) {
     return { day: String(Number(d)), month: String(Number(m)), year: y! };
   });
   const [period, setPeriod] = useState<PeriodSetting>(() => pendingPeriod(db, today())?.setting ?? periodSetting(db, today()));
+  // The 12 months before the Start date; read again when the Start date moves.
+  const [sales, setSales] = useState<Record<string, string>>(() => salesTexts(db));
   const [errors, setErrors] = useState<Errors>({});
 
   const edit = (change: Partial<BusinessDetails>) => setBusiness((b) => ({ ...b, ...change }));
@@ -110,7 +113,13 @@ export function useSetupForm(db: Db) {
         setErrors({ start: message(e) });
         return false;
       }
+      setSales(salesTexts(db));
       return true;
+    }
+    if (step === 'presales') {
+      const found = saveSalesTexts(db, sales);
+      setErrors(found);
+      return Object.keys(found).length === 0;
     }
     if (step === 'period') {
       try {
@@ -124,7 +133,7 @@ export function useSetupForm(db: Db) {
     return true;
   }
 
-  return { db, business, edit, numbers, setNumbers, start, setStart, period, setPeriod, errors, setErrors, commit };
+  return { db, business, edit, numbers, setNumbers, start, setStart, period, setPeriod, sales, setSales, errors, setErrors, commit };
 }
 
 export type SetupForm = ReturnType<typeof useSetupForm>;
@@ -438,6 +447,17 @@ export function StartForm({ form }: { form: SetupForm }) {
       <Text style={[parts.body, { color: c.fg }]}>{date ? longDate(date) : ' '}</Text>
       <FormError text={errors.start} />
     </>
+  );
+}
+
+/** Sales in each of the 12 months before the Start date, for the VAT warning only. */
+export function SalesForm({ form }: { form: SetupForm }) {
+  return (
+    <SalesBeforeStartForm
+      texts={form.sales}
+      problems={form.errors}
+      onChange={(month, text) => form.setSales((x) => ({ ...x, [month]: text }))}
+    />
   );
 }
 

@@ -1,10 +1,9 @@
 // The steps of the setup wizard, in order, each with its one question. The
-// Opening balances and sales-before-the-Start-date steps (spec section 4) are
-// added by the Opening balances ticket, between the Accounting period and the
-// App lock.
+// Opening balances and sales-before-the-Start-date steps (spec section 4) can
+// be skipped, and reached later from Settings.
 import { problemsWith, type BusinessDetails, type BusinessProblems } from './store';
 
-export type StepId = 'business' | 'contact' | 'look' | 'payment' | 'signature' | 'numbers' | 'start' | 'period' | 'lock';
+export type StepId = 'business' | 'contact' | 'look' | 'payment' | 'signature' | 'numbers' | 'start' | 'period' | 'opening' | 'presales' | 'lock';
 export type WizardStep = { id: StepId; question: string };
 
 const ALL: readonly WizardStep[] = [
@@ -16,6 +15,8 @@ const ALL: readonly WizardStep[] = [
   { id: 'numbers', question: 'Where should your Document numbers start?' },
   { id: 'start', question: 'When do your records in Mhizha start?' },
   { id: 'period', question: 'How often do you want to review your records?' },
+  { id: 'opening', question: 'Did customers owe you money on your Start date?' },
+  { id: 'presales', question: 'What were your sales before your Start date?' },
   { id: 'lock', question: "Lock Mhizha with your phone's lock?" },
 ];
 

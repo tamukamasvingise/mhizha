@@ -21,6 +21,18 @@ export interface World {
   held: Readonly<Record<string, Held>>;
   /** Credit held that came in as an Opening balance, not as money received. */
   openingCredit: Cents;
+  /** Opening balance items of Credit held, as ticket 14's events record them. */
+  openingCredits?: readonly OpeningCreditRecord[];
+}
+
+export interface OpeningCreditRecord {
+  id: string;
+  customerId: string;
+  amount: Cents;
+  /** What has been made a Quotation's Deposit. */
+  madeDeposit: Cents;
+  active: boolean;
+  entryId: string;
 }
 
 export interface Held {

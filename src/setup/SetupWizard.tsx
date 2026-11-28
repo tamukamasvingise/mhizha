@@ -15,11 +15,13 @@ import {
   NumbersForm,
   PaymentForm,
   PeriodForm,
+  SalesForm,
   SignatureForm,
   StartForm,
   useSetupForm,
   type SetupForm,
 } from './forms';
+import { OpeningBalancesForm } from '../opening/screens/OpeningParts';
 import { phoneHasLock, unlockWithPhone } from './lock';
 import { finishSetup, setAppLock, SetupError } from './store';
 import { wizardSteps, type StepId } from './wizard';
@@ -37,6 +39,10 @@ const LEADS: Record<StepId, string> = {
   start:
     'The day you start keeping your records in Mhizha. Today, or an earlier day. What customers owed you on this day are your opening balances.',
   period: 'Mhizha asks you to look over your records at the end of each period.',
+  opening:
+    'On your Start date, did any customer owe you money, or had you taken money from one for work not yet done? Add each one from your old records. You can skip this, and add them later from the Customer.',
+  presales:
+    "Optional. Your sales in each of the 12 months before your Start date. Mhizha uses them only to warn you as you near the VAT limit. Leave a month empty if you don't know.",
   lock: "So someone holding your phone cannot open your customers and money. Mhizha uses your phone's own lock: fingerprint, face, PIN, pattern or password. You can change this in Settings.",
 };
 
@@ -58,6 +64,10 @@ function StepBody({ id, form }: { id: StepId; form: SetupForm }): ReactNode {
       return <StartForm form={form} />;
     case 'period':
       return <PeriodForm form={form} />;
+    case 'opening':
+      return <OpeningBalancesForm />;
+    case 'presales':
+      return <SalesForm form={form} />;
     case 'lock':
       return null;
   }

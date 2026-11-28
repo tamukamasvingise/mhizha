@@ -273,6 +273,9 @@ export function startDate(db: Db): PlainDate {
 export function setStartDate(db: Db, date: PlainDate, today: PlainDate): void {
   if (date > today) throw new SetupError('The Start date cannot be later than today.');
   const row = requireSetup(db);
+  // Opening balances are dated at the Start date and their entries never change.
+  if (date !== String(row.start_date) && db.get('SELECT 1 AS x FROM opening_balance_item WHERE cancelled_on IS NULL LIMIT 1'))
+    throw new SetupError('Your opening balances are dated on the Start date, so it can no longer change. Cancel them first to change it.');
   db.transaction(() => {
     db.update('setup', String(row.id), { start_date: date });
     // During setup the first Accounting period setting moves with the Start date.

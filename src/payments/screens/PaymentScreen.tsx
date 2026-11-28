@@ -104,7 +104,10 @@ function PaymentForm({ customerId, quotationId, nav }: { customerId: string; quo
       id: o.id,
       kind: 'invoice',
       title: o.number,
-      subtitle: `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`,
+      subtitle:
+        o.kind === 'opening'
+          ? [o.jobTitle, o.oldDate ? shortDate(o.oldDate) : '', `${formatUsd(o.owed)} owed`].filter(Boolean).join(' · ')
+          : `${o.jobTitle} · due ${shortDate(o.dueDate)} · ${formatUsd(o.owed)} owed`,
       owed: o.owed,
       suggested: o.owed,
       overdue: o.status === 'overdue',
@@ -468,7 +471,7 @@ function CheckPayment({
               <Row
                 key={id}
                 first={i === 0}
-                title={`${o.title} · ${o.jobTitle}`}
+                title={o.jobTitle ? `${o.title} · ${o.jobTitle}` : o.title}
                 subtitle={
                   o.kind === 'deposit'
                     ? 'Held as a Deposit until the Invoice'

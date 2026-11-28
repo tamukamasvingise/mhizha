@@ -52,6 +52,11 @@ export const postings = {
     return [debit(ACCOUNT.depositsHeld, amount, customerId), credit(ACCOUNT.creditHeld, amount, customerId)];
   },
 
+  /** Credit made a Quotation's Deposit (an opening Credit on a re-created Quotation): debit Credit held, credit Deposits held. */
+  creditToDeposit({ customerId, amount }: { customerId: string; amount: Cents }): EntryLine[] {
+    return [debit(ACCOUNT.creditHeld, amount, customerId), credit(ACCOUNT.depositsHeld, amount, customerId)];
+  },
+
   /** Refund: debit what is held, credit the money account it was paid from. */
   refund(r: { customerId: string; from: Held; method: PaymentMethod; amount: Cents }): EntryLine[] {
     return [debit(HELD[r.from], r.amount, r.customerId), credit(moneyAccountFor(r.method), r.amount)];

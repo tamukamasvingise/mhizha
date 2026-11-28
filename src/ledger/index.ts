@@ -2,7 +2,7 @@
 // through `postEntry`, inside the same save as its Document: the core checks
 // the entry against the whole journal, then it is written. Entries are never
 // changed or deleted; the database refuses both.
-import { ACCOUNT, post, type AccountCode, type Cents, type Entry, type EntryInput, type Journal } from '../core';
+import { ACCOUNT, post, reverse, type AccountCode, type Cents, type Entry, type EntryInput, type Journal } from '../core';
 import type { Db } from '../db';
 import { TIME_ZONE } from '../setup/dates';
 
@@ -53,6 +53,45 @@ export function postEntry(db: Db, input: Omit<EntryInput, 'id'> & { reason?: str
     // The core refuses an entry that does not balance or takes a balance below nothing.
     post(readJournal(db).filter((e) => e.id !== id), { ...input, id });
     for (const l of input.lines) {
+      db.insert('journal_line', {
+        journal_entry_id: id,
+        account_code: l.account,
+        customer_id: l.customerId ?? null,
+        debit: l.side === 'debit' ? l.amount : 0,
+        credit: l.side === 'credit' ? l.amount : 0,
+      });
+    }
+    return id;
+  });
+}
+
+/**
+ * Puts an entry right by posting its exact reverse, dated the day of the
+ * correction, with the reason. The original stays. Throws LedgerError, saving
+ * nothing, if the core refuses it (already reversed, or its money is used).
+ * Call it inside the transaction of the correction. Returns the new entry's id.
+ */
+export function reverseEntry(
+  db: Db,
+  entryId: string,
+  correction: { accountingDate: string; recordedAt: string; reason: string },
+): string {
+  return db.transaction(() => {
+    const before = readJournal(db);
+    const original = before.find((e) => e.id === entryId);
+    if (!original) throw new Error(`No journal entry ${entryId}`);
+    // The core refuses a second reverse, or one that takes a balance below nothing.
+    const lines = reverse(before, entryId, { id: 'correction', ...correction }).at(-1)!.lines;
+    const id = db.insert('journal_entry', {
+      accounting_date: correction.accountingDate,
+      recorded_at: correction.recordedAt,
+      time_zone: TIME_ZONE,
+      source_kind: original.source.kind,
+      source_id: original.source.id,
+      reason: correction.reason,
+      reverses_id: entryId,
+    });
+    for (const l of lines) {
       db.insert('journal_line', {
         journal_entry_id: id,
         account_code: l.account,

@@ -55,7 +55,7 @@ export const tabs: readonly Tab[] = [
 export const newChoices = ['Quotation', 'Invoice', 'Payment', 'Customer'] as const;
 
 /** The setup pages reached from Settings. */
-export type SettingsPage = 'business' | 'numbers' | 'start' | 'period';
+export type SettingsPage = 'business' | 'numbers' | 'start' | 'period' | 'opening' | 'presales';
 
 /** A screen opened over a tab, with a back button and no tabs or New button. */
 export type Sub =

@@ -58,6 +58,13 @@ describe("postings for each money event", () => {
     expect(customerBalances(j, c)).toEqual({ owes: 0, depositsHeld: 0, creditHeld: 5000 });
   });
 
+  it("Credit made a Quotation's Deposit: debit Credit held, credit Deposits held", () => {
+    let j = postLines(emptyJournal, postings.openingCredit({ customerId: c, amount: 5000 }));
+    j = postLines(j, postings.creditToDeposit({ customerId: c, amount: 3000 }));
+    expect(customerBalances(j, c)).toEqual({ owes: 0, depositsHeld: 3000, creditHeld: 2000 });
+    expect(() => postLines(j, postings.creditToDeposit({ customerId: c, amount: 2001 }))).toThrow(/Credit held/);
+  });
+
   it("Refund: debit what is held, credit the money account", () => {
     let j = postLines(emptyJournal, postings.payment({ customerId: c, method: "innbucks", toCredit: 5000 }));
     j = postLines(j, postings.refund({ customerId: c, from: "credit", method: "cash", amount: 2000 }));

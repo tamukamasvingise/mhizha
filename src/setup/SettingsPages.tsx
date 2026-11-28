@@ -18,12 +18,15 @@ import {
   NumbersForm,
   PaymentForm,
   PeriodForm,
+  SalesForm,
   SignatureForm,
   StartForm,
   today,
   useSetupForm,
   type SetupForm,
 } from './forms';
+import { openingBalances } from '../opening';
+import { OpeningBalancesForm, salesBlank } from '../opening/screens/OpeningParts';
 import { phoneHasLock, unlockWithPhone } from './lock';
 import { periodLabel } from './period';
 import { appLock, businessDetails, documentCounters, nextNumber, periodSetting, setAppLock, startDate } from './store';
@@ -97,12 +100,23 @@ export function SetupSettings({ onOpen, priceList }: { onOpen: (page: SettingsPa
         {priceList ? <View style={{ borderTopWidth: size.hairline, borderTopColor: c.line }}>{priceList}</View> : null}
         <Row title="Accounting period" sub={periodLabel(periodSetting(db, today()))} onPress={() => onOpen('period')} />
         <Row title="Start date" sub={longDate(startDate(db))} onPress={() => onOpen('start')} />
+        <Row title="Opening balances" sub={openingCount(db)} onPress={() => onOpen('opening')} />
+        <Row
+          title="Sales before your Start date"
+          sub={`${salesBlank(db) ? 'Not entered' : 'Entered'}. Used only for the VAT warning.`}
+          onPress={() => onOpen('presales')}
+        />
       </Section>
       <Section title="This phone">
         <AppLockSwitch />
       </Section>
     </>
   );
+}
+
+function openingCount(db: ReturnType<typeof useDb>): string {
+  const n = openingBalances(db, Date.now).all().length;
+  return n === 0 ? 'None on your Start date' : n === 1 ? '1 on your Start date' : `${n} on your Start date`;
 }
 
 function AppLockSwitch() {
@@ -154,6 +168,8 @@ const TITLES: Record<SettingsPage, string> = {
   numbers: 'Document numbers',
   start: 'Start date',
   period: 'Accounting period',
+  opening: 'Opening balances',
+  presales: 'Sales before your Start date',
 };
 
 const PAGE_LEADS: Record<SettingsPage, string> = {
@@ -161,6 +177,10 @@ const PAGE_LEADS: Record<SettingsPage, string> = {
   numbers: 'A number locks once you issue the first Document of that kind.',
   start: 'The day you started keeping your records in Mhizha.',
   period: 'Mhizha asks you to look over your records at the end of each period.',
+  opening:
+    'Money customers owed you, or you held for them, on your Start date, from your old records. They are always dated on your Start date. You can also add them from the Customer.',
+  presales:
+    "Your sales in each of the 12 months before your Start date. Mhizha uses them only to warn you as you near the VAT limit. Leave a month empty if you don't know.",
 };
 
 function PageBody({ page, form }: { page: SettingsPage; form: SetupForm }) {
@@ -182,6 +202,8 @@ function PageBody({ page, form }: { page: SettingsPage; form: SetupForm }) {
     );
   if (page === 'numbers') return <NumbersForm form={form} />;
   if (page === 'start') return <StartForm form={form} />;
+  if (page === 'opening') return <OpeningBalancesForm />;
+  if (page === 'presales') return <SalesForm form={form} />;
   return <PeriodForm form={form} afterSetup />;
 }
 
@@ -212,7 +234,7 @@ export function SettingsPageScreen({ page, onBack }: { page: SettingsPage; onBac
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={local.main}>
           <Lead>{PAGE_LEADS[page]}</Lead>
           <PageBody page={page} form={form} />
-          <Button primary label="Save" onPress={save} />
+          {page === 'opening' ? null : <Button primary label="Save" onPress={save} />}
           <FormError text={form.errors.form ?? (problems ? 'Fix what is marked above, then Save again.' : undefined)} />
           <Text accessibilityLiveRegion="polite" style={[parts.body, { color: c.fg }]}>
             {saved ? '✓ Saved' : ''}

@@ -5,7 +5,8 @@
 # and marks it Done, issues an Invoice step by step, records a part-payment
 # with its Receipt, opens Payment methods, issues a Quotation, takes a Deposit
 # on it and turns it into an Invoice that applies it, keeps an overpayment as
-# Credit and refunds it as REF-0001, opens the problem report,
+# Credit and refunds it as REF-0001, adds an Opening balance from the
+# Customer, opens the problem report,
 # Updates and Help, and the failed-check banner, shows the problem screen, runs
 # the database checks on the real expo-sqlite, and screenshots every screen for
 # the UI review. Usage: launch-check.sh <apk> <results folder>
@@ -180,13 +181,16 @@ walk_setup() {
   hide_keyboard
   capture "$m-setup-business"
   local step
-  for step in contact look payment signature numbers start period; do
+  for step in contact look payment signature numbers start period opening presales; do
     tap Next || { fail "$m: tap Next towards $step"; return; }
     capture "$m-setup-$step"
   done
-  has "$m-setup-period" 'text="Finish"' && pass "$m: the Accounting period is the last step without a screen lock" ||
-    fail "$m: the Accounting period is the last step without a screen lock"
   has "$m-setup-period" 'Every month' && pass "$m: Accounting period offers monthly" || fail "$m: Accounting period offers monthly"
+  has "$m-setup-opening" 'text="Add opening balance"' && pass "$m: setup offers Opening balances" || fail "$m: setup offers Opening balances"
+  has "$m-setup-presales" 'What were your sales before your Start date' && pass "$m: setup asks for sales before the Start date" ||
+    fail "$m: setup asks for sales before the Start date"
+  has "$m-setup-presales" 'text="Finish"' && pass "$m: sales before the Start date is the last step without a screen lock" ||
+    fail "$m: sales before the Start date is the last step without a screen lock"
   tap Finish || fail "$m: tap Finish"
 }
 
@@ -492,6 +496,29 @@ for mode in light dark; do
   if wait_for 'text="Share PDF"' || wait_for 'text="Share PDF"'; then pass "$mode: the Refund PDF is made"; else fail "$mode: the Refund PDF is made"; fi
   capture "$mode-refund-issued"
   back_until 'Customers owe you' 3
+
+  # An Opening balance from the Customer: it is listed, worded as the spec
+  # says, and adds to what they owe.
+  tap Customers && tap 'Test Customer, Main site' || fail "$mode: open the Customer for an Opening balance"
+  to_end
+  tap 'Add opening balance' && capture "$mode-opening-add" || fail "$mode: open Add opening balance"
+  has "$mode-opening-add" 'From your old records' && pass "$mode: Add opening balance opens" || fail "$mode: Add opening balance opens"
+  tap_field 'Old invoice number (optional)' && adb shell input text '1234' || fail "$mode: type the old invoice number"
+  hide_keyboard
+  tap_field 'Amount still owed (US\$)' || { to_end; tap_field 'Amount still owed (US\$)'; } || fail "$mode: find the amount owed"
+  adb shell input text '450'
+  hide_keyboard
+  to_end
+  tap Save || fail "$mode: save the Opening balance"
+  sleep 2
+  to_end
+  capture "$mode-customer-opening"
+  has "$mode-customer-opening" 'Opening balance · invoice 1234 · US\$450\.00 owed' &&
+    pass "$mode: the Customer lists the Opening balance" || fail "$mode: the Customer lists the Opening balance"
+  back_until 'Customers owe you' 4
+  capture "$mode-home-opening"
+  has "$mode-home-opening" 'Customers owe you US\$450\.00' && pass "$mode: the Opening balance adds to what Customers owe" ||
+    fail "$mode: the Opening balance adds to what Customers owe"
 
   # The problem report from Settings.
   # Help sits below the setup pages and About, so scroll to it.
